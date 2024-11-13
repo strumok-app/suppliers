@@ -33,14 +33,16 @@ jobs:
           TAG=$(git ls-remote -t --sort='v:refname' | tail -n1 | sed 's/.*\/v//')
           echo $TAG
           echo "TAG=$TAG" >> $GITHUB_ENV
-      - uses: nttld/setup-ndk@v1
+      - name: Install Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
         with:
           ndk-version: r26c
           add-to-path: false
       - name: Build Android
         if: inputs.android
         run: |
-          echo "Android NDK home: ${ANDROID_NDK_HOME}"
+          echo "Android NDK home: $ANDROID_NDK_HOME"
           make init
           make android
         env:
