@@ -33,13 +33,10 @@ jobs:
           TAG=$(git ls-remote -t --sort='v:refname' | tail -n1 | sed 's/.*\/v//')
           echo $TAG
           echo "TAG=$TAG" >> $GITHUB_ENV
-      - name: Install Android NDK
-        uses: nttld/setup-ndk@v1
+      - uses: nttld/setup-ndk@v1
         with:
           ndk-version: r26c
           add-to-path: false
-      - name: Rust toolchain
-        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - name: Build Android
         if: inputs.android
         run: |
