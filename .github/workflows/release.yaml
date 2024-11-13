@@ -40,7 +40,7 @@ jobs:
       - name: Build Android
         if: inputs.android
         run: |
-          echo "Android NDK home: $ANDROID_NDK_HOME"
+          echo "Android NDK home: ${ANDROID_NDK_HOME}"
           make init
           make android
         env:
