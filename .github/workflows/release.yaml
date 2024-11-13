@@ -99,9 +99,6 @@ jobs:
           path: windows-outputs
       - name: Generate metadata
         run: |
-          TAG=$(git ls-remote -t --sort='v:refname' | tail -n1 | sed 's/.*\/v//')
-          echo $TAG
-
           JSON_DATA=$(cat << EOF
           {
             "name": "libcloud_hook_suppliers",
@@ -116,9 +113,11 @@ jobs:
           }
           EOF
           )
-       
+
+          echo "$JSON_DATA"
           echo "$JSON_DATA" > metadata.json
         env:
+          TAG: ${{github.ref_name}}
           REPOSITORY: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
       - name: Create Release
@@ -126,9 +125,7 @@ jobs:
         with:
           files: |
             metadata.json
-            lib-android-aarch64.so
-            lib-android-armv7.so
-            lib-linux-x86.so
-            lib-win-86.dll
+            android-linux-outputs/*
+            windows-outputs/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
