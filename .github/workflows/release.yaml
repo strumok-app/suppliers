@@ -10,7 +10,7 @@ on:
         description: 'Build Android'
         required: false
         type: boolean
-      linux:`
+      linux:
         description: 'Build Linux'
         required: false
         type: boolean
@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Build for Android and Linux"
     permissions: write-all
-    # if: startsWith(github.ref, 'refs/tags/') || inputs.linux || inputs.android
+    if: startsWith(github.ref, 'refs/tags/') || inputs.linux || inputs.android
     steps:
       - name: Clone Repository
         uses: actions/checkout@v4
