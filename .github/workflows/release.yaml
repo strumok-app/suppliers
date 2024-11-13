@@ -76,7 +76,7 @@ jobs:
       - name: Upload outputs
         uses: actions/upload-artifact@v4
         with:
-          name: android-linux-outputs
+          name: windows-outputs
           path: output
           retention-days: 7
 
