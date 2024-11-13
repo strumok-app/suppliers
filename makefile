@@ -24,15 +24,16 @@ help: makefile
 	@sed -n 's/^##//p' $< | column -t -s ':' |  sed -e 's/^/ /'
 	@echo
 
-## init: Install missing dependencies.
-.PHONY: init
-init:
-	# rustup target add aarch64-apple-ios x86_64-apple-ios
-	# rustup target add aarch64-apple-darwin x86_64-apple-darwin
+# rustup target add aarch64-apple-ios x86_64-apple-ios
+# rustup target add aarch64-apple-darwin x86_64-apple-darwin
+# rustup target add i686-linux-android x86_64-linux-android
+# @if [ $$(uname) == "Darwin" ] ; then cargo install cargo-lipo ; fi
+# cargo install cbindgen
+
+## android-init: Install missing dependencies.
+.PHONY: android-init
+android-init:
 	rustup target add aarch64-linux-android armv7-linux-androideabi 
-	# rustup target add i686-linux-android x86_64-linux-android
-	# @if [ $$(uname) == "Darwin" ] ; then cargo install cargo-lipo ; fi
-	# cargo install cbindgen
 
 ## :
 
@@ -71,7 +72,10 @@ all: android linux
 # 	@echo "[DONE] $@"
 
 ## android: Compile the android targets (arm64, armv7 and i686)
-android: target/aarch64-linux-android/release target/armv7-linux-androideabi/release #target/i686-linux-android/release target/x86_64-linux-android/release
+android: android-init target/aarch64-linux-android/release target/armv7-linux-androideabi/release #target/i686-linux-android/release target/x86_64-linux-android/release
+
+## linux: Compile Linux
+linux: target/x86_64-unknown-linux-gnu/release
 
 target/aarch64-linux-android/release: $(SOURCES) ndk-home
 	CC_aarch64_linux_android=$(ANDROID_AARCH64_LINKER) \
@@ -97,8 +101,9 @@ target/armv7-linux-androideabi/release: $(SOURCES) ndk-home
 # 		cargo build --target x86_64-linux-android --release
 # 	@echo "[DONE] $@"
 
-## linux: Compile Linux
-linux: target/x86_64-unknown-linux-gnu/release
+target/x86_64-unknown-linux-gnu/release: 
+	cargo  build --target x86_64-unknown-linux-gnu --release
+	@echo "[DONE] $@"
 		
 .PHONY: ndk-home
 ndk-home:
