@@ -71,6 +71,7 @@ jobs:
       - name: Prepare artifacts
         run: |
           mkdir output
+          ls target/x86_64-pc-windows-msvc/release/
           mv target/x86_64-pc-windows-msvc/release/libcloud_hook_suppliers.dll output/lib-win-86.dll
         shell: bash
       - name: Upload outputs
