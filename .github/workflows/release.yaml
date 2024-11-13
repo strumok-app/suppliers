@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      android:
+        description: 'Build Android'
+        required: false
+        type: boolean
+      linux:
+        description: 'Build Linux'
+        required: false
+        type: boolean
+      windows:
+        description: 'Build Windows'
+        required: false
+        type: boolean
+
+jobs:
+  build-for-android:
+    runs-on: ubuntu-latest
+    name: "Build for Android"
+    permissions: write-all
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Clone Repository
+        uses: actions/checkout@v4
+      - name: Extract tag name
+        run: |
+          TAG=$(git ls-remote -t --sort='v:refname' | tail -n1 | sed 's/.*\/v//')
+          echo $TAG
+          echo "TAG=$TAG" >> $GITHUB_ENV
+      - name: Install Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26c
+          add-to-path: false
+      - name: Rust toolchain
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - name: Build Android
+        if: inputs.android
+        run: |
+          make init
+          make android
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      
