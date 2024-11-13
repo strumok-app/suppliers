@@ -1,0 +1,25 @@
+[package]
+name = "cloud_hook_suppliers"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+opt-level = 'z' 
+#lto = true
+codegen-units = 1
+strip = true
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+suppliers = { path = "./suppliers" } 
+tokio = { version = "1", features = ["rt-multi-thread"] }
+flatbuffers = "24.3.25"
+strum = "0.26"
+strum_macros = "0.26"
+lazy_static = "1.5.0"
+serde_json = "1.0.132"
+serde = "1.0.214"
+
+

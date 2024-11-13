@@ -1,0 +1,27 @@
+[package]
+name = "suppliers"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.reqwest]
+version = "0.12.9"
+default-features = false
+features = [
+    "charset",
+    "http2",
+    "rustls-tls",
+    "rustls-tls-native-roots",
+    # Compression
+    "brotli",
+    "gzip",
+]
+
+[dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
+strum = "0.26"
+strum_macros = "0.26"
+enum_dispatch = "0.3.13"
+scraper = "0.21.0"
+regex = "1.11.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
