@@ -20,7 +20,7 @@ on:
         type: boolean
 
 jobs:
-  build-for-android:
+  build-for-android-and-linux:
     runs-on: ubuntu-latest
     name: "Build for Android and Linux"
     permissions: write-all
@@ -44,10 +44,22 @@ jobs:
       - name: Build Linux x86
         if: inputs.linux
         run: make linux
+      - name: Prepare artifacts
+        run: |
+          mkdir output
+          mv target/aarch64-linux-android/release/libcloud_hook_suppliers.so output/lib-android-aarch64.so
+          mv target/armv7-linux-androideabi/release/libcloud_hook_suppliers.so output/lib-android-armv7.so
+          mv target/x86_64-unknown-linux-gnu/release/libcloud_hook_suppliers.so output/lib-linux-x86.so
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-linux-outputs
+          path: output
+          retention-days: 7
 
   build-for-windows:
     runs-on: windows-latest
-    name: "Buid for Windows"
+    name: "Build for Windows"
     permissions: write-all
     if: startsWith(github.ref, 'refs/tags/') || inputs.windows
     steps:
@@ -56,3 +68,67 @@ jobs:
       - name: Build for Windows x86
         run: cargo build --target x86_64-pc-windows-msvc --release
         shell: bash
+      - name: Prepare artifacts
+        run: |
+          mkdir output
+          mv target/x86_64-pc-windows-msvc/release/libcloud_hook_suppliers.dll output/lib-win-86.dll
+        shell: bash
+      - name: Upload outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-linux-outputs
+          path: output
+          retention-days: 7
+
+  release:
+    runs-on: ubuntu-latest
+    name: "Release"
+    permissions: write-all
+    needs: [build-for-android-and-linux, build-for-windows]
+    # if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-linux-outputs
+          path: android-linux-outputs
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-outputs
+          path: windows-outputs
+      - name: Generate metadata
+        run: |
+          TAG=$(git ls-remote -t --sort='v:refname' | tail -n1 | sed 's/.*\/v//')
+          echo $TAG
+
+          JSON_DATA=$(cat << EOF
+          {
+            "name": "libcloud_hook_suppliers",
+            "version": "$TAG",
+            "metadataUrl": "${SERVER_URL}/${REPOSITORY}/releases/download/latest/metadata.json",
+            "downloadUrl": {
+                "linux": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-linux-x86.so",
+                "windows": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-win-86.dll",
+                "arm64-v8a": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-android-aarch64.so",
+                "armeabi-v7a": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-android-armv7.so"
+            }
+          }
+          EOF
+          )
+       
+          echo "$JSON_DATA" > metadata.json
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            metadata.json
+            lib-android-aarch64.so
+            lib-android-armv7.so
+            lib-linux-x86.so
+            lib-win-86.dll
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
