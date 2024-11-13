@@ -103,7 +103,7 @@ jobs:
           {
             "name": "libcloud_hook_suppliers",
             "version": "$TAG",
-            "metadataUrl": "${SERVER_URL}/${REPOSITORY}/releases/download/latest/metadata.json",
+            "metadataUrl": "${SERVER_URL}/${REPOSITORY}/releases/latest/download/metadata.json",
             "downloadUrl": {
                 "linux": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-linux-x86.so",
                 "windows": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-win-86.dll",
