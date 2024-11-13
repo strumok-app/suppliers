@@ -35,14 +35,14 @@ jobs:
           ndk-version: r26c
           add-to-path: false
       - name: Build Android
-        if: inputs.android
+        if: startsWith(github.ref, 'refs/tags/') || inputs.android
         run: |
           echo "Android NDK home: $ANDROID_NDK_HOME"
           make android
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Build Linux x86
-        if: inputs.linux
+        if: startsWith(github.ref, 'refs/tags/') || inputs.linux
         run: make linux
       - name: Prepare artifacts
         run: |
