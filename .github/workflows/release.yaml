@@ -101,7 +101,7 @@ jobs:
         run: |
           JSON_DATA=$(cat << EOF
           {
-            "name": "libcloud_hook_suppliers",
+            "name": "cloud_hook_suppliers",
             "version": "$TAG",
             "metadataUrl": "${SERVER_URL}/${REPOSITORY}/releases/latest/download/metadata.json",
             "downloadUrl": {
