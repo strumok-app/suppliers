@@ -32,7 +32,7 @@ jobs:
         uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
-          ndk-version: r26c
+          ndk-version: r27b
           add-to-path: false
       - name: Build Android
         if: startsWith(github.ref, 'refs/tags/') || inputs.android

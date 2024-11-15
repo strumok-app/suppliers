@@ -1,3 +1,4 @@
+pub mod html;
 pub mod datalife;
 pub mod playerjs;
 

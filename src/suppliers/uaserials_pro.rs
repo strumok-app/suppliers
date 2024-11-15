@@ -1,17 +1,21 @@
-use std::{error::Error, sync::OnceLock};
+use std::sync::OnceLock;
 
 use scraper::Html;
+use anyhow::anyhow;
 
 use crate::{
-    html::{self, DOMProcessor},
     models::{
-        ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentSupplier,
-        ContentType, MediaType,
+        ContentDetails, 
+        ContentInfo, 
+        ContentMediaItem, 
+        ContentMediaItemSource, 
+        ContentType, 
+        MediaType,
     },
-    utils::{self, datalife},
 };
 
-pub const NAME: &str = "UaserialsPro";
+use super::{utils::{self, datalife, html::{self, DOMProcessor}}, ContentSupplier};
+
 const URL: &str = "https://uaserials.pro";
 
 pub struct UaserialsProContentSupplier;
@@ -84,23 +88,23 @@ impl UaserialsProContentSupplier {
         })
     }
 
-    fn get_channel_url(channel: &str, page: u32) -> Result<String, Box<dyn Error>> {
+    fn get_channel_url(channel: &str, page: u16) -> anyhow::Result<String> {
         match channel {
             "Фільми" => Ok(format!("{URL}/films/page/{page}")),
             "Серіали" => Ok(format!("{URL}/series/page/{page}")),
             "Мультфільми" => Ok(format!("{URL}/fcartoon/page/{page}")),
             "Мультсеріали" => Ok(format!("{URL}/cartoon/page/{page}")),
-            _ => Err("unkown channel".into()),
+            _ => Err(anyhow!("unkown channel")),
         }
     }
 }
 
 impl ContentSupplier for UaserialsProContentSupplier {
-    fn get_channels(&self) -> Vec<&str> {
-        vec!["Фільми", "Серіали", "Мультфільми", "Мультсеріали"]
+    fn get_channels(&self) -> Vec<String> {
+        vec!["Фільми".into(), "Серіали".into(), "Мультфільми".into(), "Мультсеріали".into()]
     }
 
-    fn get_default_channels(&self) -> Vec<&str> {
+    fn get_default_channels(&self) -> Vec<String> {
         vec![]
     }
 
@@ -113,16 +117,16 @@ impl ContentSupplier for UaserialsProContentSupplier {
         ]
     }
 
-    fn get_supported_languages(&self) -> Vec<&str> {
-        vec!["uk"]
+    fn get_supported_languages(&self) -> Vec<String> {
+        vec!["uk".into()]
     }
 
     async fn load_channel(
         &self,
-        channel: &str,
-        page: u32,
-    ) -> Result<Vec<ContentInfo>, Box<dyn Error>> {
-        let url = UaserialsProContentSupplier::get_channel_url(channel, page)?;
+        channel: String,
+        page: u16,
+    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+        let url = UaserialsProContentSupplier::get_channel_url(&channel, page)?;
 
         let html = utils::create_client()
             .get(&url)
@@ -140,10 +144,10 @@ impl ContentSupplier for UaserialsProContentSupplier {
 
     async fn search(
         &self,
-        query: &str,
-        _types: Vec<ContentType>,
-    ) -> Result<Vec<ContentInfo>, Box<dyn Error>> {
-        let html = datalife::search_request(URL, query)
+        query: String,
+        _types: Vec<String>,
+    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+        let html = datalife::search_request(URL, &query)
             .send()
             .await?
             .text()
@@ -158,8 +162,8 @@ impl ContentSupplier for UaserialsProContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: &str,
-    ) -> Result<Option<ContentDetails>, Box<dyn Error>> {
+        id: String,
+    ) -> Result<Option<ContentDetails>, anyhow::Error> {
         let url = format!("{URL}/{id}.html");
 
         let html = utils::create_client()
@@ -178,17 +182,17 @@ impl ContentSupplier for UaserialsProContentSupplier {
 
     async fn load_media_items(
         &self,
-        _id: &str,
+        _id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, Box<dyn Error>> {
+    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
         utils::playerjs::load_and_parse_playerjs(&params[0]).await
     }
 
     async fn load_media_item_sources(
         &self,
-        _id: &str,
+        _id: String,
         _params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, Box<dyn Error>> {
+    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
         unimplemented!()
     }
 }

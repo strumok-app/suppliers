@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, error::Error, sync::OnceLock};
+use std::{collections::BTreeMap, sync::OnceLock};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -18,7 +18,7 @@ pub struct PlayerJSFile {
 
 pub async fn load_and_parse_playerjs(
     url: &String,
-) -> Result<Vec<ContentMediaItem>, Box<dyn Error>> {
+) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
     let client = super::create_client();
 
     let html = client.get(url).send().await?.text().await?;

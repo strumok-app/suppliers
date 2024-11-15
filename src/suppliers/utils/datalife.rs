@@ -1,7 +1,7 @@
 
 use reqwest::{self, RequestBuilder};
 
-pub fn search_request(url: &str, query: &str) -> RequestBuilder {
+pub fn search_request(url: &str, query: &String) -> RequestBuilder {
     let client =  super::create_client();
 
     client.post(format!("{}/index.php", url))
