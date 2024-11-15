@@ -99,10 +99,11 @@ jobs:
           path: windows-outputs
       - name: Generate metadata
         run: |
+          VERSION = echo $TAG | sed 's/.*\/v//'
           JSON_DATA=$(cat << EOF
           {
             "name": "cloud_hook_suppliers",
-            "version": "$TAG",
+            "version": "$VERSION",
             "metadataUrl": "${SERVER_URL}/${REPOSITORY}/releases/latest/download/metadata.json",
             "downloadUrl": {
                 "linux": "${SERVER_URL}/${REPOSITORY}/releases/download/${TAG}/lib-linux-x86.so",
