@@ -47,9 +47,9 @@ jobs:
       - name: Prepare artifacts
         run: |
           mkdir output
-          mv target/aarch64-linux-android/release/libcloud_hook_suppliers.so output/lib-android-aarch64.so
-          mv target/armv7-linux-androideabi/release/libcloud_hook_suppliers.so output/lib-android-armv7.so
-          mv target/x86_64-unknown-linux-gnu/release/libcloud_hook_suppliers.so output/lib-linux-x86.so
+          mv target/aarch64-linux-android/release/libstrumok_suppliers.so output/lib-android-aarch64.so
+          mv target/armv7-linux-androideabi/release/libstrumok_suppliers.so output/lib-android-armv7.so
+          mv target/x86_64-unknown-linux-gnu/release/libstrumok_suppliers.so output/lib-linux-x86.so
       - name: Upload outputs
         uses: actions/upload-artifact@v4
         with:
@@ -71,7 +71,7 @@ jobs:
       - name: Prepare artifacts
         run: |
           mkdir output
-          mv target/x86_64-pc-windows-msvc/release/cloud_hook_suppliers.dll output/lib-win-86.dll
+          mv target/x86_64-pc-windows-msvc/release/strumok_suppliers.dll output/lib-win-86.dll
         shell: bash
       - name: Upload outputs
         uses: actions/upload-artifact@v4
@@ -101,7 +101,7 @@ jobs:
         run: |
           JSON_DATA=$(cat << EOF
           {
-            "name": "cloud_hook_suppliers",
+            "name": "strumok_suppliers",
             "version": "$TAG",
             "metadataUrl": "${SERVER_URL}/${REPOSITORY}/releases/latest/download/metadata.json",
             "downloadUrl": {
