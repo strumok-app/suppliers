@@ -2,11 +2,18 @@
 
 mod tests;
 mod utils;
+
+// suppliers
+mod animeua;
 mod uaserials_pro; 
+mod uafilms;
+
+
+use animeua::AnimeUAContentSupplier;
+use uafilms::UAFilmsContentSupplier;
+use uaserials_pro::UaserialsProContentSupplier;
 
 use std::str::FromStr;
-
-use uaserials_pro::UaserialsProContentSupplier;
 use enum_dispatch::enum_dispatch;
 use strum::VariantNames;
 use strum_macros::{EnumIter, EnumString, VariantNames};
@@ -50,7 +57,11 @@ pub trait ContentSupplier {
 #[derive(EnumIter, EnumString, VariantNames)]
 pub enum AllContentSuppliers {
     #[strum(serialize="UaserialsPro")]
-    UaserialsProContentSupplier
+    UaserialsProContentSupplier,
+    #[strum(serialize="UAFilms")]
+    UAFilmsContentSupplier,
+    #[strum(serialize="AnimeUA")]
+    AnimeUAContentSupplier
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {

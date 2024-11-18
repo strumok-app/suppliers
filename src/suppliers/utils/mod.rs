@@ -1,5 +1,5 @@
-pub mod html;
 pub mod datalife;
+pub mod html;
 pub mod playerjs;
 
 use std::time::Duration;
@@ -26,6 +26,18 @@ pub fn create_client() -> reqwest::Client {
         .default_headers(headers)
         .build()
         .unwrap()
+}
+
+pub async fn scrap_page<T>(
+    request_builder: reqwest::RequestBuilder,
+    processor: &dyn html::DOMProcessor<T>,
+) -> Result<T, anyhow::Error> {
+    let html = request_builder.send().await?.text().await?;
+
+    let document = scraper::Html::parse_document(&html);
+    let root = document.root_element();
+
+    Ok(processor.process(&root))
 }
 
 pub fn extract_digits(text: &String) -> u32 {

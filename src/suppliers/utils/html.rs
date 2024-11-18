@@ -1,7 +1,8 @@
 #![allow(unused)]
 
-use std::str;
+use std::{borrow::Cow, str, sync::OnceLock};
 
+use regex::Regex;
 use scraper::{ElementRef, Selector};
 
 use crate::models::{ContentDetails, ContentInfo, MediaType};
@@ -60,38 +61,74 @@ impl DOMProcessor<ContentDetails> for ContentDetailsProcessor {
 
 pub struct TextValue {
     pub selector: Selector,
+    pub all_nodes: bool
 }
 
 impl DOMProcessor<String> for TextValue {
     fn process(&self, el: &ElementRef) -> String {
         el.select(&self.selector)
             .next()
-            .map(|e| e.text().collect::<Vec<_>>().join(""))
+            .map(|e| {
+                if self.all_nodes {
+                    e.text().collect::<Vec<_>>().join("")
+                } else {
+                    e.text().next().unwrap_or_default().into()
+                }
+            })
             .unwrap_or_default()
     }
 }
 
 pub fn text_value(selectors: &'static str) -> Box<TextValue> {
     Box::new(TextValue {
+        all_nodes: false,
         selector: Selector::parse(selectors).unwrap(),
+    })
+}
+
+pub fn sanitize_text_value(selectors: &'static str) -> Box<MapValue<String, String>> {
+    Box::new(MapValue {
+        map: sanitize_text,
+        sub_processor: Box::new(TextValue {
+            all_nodes: false,
+            selector: Selector::parse(selectors).unwrap(),
+        }),
     })
 }
 
 pub struct TextOptionalValue {
     pub selector: Selector,
+    pub all_nodes: bool,
 }
 
 impl DOMProcessor<Option<String>> for TextOptionalValue {
     fn process(&self, el: &ElementRef) -> Option<String> {
         el.select(&self.selector)
             .next()
-            .map(|e| e.text().collect::<Vec<_>>().join(""))
+            .map(|e| {
+                if self.all_nodes {
+                    e.text().collect::<Vec<_>>().join("")
+                } else {
+                    e.text().next().unwrap_or_default().into()
+                }
+            })
     }
 }
 
 pub fn optional_text_value(selectors: &'static str) -> Box<TextOptionalValue> {
     Box::new(TextOptionalValue {
+        all_nodes: false,
         selector: Selector::parse(selectors).unwrap(),
+    })
+}
+
+pub fn optional_sanitize_text_value(selectors: &'static str) -> Box<MapOptionalValue<String, String>> {
+    Box::new(MapOptionalValue {
+        map: sanitize_text,
+        sub_processor: Box::new(TextOptionalValue {
+            all_nodes: false,
+            selector: Selector::parse(selectors).unwrap(),
+        }),
     })
 }
 
@@ -179,7 +216,6 @@ pub fn iter_attr_values(attr: &'static str, selectors: &'static str) -> Box<Iter
         selector: Selector::parse(selectors).unwrap(),
     })
 }
-
 
 // transformation
 
@@ -276,11 +312,11 @@ pub fn join_processors<Item>(
     Box::new(JoinProcessors { item_processors })
 }
 
-pub struct ConcatProcessor<Item> {
+pub struct FlattenProcessor<Item> {
     pub items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,
 }
 
-impl<Item> DOMProcessor<Vec<Item>> for ConcatProcessor<Item> {
+impl<Item> DOMProcessor<Vec<Item>> for FlattenProcessor<Item> {
     fn process(&self, el: &ElementRef) -> Vec<Item> {
         let mut res: Vec<Item> = Vec::new();
 
@@ -292,10 +328,10 @@ impl<Item> DOMProcessor<Vec<Item>> for ConcatProcessor<Item> {
     }
 }
 
-pub fn concat<Item>(
+pub fn flatten<Item>(
     items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,
-) -> Box<ConcatProcessor<Item>> {
-    Box::new(ConcatProcessor { items_processors })
+) -> Box<FlattenProcessor<Item>> {
+    Box::new(FlattenProcessor { items_processors })
 }
 
 pub struct FilterProcessor<Item> {
@@ -319,7 +355,7 @@ pub fn filter<Item>(
 ) -> Box<FilterProcessor<Item>> {
     Box::new(FilterProcessor {
         filter,
-        items_processor
+        items_processor,
     })
 }
 
@@ -360,4 +396,28 @@ impl<V: Default> DOMProcessor<V> for DefaultValue {
 
 pub fn default_value<V: Default>() -> Box<DefaultValue> {
     Box::new(DefaultValue {})
+}
+
+pub struct ExtractValue<Item> {
+    pub extract: fn(&scraper::ElementRef) -> Item,
+}
+
+impl<Item> DOMProcessor<Item> for ExtractValue<Item> {
+    fn process(&self, el: &ElementRef) -> Item {
+        (self.extract)(&el)
+    }
+}
+
+pub fn extract_value<Item>(extract: fn(&scraper::ElementRef) -> Item) -> Box<ExtractValue<Item>> {
+    Box::new(ExtractValue { extract })
+}
+
+pub fn sanitize_text<'h>(text: String) -> String {
+    static SANITIZE_TEXT_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
+    let re = SANITIZE_TEXT_REGEXP.get_or_init(|| Regex::new(r#"[\n\t\s]+"#).unwrap());
+
+    re.replace_all(&text, " ")
+        .into_owned()
+        .trim()
+        .into()
 }
