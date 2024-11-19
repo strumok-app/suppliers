@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::OnceLock};
 
+use super::utils::{self, html};
+use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
 use crate::suppliers::utils::datalife;
-use super::utils::{self, html};
-use super::ContentSupplier;
 
 const URL: &str = "https://uaserials.pro";
 
@@ -99,49 +99,48 @@ impl ContentSupplier for UaserialsProContentSupplier {
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    Box::new(html::ContentInfoProcessor {
-        id: html::map_value(
-            |id| datalife::extract_id_from_url(URL, id),
-            html::attr_value("href", "a.short-img"),
-        ),
+    html::ContentInfoProcessor {
+        id: html::AttrValue::new("href")
+            .scoped("a.short-img")
+            .map_optional(|id| datalife::extract_id_from_url(URL, id))
+            .unwrap()
+            .into(),
         title: html::text_value("div.th-title"),
         secondary_title: html::optional_text_value("div.th-title-oname"),
-        image: html::map_value(
-            |a| format!("{URL}{a}"),
-            html::attr_value("data-src", "a.short-img img"),
-        ),
-    })
+        image: html::self_hosted_image(URL, "a.short-img img", "data-src"),
+    }
+    .into()
 }
 
 fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
     static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
         OnceLock::new();
     CONTENT_INFO_ITEMS_PROCESSOR
-        .get_or_init(|| html::items_processor_raw("div.short-item", content_info_processor()))
+        .get_or_init(|| html::ItemsProcessor::new("div.short-item", content_info_processor()))
 }
 
 fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails> {
     static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopedProcessor<ContentDetails>> =
         OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::scoped_processor(
+        html::ScopedProcessor::new(
             "#dle-content",
-            Box::new(html::ContentDetailsProcessor {
+            html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
                 title: html::text_value("h1.short-title .oname_ua"),
                 original_title: html::optional_text_value(".oname"),
-                image: html::optional_map_value(
-                    |a| format!("{URL}{a}"),
-                    html::optional_attr_value("src", ".fimg > img"),
-                ),
+                image: html::self_hosted_image(URL, ".fimg > img", "src"),
                 description: html::text_value(".ftext.full-text"),
-                additional_info: html::iter_text_values("ul.short-list > li:not(.mylists-mobile)"),
+                additional_info: html::item_processor(
+                    "ul.short-list > li:not(.mylists-mobile)",
+                    html::TextValue::new().all().into(),
+                ),
                 similar: html::default_value::<Vec<ContentInfo>>(),
-                params: html::join_processors(vec![html::attr_value(
-                    "data-src",
-                    "#content > .video_box > iframe",
-                )]),
-            }),
+                params: html::join_processors(vec![
+                    html::attr_value("data-src", "#content > .video_box > iframe"),
+                ]),
+            }
+            .into(),
         )
     })
 }

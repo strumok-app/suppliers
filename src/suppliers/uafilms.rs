@@ -99,13 +99,14 @@ impl ContentSupplier for UAFilmsContentSupplier {
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    Box::new(html::ContentInfoProcessor {
-        id: html::map_value(
-            |id| datalife::extract_id_from_url(URL, id),
-            html::attr_value("href", "a.movie-title"),
-        ),
+    html::ContentInfoProcessor {
+        id: html::AttrValue::new("href")
+            .scoped("a.movie-title")
+            .map_optional(|id| datalife::extract_id_from_url(URL, id))
+            .unwrap()
+            .into(),
         title: html::text_value("a.movie-title"),
-        secondary_title: html::map_value(
+        secondary_title: html::MapValue::new(
             |v| {
                 Some(
                     v.into_iter()
@@ -118,64 +119,63 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
                 html::text_value(".movie-img>span"),
                 html::text_value(".movie-img>.movie-series"),
             ]),
-        ),
-        image: html::map_value(
-            |a| format!("{URL}{a}"),
-            html::attr_value("data-src", ".movie-img img"),
-        ),
-    })
+        )
+        .into(),
+        image: html::self_hosted_image(URL, ".movie-img img", "data-src"),
+    }
+    .into()
 }
 
 fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
     static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
         OnceLock::new();
     CONTENT_INFO_ITEMS_PROCESSOR
-        .get_or_init(|| html::items_processor_raw(".movie-item", content_info_processor()))
+        .get_or_init(|| html::ItemsProcessor::new(".movie-item", content_info_processor()))
 }
 
 fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails> {
     static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopedProcessor<ContentDetails>> =
         OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::scoped_processor(
+        html::ScopedProcessor::new(
             "#dle-content",
-            Box::new(html::ContentDetailsProcessor {
+            html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
                 title: html::text_value("h1[itemprop='name']"),
                 original_title: html::optional_text_value("span[itemprop='alternativeHeadline']"),
-                image: html::optional_map_value(
-                    |a| format!("{URL}{a}"),
-                    html::optional_attr_value("src", ".m-img>img"),
-                ),
-                description: html::sanitize_text_value(".m-desc"),
+                image: html::self_hosted_image(URL, ".m-img>img", "src"),
+                description: html::TextValue::new()
+                    .scoped(".m-desc")
+                    .map_optional(html::sanitize_text)
+                    .unwrap()
+                    .into(),
                 additional_info: html::flatten(vec![
                     html::join_processors(vec![html::text_value(".m-ratings > .mr-item-rate > b")]),
-                    html::items_processor(
+                    html::item_processor(
                         ".m-desc>.m-info>.m-info>.mi-item",
-                        html::map_value(
-                            |v| v.join(" "),
-                            html::join_processors(vec![
-                                html::text_value(".mi-label-desc"),
-                                html::text_value(".mi-desc"),
-                            ]),
-                        ),
+                        html::JoinProcessors::new(vec![
+                            html::text_value(".mi-label-desc"),
+                            html::text_value(".mi-desc"),
+                        ])
+                        .map(|v| v.join(" "))
+                        .into(),
                     ),
                 ]),
-                similar: html::items_processor(
+                similar: html::item_processor(
                     "#owl-rel a",
-                    Box::new(html::ContentInfoProcessor {
-                        id: html::extract_value(|el| {
-                            el.attr("href")
-                                .map(|s| datalife::extract_id_from_url(URL, s.into()))
-                                .unwrap_or_default()
-                        }),
+                    html::ContentInfoProcessor {
+                        id: html::AttrValue::new("href")
+                            .map(|s| datalife::extract_id_from_url(URL, s))
+                            .into(),
                         title: html::text_value(".rel-movie-title"),
                         secondary_title: html::default_value::<Option<String>>(),
-                        image: html::attr_value("data-src", "img"),
-                    }),
+                        image: html::self_hosted_image(URL, "img", "data-src"),
+                    }
+                    .into(),
                 ),
                 params: html::join_processors(vec![html::attr_value("src", ".player-box>iframe")]),
-            }),
+            }
+            .into(),
         )
     })
 }
