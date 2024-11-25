@@ -36,7 +36,7 @@ async fn should_load_media_items() {
     let res = AllContentSuppliers::load_media_items(
         &sup, 
         "8831-gotel-kokayin".into(),
-        vec![String::from("https://hdvbua.pro/embed/8831")]
+        vec!["https://hdvbua.pro/embed/8831".into()]
     ).await.unwrap();
     println!("{res:#?}");
 }

@@ -1,5 +1,6 @@
 #![allow(unused)]
 
+
 use std::{borrow::Cow, str, sync::OnceLock};
 
 use regex::Regex;
@@ -57,6 +58,7 @@ impl DOMProcessor<ContentDetails> for ContentDetailsProcessor {
             image: self.image.process(el),
             description: self.description.process(el),
             additional_info: self.additional_info.process(el),
+            media_items: None,
             similar: self.similar.process(el),
             params: self.params.process(el),
         }
@@ -95,29 +97,33 @@ impl TextValue {
         TextValue { all_nodes: false }
     }
 
-    pub fn all(mut self) -> Self {
+    pub fn all_nodes(mut self) -> Self {
         self.all_nodes = true;
         self
     }
 
-    pub fn scoped(self, selectors: &'static str) -> ScopedProcessor<String> {
-        ScopedProcessor::new(selectors, self.into())
+    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<String> {
+        ScopeProcessor::new(selectors, self.into())
     }
 
-    pub fn map<Map: 'static + Sync + Send, Out>(self, map: Map) -> MapValue<String, Out>
+    pub fn itr_scope(self, selectors: &'static str) -> ItemsProcessor<String> {
+        ItemsProcessor::new(selectors, self.into())
+    }
+
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<String, Out>
     where
-        Map: Fn(String) -> Out,
+        Map: Fn(String) -> Out + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
     }
 }
 
 pub fn text_value(selectors: &'static str) -> Box<dyn DOMProcessor<String>> {
-    TextValue::new().scoped(selectors).unwrap().into()
+    TextValue::new().in_scope(selectors).unwrap().into()
 }
 
 pub fn optional_text_value(selectors: &'static str) -> Box<dyn DOMProcessor<Option<String>>> {
-    TextValue::new().scoped(selectors).into()
+    TextValue::new().in_scope(selectors).into()
 }
 
 pub struct AttrValue {
@@ -141,27 +147,31 @@ impl AttrValue {
         AttrValue { attr }
     }
 
-    pub fn scoped(self, selectors: &'static str) -> ScopedProcessor<String> {
-        ScopedProcessor::new(selectors, self.into())
+    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<String> {
+        ScopeProcessor::new(selectors, self.into())
     }
 
-    pub fn map<Map: 'static + Sync + Send, Out>(self, map: Map) -> MapValue<String, Out>
+    pub fn itr_scope(self, selectors: &'static str) -> ItemsProcessor<String> {
+        ItemsProcessor::new(selectors, self.into())
+    }
+
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<String, Out>
     where
-        Map: Fn(String) -> Out,
+        Map: Fn(String) -> Out + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
     }
 }
 
-pub fn attr_value(attr: &'static str, selectors: &'static str) -> Box<dyn DOMProcessor<String>> {
-    AttrValue::new(attr).scoped(selectors).unwrap().into()
+pub fn attr_value(selectors: &'static str, attr: &'static str) -> Box<dyn DOMProcessor<String>> {
+    AttrValue::new(attr).in_scope(selectors).unwrap().into()
 }
 
 pub fn optional_attr_value(
     attr: &'static str,
     selectors: &'static str,
 ) -> Box<dyn DOMProcessor<Option<String>>> {
-    AttrValue::new(attr).scoped(selectors).into()
+    AttrValue::new(attr).in_scope(selectors).into()
 }
 
 // transformation
@@ -185,12 +195,12 @@ impl<In: 'static, Out: 'static> Into<Box<dyn DOMProcessor<Out>>> for MapValue<In
 }
 
 impl<In, Out> MapValue<In, Out> {
-    pub fn new<Map: 'static + Sync + Send>(
+    pub fn new<Map>(
         map: Map,
         sub_processor: Box<dyn DOMProcessor<In>>,
     ) -> MapValue<In, Out>
     where
-        Map: Fn(In) -> Out,
+        Map: Fn(In) -> Out + 'static + Sync + Send,
     {
         MapValue {
             map: Box::new(map),
@@ -200,21 +210,25 @@ impl<In, Out> MapValue<In, Out> {
 }
 
 impl<A: 'static, B: 'static> MapValue<A, B> {
-    pub fn map<Map: 'static + Sync + Send, C>(self, map: Map) -> MapValue<B, C>
+    pub fn map<Map, C>(self, map: Map) -> MapValue<B, C>
     where
-        Map: Fn(B) -> C,
+        Map: Fn(B) -> C + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
+    }
+
+    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<B> {
+        ScopeProcessor::new(selectors, self.into())
     }
 }
 
 impl<A: 'static, B: 'static> MapValue<Option<A>, Option<B>> {
-    pub fn map_optional<Map: 'static + Copy + Sync + Send, C>(
+    pub fn map_optional<Map, C>(
         self,
         map: Map,
     ) -> MapValue<Option<B>, Option<C>>
     where
-        Map: Fn(B) -> C,
+        Map: Fn(B) -> C + 'static + Copy + Sync + Send,
     {
         MapValue::new(move |opt| opt.map(map), self.into())
     }
@@ -259,15 +273,20 @@ impl<Item> ItemsProcessor<Item> {
 }
 
 impl<Item: 'static> ItemsProcessor<Item> {
-    pub fn map<Map: 'static + Sync + Send, Out>(self, map: Map) -> MapValue<Vec<Item>, Out>
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<Vec<Item>, Out>
     where
-        Map: Fn(Vec<Item>) -> Out,
+        Map: Fn(Vec<Item>) -> Out + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
     }
+
+    pub fn filter<Predicate>(self, predicate: Predicate) -> FilterProcessor<Item>
+    where Predicate: Fn(&Item) -> bool + 'static + Sync + Send {
+        FilterProcessor::new(predicate, self.into())
+    }
 }
 
-pub fn item_processor<Item>(
+pub fn items_processor<Item>(
     scope: &'static str,
     item_processor: Box<dyn DOMProcessor<Item>>,
 ) -> Box<ItemsProcessor<Item>> {
@@ -299,19 +318,34 @@ impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for JoinProcessors<It
     }
 }
 
+impl<Item> Default for JoinProcessors<Item> {
+    fn default() -> Self {
+        Self { item_processors: vec![] }
+    }
+}
 
 impl<Item> JoinProcessors<Item> {
     pub fn new(item_processors: Vec<Box<dyn DOMProcessor<Item>>>) -> JoinProcessors<Item> {
         JoinProcessors { item_processors }
     }
+
+    pub fn add_processor(mut self, processor: Box<dyn DOMProcessor<Item>>) -> Self {
+        self.item_processors.push(processor);
+        self
+    }
 }
 
 impl<Item: 'static> JoinProcessors<Item> {
-    pub fn map<Map: 'static + Sync + Send, Out>(self, map: Map) -> MapValue<Vec<Item>, Out>
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<Vec<Item>, Out>
     where
-        Map: Fn(Vec<Item>) -> Out,
+        Map: Fn(Vec<Item>) -> Out + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
+    }
+
+    pub fn filter<Predicate>(self, predicate: Predicate) -> FilterProcessor<Item>
+    where Predicate: Fn(&Item) -> bool + 'static + Sync + Send {
+        FilterProcessor::new(predicate, self.into())
     }
 }
 
@@ -337,9 +371,40 @@ impl<Item> DOMProcessor<Vec<Item>> for FlattenProcessor<Item> {
     }
 }
 
+impl<Item> Default for FlattenProcessor<Item> {
+    fn default() -> Self {
+        Self { items_processors: vec![] }
+    }
+}
+
 impl<Item> FlattenProcessor<Item> {
     pub fn new(items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,) -> FlattenProcessor<Item> {
         FlattenProcessor { items_processors }
+    }
+
+    pub fn add_processor(mut self, processor: Box<dyn DOMProcessor<Vec<Item>>>) -> Self {
+        self.items_processors.push(processor);
+        self
+    }
+}
+
+impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for FlattenProcessor<Item> {
+    fn into(self) -> Box<dyn DOMProcessor<Vec<Item>>> {
+        Box::new(self)
+    }
+}
+
+impl<Item: 'static> FlattenProcessor<Item> {
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<Vec<Item>, Out>
+    where
+        Map: Fn(Vec<Item>) -> Out + 'static + Sync + Send,
+    {
+        MapValue::new(map, self.into())
+    }
+
+    pub fn filter<Predicate>(self, predicate: Predicate) -> FilterProcessor<Item>
+    where Predicate: Fn(&Item) -> bool + 'static + Sync + Send {
+        FilterProcessor::new(predicate, self.into())
     }
 }
 
@@ -349,14 +414,62 @@ pub fn flatten<Item>(
     FlattenProcessor::new(items_processors).into()
 }
 
-// scoping
+pub struct FilterProcessor<Item> {
+    pub predicate: Box<dyn Fn(&Item) -> bool + Sync + Send>,
+    pub items_processor: Box<dyn DOMProcessor<Vec<Item>>>,
+}
 
-pub struct ScopedProcessor<Item> {
+impl<Item> DOMProcessor<Vec<Item>> for FilterProcessor<Item> {
+    fn process(&self, el: &ElementRef) -> Vec<Item> {
+        self.items_processor
+            .process(el)
+            .into_iter()
+            .filter(|i| ((self.predicate)(&i)))
+            .collect()
+    }
+}
+
+impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for FilterProcessor<Item> {
+    fn into(self) -> Box<dyn DOMProcessor<Vec<Item>>> {
+        Box::new(self)
+    }
+}
+
+impl <Item> FilterProcessor<Item> {
+    pub fn new<Predicate>(
+        predicate: Predicate, 
+        items_processor: Box<dyn DOMProcessor<Vec<Item>>>
+    ) -> FilterProcessor<Item>
+    where Predicate: Fn(&Item) -> bool + Sync + Send + 'static {
+        FilterProcessor {
+            predicate: Box::new(predicate),
+            items_processor
+        }
+    }
+}
+
+impl<Item: 'static> FilterProcessor<Item> {
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<Vec<Item>, Out>
+    where
+        Map: Fn(Vec<Item>) -> Out + 'static + Sync + Send,
+    {
+        MapValue::new(map, self.into())
+    }
+
+    pub fn filter<Predicate>(self, predicate: Predicate) -> FilterProcessor<Item>
+    where Predicate: Fn(&Item) -> bool + 'static + Sync + Send {
+        FilterProcessor::new(predicate, self.into())
+    }
+}
+
+// scope
+
+pub struct ScopeProcessor<Item> {
     pub scope: Selector,
     pub item_processor: Box<dyn DOMProcessor<Item>>,
 }
 
-impl<Item> DOMProcessor<Option<Item>> for ScopedProcessor<Item> {
+impl<Item> DOMProcessor<Option<Item>> for ScopeProcessor<Item> {
     fn process(&self, el: &ElementRef) -> Option<Item> {
         el.select(&self.scope)
             .map(|e| self.item_processor.process(&e))
@@ -364,25 +477,25 @@ impl<Item> DOMProcessor<Option<Item>> for ScopedProcessor<Item> {
     }
 }
 
-impl<Item: 'static> Into<Box<dyn DOMProcessor<Option<Item>>>> for ScopedProcessor<Item> {
+impl<Item: 'static> Into<Box<dyn DOMProcessor<Option<Item>>>> for ScopeProcessor<Item> {
     fn into(self) -> Box<dyn DOMProcessor<Option<Item>>> {
         Box::new(self)
     }
 }
 
-impl<Item> ScopedProcessor<Item> {
+impl<Item> ScopeProcessor<Item> {
     pub fn new(
         scope: &'static str,
         item_processor: Box<dyn DOMProcessor<Item>>,
-    ) -> ScopedProcessor<Item> {
-        ScopedProcessor {
+    ) -> ScopeProcessor<Item> {
+        ScopeProcessor {
             scope: Selector::parse(scope).unwrap(),
             item_processor,
         }
     }
 }
 
-impl<Item: Default + 'static> ScopedProcessor<Item> {
+impl<Item: Default + 'static> ScopeProcessor<Item> {
     pub fn unwrap(self) -> MapValue<Option<Item>, Item> {
         MapValue::new(|opt| opt.unwrap_or_default(), self.into())
     }
@@ -408,11 +521,11 @@ impl<Item: Default + 'static> ScopedProcessor<Item> {
     }
 }
 
-pub fn scoped_processor<Item>(
+pub fn scope_processor<Item>(
     scope: &'static str,
     item_processor: Box<dyn DOMProcessor<Item>>,
-) -> Box<ScopedProcessor<Item>> {
-    ScopedProcessor::new(scope, item_processor).into()
+) -> Box<ScopeProcessor<Item>> {
+    ScopeProcessor::new(scope, item_processor).into()
 }
 
 // utilities
@@ -448,7 +561,7 @@ pub fn self_hosted_image(
     attr: &'static str,
 ) -> Box<dyn DOMProcessor<String>> {
     AttrValue::new(attr)
-        .scoped(selectors)
+        .in_scope(selectors)
         .map_optional(move |src| format!("{url}{src}"))
         .unwrap()
         .into()

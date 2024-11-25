@@ -23,10 +23,17 @@ features = [
     # Compression
     "brotli",
     "gzip",
+    "json",
+]
+
+[dependencies.tokio]
+version = "1"
+features = [
+    "rt-multi-thread", 
+    "macros",
 ]
 
 [dependencies]
-tokio = { version = "1", features = ["rt", "macros"] }
 flutter_rust_bridge = "=2.6.0"
 anyhow = "1.0.93"
 enum_dispatch = "0.3.13"

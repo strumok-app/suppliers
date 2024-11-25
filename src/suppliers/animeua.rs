@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use std::{collections::HashMap, sync::OnceLock};
 
 use crate::{
@@ -9,19 +10,14 @@ use crate::{
 };
 
 use super::{
-    utils::{self, datalife, html::AttrValue},
+    utils::{self, playerjs, datalife},
     ContentSupplier,
 };
 
 const URL: &str = "https://animeua.club";
 
+#[derive(Default)]
 pub struct AnimeUAContentSupplier;
-
-impl Default for AnimeUAContentSupplier {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl ContentSupplier for AnimeUAContentSupplier {
     fn get_channels(&self) -> Vec<String> {
@@ -84,7 +80,15 @@ impl ContentSupplier for AnimeUAContentSupplier {
         _id: String,
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
-        utils::playerjs::load_and_parse_playerjs(&params[0]).await
+        if !params.is_empty() {
+            playerjs::load_and_parse_playerjs(
+                &params[0],
+                playerjs::convert_strategy_season_ep_dub,
+            )
+            .await
+        } else {
+            Err(anyhow!("iframe url expected"))
+        }
     }
 
     async fn load_media_item_sources(
@@ -92,13 +96,13 @@ impl ContentSupplier for AnimeUAContentSupplier {
         _id: String,
         _params: Vec<String>,
     ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
-        unimplemented!()
+        Err(anyhow!("unimplemented"))
     }
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: AttrValue::new("href")
+        id: html::AttrValue::new("href")
             .map(|s| datalife::extract_id_from_url(URL, s))
             .into(),
         title: html::text_value(".poster__desc > .poster__title"),
@@ -115,11 +119,11 @@ fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> 
         .get_or_init(|| html::ItemsProcessor::new(".grid-item", content_info_processor()))
 }
 
-fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopedProcessor<ContentDetails>> =
+fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
         OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopedProcessor::new(
+        html::ScopeProcessor::new(
             "#dle-content",
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
@@ -132,22 +136,28 @@ fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails>
                 additional_info: html::flatten(vec![
                     html::join_processors(vec![
                         html::TextValue::new()
-                            .all()
-                            .scoped(".page__subcol-main .pmovie__subrating--site")
+                            .all_nodes()
+                            .in_scope(".page__subcol-main .pmovie__subrating--site")
                             .unwrap()
                             .into(),
                         html::text_value(".page__subcol-main > .pmovie__year"),
                         html::text_value(".page__subcol-main > .pmovie__genres"),
                     ]),
-                    html::item_processor(
+                    html::items_processor(
                         ".page__subcol-side2 li",
-                        html::TextValue::new().all().map(html::sanitize_text).into(),
+                        html::TextValue::new()
+                            .all_nodes()
+                            .map(html::sanitize_text)
+                            .into(),
                     ),
                 ]),
-                similar: html::item_processor(".pmovie__related .poster", content_info_processor()),
+                similar: html::items_processor(
+                    ".pmovie__related .poster",
+                    content_info_processor(),
+                ),
                 params: html::join_processors(vec![html::attr_value(
-                    "data-src",
                     ".pmovie__player .video-inside iframe",
+                    "data-src",
                 )]),
             }
             .into(),

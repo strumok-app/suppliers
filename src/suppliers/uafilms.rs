@@ -1,9 +1,10 @@
+use anyhow::anyhow;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use chrono::Datelike;
 
-use super::utils::{self, html};
+use super::utils::{self, html, playerjs};
 use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
@@ -12,13 +13,8 @@ use crate::suppliers::utils::datalife;
 
 const URL: &str = "https://uafilm.pro";
 
+#[derive(Default)]
 pub struct UAFilmsContentSupplier;
-
-impl Default for UAFilmsContentSupplier {
-    fn default() -> Self {
-        Self {}
-    }
-}
 
 impl ContentSupplier for UAFilmsContentSupplier {
     fn get_channels(&self) -> Vec<String> {
@@ -86,7 +82,15 @@ impl ContentSupplier for UAFilmsContentSupplier {
         _id: String,
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
-        utils::playerjs::load_and_parse_playerjs(&params[0]).await
+        if !params.is_empty() {
+            playerjs::load_and_parse_playerjs(
+                &params[0],
+                playerjs::convert_strategy_season_ep_dub,
+            )
+            .await
+        } else {
+            Err(anyhow!("iframe url expected"))
+        }
     }
 
     async fn load_media_item_sources(
@@ -94,33 +98,24 @@ impl ContentSupplier for UAFilmsContentSupplier {
         _id: String,
         _params: Vec<String>,
     ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
-        unimplemented!()
+        Err(anyhow!("unimplemented"))
     }
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .scoped("a.movie-title")
+            .in_scope("a.movie-title")
             .map_optional(|id| datalife::extract_id_from_url(URL, id))
             .unwrap()
             .into(),
         title: html::text_value("a.movie-title"),
-        secondary_title: html::MapValue::new(
-            |v| {
-                Some(
-                    v.into_iter()
-                        .filter(|s| !s.is_empty())
-                        .collect::<Vec<_>>()
-                        .join(","),
-                )
-            },
-            html::join_processors(vec![
-                html::text_value(".movie-img>span"),
-                html::text_value(".movie-img>.movie-series"),
-            ]),
-        )
-        .into(),
+        secondary_title: html::JoinProcessors::default()
+            .add_processor(html::text_value(".movie-img>span"))
+            .add_processor( html::text_value(".movie-img>.movie-series"))
+            .filter(|s| !s.is_empty())
+            .map(|v| Some(v.join(",")))
+            .into(),
         image: html::self_hosted_image(URL, ".movie-img img", "data-src"),
     }
     .into()
@@ -133,11 +128,11 @@ fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> 
         .get_or_init(|| html::ItemsProcessor::new(".movie-item", content_info_processor()))
 }
 
-fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopedProcessor<ContentDetails>> =
+fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
         OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopedProcessor::new(
+        html::ScopeProcessor::new(
             "#dle-content",
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
@@ -145,13 +140,13 @@ fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails>
                 original_title: html::optional_text_value("span[itemprop='alternativeHeadline']"),
                 image: html::self_hosted_image(URL, ".m-img>img", "src"),
                 description: html::TextValue::new()
-                    .scoped(".m-desc")
+                    .in_scope(".m-desc")
                     .map_optional(html::sanitize_text)
                     .unwrap()
                     .into(),
                 additional_info: html::flatten(vec![
                     html::join_processors(vec![html::text_value(".m-ratings > .mr-item-rate > b")]),
-                    html::item_processor(
+                    html::items_processor(
                         ".m-desc>.m-info>.m-info>.mi-item",
                         html::JoinProcessors::new(vec![
                             html::text_value(".mi-label-desc"),
@@ -161,7 +156,7 @@ fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails>
                         .into(),
                     ),
                 ]),
-                similar: html::item_processor(
+                similar: html::items_processor(
                     "#owl-rel a",
                     html::ContentInfoProcessor {
                         id: html::AttrValue::new("href")
@@ -173,7 +168,7 @@ fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails>
                     }
                     .into(),
                 ),
-                params: html::join_processors(vec![html::attr_value("src", ".player-box>iframe")]),
+                params: html::join_processors(vec![html::attr_value(".player-box>iframe", "src")]),
             }
             .into(),
         )

@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, sync::OnceLock};
 
+use anyhow::Ok;
 use regex::Regex;
 use serde::Deserialize;
 
@@ -18,10 +19,9 @@ pub struct PlayerJSFile {
 
 pub async fn load_and_parse_playerjs(
     url: &String,
+    startegy: fn(&Vec<PlayerJSFile>) -> Vec<ContentMediaItem>,
 ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
-    let client = super::create_client();
-
-    let html = client.get(url).send().await?.text().await?;
+    let html = super::create_client().get(url).send().await?.text().await?;
 
     let maybe_file = extract_playerjs_playlist(&html);
 
@@ -34,7 +34,7 @@ pub async fn load_and_parse_playerjs(
 
     if file.starts_with("[{") {
         let playerjs_file: Vec<PlayerJSFile> = serde_json::from_str(file)?;
-        Ok(convert_strategy_season_ep_dub(&playerjs_file))
+        Ok(startegy(&playerjs_file))
     } else {
         Ok(vec![ContentMediaItem {
             number: 0,
@@ -47,6 +47,37 @@ pub async fn load_and_parse_playerjs(
                 link: String::from(file),
             }]),
             params: vec![],
+        }])
+    }
+}
+
+/// Extract flat sources structure from playerjs (no multiple episodes, sesons, dubs expected)
+pub async fn load_and_parse_playerjs_sources(
+    description: String,
+    url: String,
+) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    let html = super::create_client().get(url).send().await?.text().await?;
+
+    let maybe_file = extract_playerjs_playlist(&html);
+
+    if maybe_file.is_none() {
+        println!("PlayerJS playlist not found");
+        return Ok(vec![]);
+    }
+
+    let file = maybe_file.unwrap();
+    if file.starts_with("[{") {
+        let playerjs_file: Vec<PlayerJSFile> = serde_json::from_str(file)?;
+        let mut result: Vec<ContentMediaItemSource> = vec![];
+        for file in playerjs_file {
+            populate_sources(&mut result, &description, &file);
+        }
+        Ok(result)
+    } else {
+        Ok(vec![ContentMediaItemSource::Video {
+            description,
+            headers: None,
+            link: String::from(file),
         }])
     }
 }
@@ -78,6 +109,26 @@ pub fn convert_strategy_season_ep_dub(
     sorted_media_items.into_values().collect()
 }
 
+pub fn convert_strategy_dub(playerjs_playlist: &Vec<PlayerJSFile>) -> Vec<ContentMediaItem> {
+    let mut media_items: Vec<ContentMediaItem> = vec![];
+
+    for dub in playerjs_playlist {
+        let mut sources: Vec<ContentMediaItemSource> = vec![];
+        populate_sources(&mut sources, &dub.title, dub);
+
+        media_items.push(ContentMediaItem {
+            number: media_items.len() as u32,
+            title: String::new(),
+            section: None,
+            image: None,
+            params: vec![],
+            sources: Some(sources),
+        });
+    }
+
+    media_items
+}
+
 fn populate_media_items_map(
     season: &PlayerJSFile,
     episode: &PlayerJSFile,
@@ -104,17 +155,21 @@ fn populate_media_items_map(
 
     let sources = item.sources.as_mut().unwrap();
 
+    populate_sources(sources, &dub.title, src);
+}
+
+fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &String, src: &PlayerJSFile) {
     if let Some(file) = src.file.as_ref() {
         sources.push(ContentMediaItemSource::Video {
             link: file.clone(),
-            description: String::from(dub.title.trim()),
+            description: String::from(title.trim()),
             headers: None,
         });
     }
 
     if let Some(subtitle) = src.subtitle.as_ref() {
         if !subtitle.is_empty() {
-            populate_subtitle(sources, subtitle, &dub.title);
+            populate_subtitle(sources, subtitle, title);
         }
     }
 }

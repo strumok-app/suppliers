@@ -1,6 +1,7 @@
+use anyhow::anyhow;
 use std::{collections::HashMap, sync::OnceLock};
 
-use super::utils::{self, html};
+use super::utils::{self, html, playerjs};
 use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
@@ -9,15 +10,10 @@ use crate::suppliers::utils::datalife;
 
 const URL: &str = "https://uaserials.pro";
 
-pub struct UaserialsProContentSupplier;
+#[derive(Default)]
+pub struct UASerialsProContentSupplier;
 
-impl Default for UaserialsProContentSupplier {
-    fn default() -> Self {
-        Self {}
-    }
-}
-
-impl ContentSupplier for UaserialsProContentSupplier {
+impl ContentSupplier for UASerialsProContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         get_channels_map()
             .keys()
@@ -86,7 +82,15 @@ impl ContentSupplier for UaserialsProContentSupplier {
         _id: String,
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
-        utils::playerjs::load_and_parse_playerjs(&params[0]).await
+        if !params.is_empty() {
+            playerjs::load_and_parse_playerjs(
+                &params[0],
+                playerjs::convert_strategy_season_ep_dub,
+            )
+            .await
+        } else {
+            Err(anyhow!("iframe url expected"))
+        }
     }
 
     async fn load_media_item_sources(
@@ -94,14 +98,14 @@ impl ContentSupplier for UaserialsProContentSupplier {
         _id: String,
         _params: Vec<String>,
     ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
-        unimplemented!()
+        Err(anyhow!("unimplemented"))
     }
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .scoped("a.short-img")
+            .in_scope("a.short-img")
             .map_optional(|id| datalife::extract_id_from_url(URL, id))
             .unwrap()
             .into(),
@@ -119,11 +123,11 @@ fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> 
         .get_or_init(|| html::ItemsProcessor::new("div.short-item", content_info_processor()))
 }
 
-fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopedProcessor<ContentDetails>> =
+fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
         OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopedProcessor::new(
+        html::ScopeProcessor::new(
             "#dle-content",
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
@@ -131,13 +135,13 @@ fn content_details_processor() -> &'static html::ScopedProcessor<ContentDetails>
                 original_title: html::optional_text_value(".oname"),
                 image: html::self_hosted_image(URL, ".fimg > img", "src"),
                 description: html::text_value(".ftext.full-text"),
-                additional_info: html::item_processor(
+                additional_info: html::items_processor(
                     "ul.short-list > li:not(.mylists-mobile)",
-                    html::TextValue::new().all().into(),
+                    html::TextValue::new().all_nodes().into(),
                 ),
                 similar: html::default_value::<Vec<ContentInfo>>(),
                 params: html::join_processors(vec![
-                    html::attr_value("data-src", "#content > .video_box > iframe"),
+                    html::attr_value("#content > .video_box > iframe", "data-src"),
                 ]),
             }
             .into(),

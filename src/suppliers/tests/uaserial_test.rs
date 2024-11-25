@@ -2,12 +2,12 @@ use suppliers::{get_supplier, AllContentSuppliers};
 
 use crate::suppliers::{self, ContentSupplier};
 
-const NAME: &str = "UAFilms";
+const NAME: &str = "UASerial";
 
 #[tokio::test]
 async fn should_load_channel() {
     let sup = get_supplier(NAME).unwrap();
-    let res = AllContentSuppliers::load_channel(&sup, "Новинки".into(), 2).await.unwrap();
+    let res = AllContentSuppliers::load_channel(&sup, "Серіали".into(), 2).await.unwrap();
     println!("{res:#?}");
     assert_eq!(true, res.len() > 0)
 }
@@ -25,7 +25,7 @@ async fn should_load_content_details() {
     let sup = get_supplier(NAME).unwrap();
     let res = AllContentSuppliers::get_content_details(
         &sup, 
-        "21707-terminator-zero".into()
+        "movie-the-terminator".into()
     ).await.unwrap();
     println!("{res:#?}");
 }
@@ -35,8 +35,8 @@ async fn should_load_media_items() {
     let sup = get_supplier(NAME).unwrap();
     let res = AllContentSuppliers::load_media_items(
         &sup, 
-        "21707-terminator-zero".into(),
-        vec!["https://ashdi.vip/serial/4000".into()]
+        "8831-gotel-kokayin".into(),
+        vec!["https://hdvbua.pro/embed/8831".into()]
     ).await.unwrap();
     println!("{res:#?}");
 }
