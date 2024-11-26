@@ -18,7 +18,7 @@ pub struct PlayerJSFile {
 }
 
 pub async fn load_and_parse_playerjs(
-    url: &String,
+    url: &str,
     startegy: fn(&Vec<PlayerJSFile>) -> Vec<ContentMediaItem>,
 ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
     let html = super::create_client().get(url).send().await?.text().await?;
@@ -53,8 +53,8 @@ pub async fn load_and_parse_playerjs(
 
 /// Extract flat sources structure from playerjs (no multiple episodes, sesons, dubs expected)
 pub async fn load_and_parse_playerjs_sources(
-    description: String,
-    url: String,
+    description: &str,
+    url: &str,
 ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
     let html = super::create_client().get(url).send().await?.text().await?;
 
@@ -75,7 +75,7 @@ pub async fn load_and_parse_playerjs_sources(
         Ok(result)
     } else {
         Ok(vec![ContentMediaItemSource::Video {
-            description,
+            description: description.into(),
             headers: None,
             link: String::from(file),
         }])
@@ -158,7 +158,7 @@ fn populate_media_items_map(
     populate_sources(sources, &dub.title, src);
 }
 
-fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &String, src: &PlayerJSFile) {
+fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str, src: &PlayerJSFile) {
     if let Some(file) = src.file.as_ref() {
         sources.push(ContentMediaItemSource::Video {
             link: file.clone(),
@@ -176,8 +176,8 @@ fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &String, s
 
 fn populate_subtitle(
     sources: &mut Vec<ContentMediaItemSource>,
-    url: &String,
-    default_title: &String,
+    url: &str,
+    default_title: &str,
 ) {
     static PLAYER_JS_SUBTITLE_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
 
@@ -197,7 +197,7 @@ fn populate_subtitle(
         }
     } else {
         sources.push(ContentMediaItemSource::Subtitle {
-            link: url.clone(),
+            link: url.into(),
             description: String::from(default_title.trim()),
             headers: None,
         });

@@ -56,11 +56,11 @@ struct AjaxPlaylistResponse {
     response: String,
 }
 
-const ALLOWED_VIDEO_HOSTS: &'static [&'static str] = &["ashdi", "tortuga", "moonanime", "monstro"];
-
 pub async fn load_ajax_playlist(
     playlist_req: reqwest::RequestBuilder,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
+    const ALLOWED_VIDEO_HOSTS: &'static [&'static str] = &["ashdi", "tortuga", "moonanime", "monstro"];
+
     let res: AjaxPlaylistResponse = playlist_req
         .header("X-Requested-With", "XMLHttpRequest")
         .send()
@@ -78,8 +78,7 @@ pub async fn load_ajax_playlist(
     for video in playlist.videos {
         if ALLOWED_VIDEO_HOSTS
             .iter()
-            .find(|&&host| video.file.contains(host))
-            == None
+            .any(|&host| video.file.contains(host))
         {
             continue;
         }

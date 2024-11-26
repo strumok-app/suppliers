@@ -134,7 +134,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
             let description = params.remove(0);
             let url = params.remove(0);
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(description, url).await?;
+            let mut sources = playerjs::load_and_parse_playerjs_sources(&description, &url).await?;
             results.append(&mut sources);
         }
 

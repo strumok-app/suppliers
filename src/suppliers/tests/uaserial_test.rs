@@ -21,7 +21,7 @@ async fn should_search() {
 }
 
 #[tokio::test]
-async fn should_load_content_details() {
+async fn should_load_content_details_for_movie() {
     let sup = get_supplier(NAME).unwrap();
     let res = AllContentSuppliers::get_content_details(
         &sup, 
@@ -31,12 +31,22 @@ async fn should_load_content_details() {
 }
 
 #[tokio::test]
-async fn should_load_media_items() {
+async fn should_load_content_details_for_tv_show() {
     let sup = get_supplier(NAME).unwrap();
-    let res = AllContentSuppliers::load_media_items(
+    let res = AllContentSuppliers::get_content_details(
         &sup, 
-        "8831-gotel-kokayin".into(),
-        vec!["https://hdvbua.pro/embed/8831".into()]
+        "universal-basic-guys/season-1".into()
+    ).await.unwrap();
+    println!("{res:#?}");
+}
+
+#[tokio::test]
+async fn should_load_media_item_sources() {
+    let sup = get_supplier(NAME).unwrap();
+    let res = AllContentSuppliers::load_media_item_sources(
+        &sup, 
+        "blue-exorcist/season-1".into(),
+        vec!["/embed/blue-exorcist/season-1/episode-1".into()]
     ).await.unwrap();
     println!("{res:#?}");
 }
