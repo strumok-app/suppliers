@@ -140,9 +140,11 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     html::TextValue::new().all_nodes().into(),
                 ),
                 similar: html::default_value::<Vec<ContentInfo>>(),
-                params: html::join_processors(vec![
-                    html::attr_value("#content > .video_box > iframe", "data-src"),
-                ]),
+                params: html::AttrValue::new("data-src")
+                    .map(|s| vec![s])
+                    .in_scope("#content > .video_box > iframe")
+                    .unwrap()
+                    .into(),
             }
             .into(),
         )

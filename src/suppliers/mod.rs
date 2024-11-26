@@ -9,12 +9,14 @@ mod uaserial;
 mod uaserials_pro;
 mod uakinoclub; 
 mod uafilms;
+mod ufdub;
 
 use animeua::AnimeUAContentSupplier;
 use uaserial::UAserialContentSupplier;
 use uaserials_pro::UASerialsProContentSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
 use uafilms::UAFilmsContentSupplier;
+use ufdub::UFDubContentSupplier;
 
 use std::str::FromStr;
 use enum_dispatch::enum_dispatch;
@@ -69,6 +71,8 @@ pub enum AllContentSuppliers {
     UAKinoClubContentSupplier,
     #[strum(serialize="UAFilms")]
     UAFilmsContentSupplier,
+    #[strum(serialize="UFDub")]
+    UFDubContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {

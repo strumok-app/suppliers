@@ -10,7 +10,7 @@ use crate::{
 };
 
 use super::{
-    utils::{self, playerjs, datalife},
+    utils::{self, datalife, playerjs},
     ContentSupplier,
 };
 
@@ -81,11 +81,8 @@ impl ContentSupplier for AnimeUAContentSupplier {
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(
-                &params[0],
-                playerjs::convert_strategy_season_ep_dub,
-            )
-            .await
+            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_ep_dub)
+                .await
         } else {
             Err(anyhow!("iframe url expected"))
         }
@@ -155,10 +152,11 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     ".pmovie__related .poster",
                     content_info_processor(),
                 ),
-                params: html::join_processors(vec![html::attr_value(
-                    ".pmovie__player .video-inside iframe",
-                    "data-src",
-                )]),
+                params: html::AttrValue::new("data-src")
+                    .map(|s| vec![s])
+                    .in_scope(".pmovie__player .video-inside iframe")
+                    .unwrap()
+                    .into(),
             }
             .into(),
         )
