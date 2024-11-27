@@ -13,7 +13,8 @@ use crate::{
 use super::{
     utils::{
         self, datalife,
-        html::{self, DOMProcessor}, playerjs,
+        html::{self, DOMProcessor},
+        playerjs,
     },
     ContentSupplier,
 };
@@ -157,7 +158,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .into(),
         title: html::text_value(".story_c > h2 > a"),
         secondary_title: html::default_value::<Option<String>>(),
-        image: html::self_hosted_image(URL, ".story_c_l img", "data-src"),
+        image: html::self_hosted_image(URL, ".story_c_l img", "src"),
     }
     .into()
 }
@@ -215,7 +216,16 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .into(),
                         title: html::text_value(".text_content > a"),
                         secondary_title: html::default_value::<Option<String>>(),
-                        image: html::self_hosted_image(URL, ".sl_poster img", "data-src"),
+                        image: html::ExtractValue::new(|el| {
+                            el.attr("src")
+                                .or(el.attr("data-src"))
+                                .unwrap_or_default()
+                                .to_owned()
+                        })
+                        .in_scope(".sl_poster img")
+                        .map_optional(move |src| format!("{URL}{src}"))
+                        .flatten()
+                        .into(),
                     }
                     .into(),
                 ),

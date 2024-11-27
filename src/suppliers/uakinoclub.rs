@@ -222,13 +222,9 @@ fn get_channels_map() -> &'static HashMap<String, String> {
         HashMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("Фільми".into(), format!("{URL}/filmy/page/")),
-            ("Серіали".into(), format!("{URL}/series/page/")),
+            ("Серіали".into(), format!("{URL}/seriesss/page/")),
             ("Аніме".into(), format!("{URL}/animeukr/page/")),
             ("Мультфільми".into(), format!("{URL}/cartoon/page/")),
-            (
-                "Мультсеріали".into(),
-                format!("{URL}/cartoon/cartoonseries/page/"),
-            ),
         ])
     })
 }

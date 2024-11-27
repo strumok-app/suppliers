@@ -214,9 +214,9 @@ async fn try_extract_iframe_options(url: String) -> Result<Vec<(String, String)>
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new(".item > a")
+        id: html::AttrValue::new("href")
             .map(|id| extract_id_from_url(id))
-            .in_scope("href")
+            .in_scope(".item > a")
             .unwrap_or_default()
             .into(),
         title: html::text_value(".item__data > a .name"),

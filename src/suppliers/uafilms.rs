@@ -85,7 +85,7 @@ impl ContentSupplier for UAFilmsContentSupplier {
         if !params.is_empty() {
             playerjs::load_and_parse_playerjs(
                 &params[0],
-                playerjs::convert_strategy_season_ep_dub,
+                playerjs::convert_strategy_dub_season_ep,
             )
             .await
         } else {

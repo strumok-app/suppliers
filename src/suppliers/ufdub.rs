@@ -97,17 +97,24 @@ impl ContentSupplier for UFDubContentSupplier {
             .text()
             .await?;
 
-        let result: Vec<_> = re.captures_iter(&html)
-            .map(|c| Some((c.name("title")?, c.name("url")?)))
+        let result: Vec<_> = re
+            .captures_iter(&html)
+            .map(|c| {
+                Some((
+                    c.name("title")?.as_str().to_owned(),
+                    c.name("url")?.as_str().to_owned(),
+                ))
+            })
             .flatten()
+            .filter(|(title, _)| title != "Трейлер")
             .enumerate()
             .map(|(number, (title, url))| ContentMediaItem {
                 number: number as u32,
-                title: title.as_str().to_owned(),
+                title: title.to_owned(),
                 section: None,
                 image: None,
                 sources: Some(vec![ContentMediaItemSource::Video {
-                    link: url.as_str().to_owned(),
+                    link: url.to_owned(),
                     description: "Default".into(),
                     headers: None,
                 }]),

@@ -81,7 +81,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_ep_dub)
+            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_dub_season_ep)
                 .await
         } else {
             Err(anyhow!("iframe url expected"))

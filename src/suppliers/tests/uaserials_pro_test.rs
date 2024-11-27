@@ -2,7 +2,7 @@ use suppliers::{get_supplier, AllContentSuppliers};
 
 use crate::suppliers::{self, ContentSupplier};
 
-const NAME: &str = "UaserialsPro";
+const NAME: &str = "UASerialsPro";
 
 #[tokio::test]
 async fn should_load_channel() {
