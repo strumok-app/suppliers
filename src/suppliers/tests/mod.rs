@@ -1,5 +1,6 @@
 #![cfg(test)]
 
+mod anitube_test;
 mod animeua_test;
 mod uaserial_test;
 mod uaserials_pro_test;

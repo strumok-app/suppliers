@@ -40,11 +40,11 @@ pub fn get_channel_url(
 }
 
 pub fn extract_id_from_url(url: &str, mut id: String) -> String {
-    // remove site name
-    id.replace_range(0..(url.len() + 1), "");
-    // remove .html
-    id.replace_range((id.len() - 5)..id.len(), "");
-    id
+    if id.len() <= (url.len() + 5) {
+        return String::new();
+    }
+
+    id.drain((url.len() + 1)..(id.len() - 5)).collect()
 }
 
 pub fn format_id_from_url(url: &str, id: &String) -> String {
@@ -76,7 +76,7 @@ pub async fn load_ajax_playlist(
     let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
 
     for video in playlist.videos {
-        if ALLOWED_VIDEO_HOSTS
+        if !ALLOWED_VIDEO_HOSTS
             .iter()
             .any(|&host| video.file.contains(host))
         {

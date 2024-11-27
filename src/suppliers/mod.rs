@@ -4,6 +4,7 @@ mod tests;
 mod utils;
 
 // suppliers
+mod anitube;
 mod animeua;
 mod uaserial;
 mod uaserials_pro;
@@ -11,6 +12,7 @@ mod uakinoclub;
 mod uafilms;
 mod ufdub;
 
+use anitube::AniTubeContentSupplier;
 use animeua::AnimeUAContentSupplier;
 use uaserial::UAserialContentSupplier;
 use uaserials_pro::UASerialsProContentSupplier;
@@ -61,6 +63,8 @@ pub trait ContentSupplier {
 #[enum_dispatch(ContentSupplier)]
 #[derive(EnumIter, EnumString, VariantNames)]
 pub enum AllContentSuppliers {
+    #[strum(serialize="AniTube")]
+    AniTubeContentSupplier,
     #[strum(serialize="AnimeUA")]
     AnimeUAContentSupplier,
     #[strum(serialize="UASerial")]

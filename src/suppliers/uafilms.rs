@@ -107,7 +107,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
         id: html::AttrValue::new("href")
             .in_scope("a.movie-title")
             .map_optional(|id| datalife::extract_id_from_url(URL, id))
-            .unwrap()
+            .flatten()
             .into(),
         title: html::text_value("a.movie-title"),
         secondary_title: html::JoinProcessors::default()
@@ -142,7 +142,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 description: html::TextValue::new()
                     .in_scope(".m-desc")
                     .map_optional(html::sanitize_text)
-                    .unwrap()
+                    .flatten()
                     .into(),
                 additional_info: html::flatten(vec![
                     html::join_processors(vec![html::text_value(".m-ratings > .mr-item-rate > b")]),

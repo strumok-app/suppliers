@@ -48,11 +48,11 @@ impl ContentSupplier for UAserialContentSupplier {
         query: String,
         _types: Vec<String>,
     ) -> Result<Vec<ContentInfo>, anyhow::Error> {
-        let requedt_builder = utils::create_client()
+        let request_builder = utils::create_client()
             .get(SEARCH_URL)
             .query(&[("query", &query)]);
 
-        utils::scrap_page(requedt_builder, search_items_processor()).await
+        utils::scrap_page(request_builder, search_items_processor()).await
     }
 
     async fn load_channel(
@@ -61,9 +61,7 @@ impl ContentSupplier for UAserialContentSupplier {
         page: u16,
     ) -> Result<Vec<ContentInfo>, anyhow::Error> {
         let url = match get_channels_map().get(&channel) {
-            Some(url) => {
-                format!("{url}{page}")
-            }
+            Some(url) => format!("{url}{page}"),
             None => return Err(anyhow!("unknown channel")),
         };
 
@@ -110,7 +108,6 @@ impl ContentSupplier for UAserialContentSupplier {
         _id: String,
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
-
         if params.is_empty() {
             return Err(anyhow!("iframe url expected"));
         }
@@ -196,12 +193,8 @@ async fn try_extract_iframe_options(url: String) -> Result<Vec<(String, String)>
     let selector =
         OPTIONS_SELECTOR.get_or_init(|| Selector::parse("option[data-type='link']").unwrap());
 
+    let html = utils::create_client().get(url).send().await?.text().await?;
 
-    let html = utils::create_client().get(url).send()
-        .await?
-        .text()
-        .await?;
-    
     let ref document = scraper::Html::parse_document(&html);
     let root = document.root_element();
     let options: Vec<_> = root
@@ -222,9 +215,9 @@ async fn try_extract_iframe_options(url: String) -> Result<Vec<(String, String)>
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new(".item > a")
+            .map(|id| extract_id_from_url(id))
             .in_scope("href")
-            .map_optional(|id| extract_id_from_url(id))
-            .unwrap()
+            .unwrap_or_default()
             .into(),
         title: html::text_value(".item__data > a .name"),
         secondary_title: html::ItemsProcessor::new(
@@ -277,7 +270,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             html::TextValue::new()
                                 .all_nodes()
                                 .in_scope(".value")
-                                .unwrap()
+                                .unwrap_or_default()
                                 .into(),
                         ])
                         .map(|v| v.join(" "))

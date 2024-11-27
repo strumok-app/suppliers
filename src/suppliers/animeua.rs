@@ -135,7 +135,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         html::TextValue::new()
                             .all_nodes()
                             .in_scope(".page__subcol-main .pmovie__subrating--site")
-                            .unwrap()
+                            .unwrap_or_default()
                             .into(),
                         html::text_value(".page__subcol-main > .pmovie__year"),
                         html::text_value(".page__subcol-main > .pmovie__genres"),
@@ -155,7 +155,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 params: html::AttrValue::new("data-src")
                     .map(|s| vec![s])
                     .in_scope(".pmovie__player .video-inside iframe")
-                    .unwrap()
+                    .unwrap_or_default()
                     .into(),
             }
             .into(),

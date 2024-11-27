@@ -147,12 +147,12 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
         id: html::AttrValue::new("href")
             .in_scope(".movie-title")
             .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .unwrap()
+            .flatten()
             .into(),
         title: html::TextValue::new()
             .map(html::sanitize_text)
             .in_scope(".movie-title")
-            .unwrap()
+            .unwrap_or_default()
             .into(),
         secondary_title: html::optional_text_value(".full-quality"),
         image: html::self_hosted_image(URL, ".movie-img > img", "src"),
@@ -182,7 +182,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 description: html::TextValue::new()
                     .map(html::sanitize_text)
                     .in_scope("div[itemprop=description]")
-                    .unwrap()
+                    .unwrap_or_default()
                     .into(),
                 additional_info: html::ItemsProcessor::new(
                     ".film-info > *",

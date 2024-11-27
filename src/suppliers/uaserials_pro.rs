@@ -107,7 +107,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
         id: html::AttrValue::new("href")
             .in_scope("a.short-img")
             .map_optional(|id| datalife::extract_id_from_url(URL, id))
-            .unwrap()
+            .flatten()
             .into(),
         title: html::text_value("div.th-title"),
         secondary_title: html::optional_text_value("div.th-title-oname"),
@@ -143,7 +143,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 params: html::AttrValue::new("data-src")
                     .map(|s| vec![s])
                     .in_scope("#content > .video_box > iframe")
-                    .unwrap()
+                    .unwrap_or_default()
                     .into(),
             }
             .into(),

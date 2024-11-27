@@ -132,7 +132,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
         id: html::AttrValue::new("href")
             .map(|s| datalife::extract_id_from_url(URL, s))
             .in_scope(".short-text > .short-t")
-            .unwrap()
+            .unwrap_or_default()
             .into(),
         title: html::text_value(".short-text > .short-t"),
         secondary_title: html::ItemsProcessor::new(
@@ -164,7 +164,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 title: html::TextValue::new()
                     .map(|s| s.trim().to_owned())
                     .in_scope("article .full-title > h1")
-                    .unwrap()
+                    .unwrap_or_default()
                     .into(),
                 original_title: html::TextValue::new()
                     .map(|s| s.trim().to_owned())
@@ -206,7 +206,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 params: html::AttrValue::new("value")
                     .map(|s| vec![s])
                     .in_scope("article input")
-                    .unwrap()
+                    .unwrap_or_default()
                     .into(),
             }
             .into(),

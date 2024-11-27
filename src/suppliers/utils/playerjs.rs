@@ -74,11 +74,9 @@ pub async fn load_and_parse_playerjs_sources(
         }
         Ok(result)
     } else {
-        Ok(vec![ContentMediaItemSource::Video {
-            description: description.into(),
-            headers: None,
-            link: String::from(file),
-        }])
+        let mut sources: Vec<ContentMediaItemSource> = Vec::new();
+        populate_video_sources(&mut sources, description, &file);
+        Ok(sources)
     }
 }
 
@@ -160,17 +158,35 @@ fn populate_media_items_map(
 
 fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str, src: &PlayerJSFile) {
     if let Some(file) = src.file.as_ref() {
-        sources.push(ContentMediaItemSource::Video {
-            link: file.clone(),
-            description: String::from(title.trim()),
-            headers: None,
-        });
+        populate_video_sources(sources, title, &file)
     }
 
     if let Some(subtitle) = src.subtitle.as_ref() {
         if !subtitle.is_empty() {
             populate_subtitle(sources, subtitle, title);
         }
+    }
+}
+
+fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str, file: &str) {
+    if file.starts_with("[") {
+        for quality_and_link in file.split(",") {
+            let quality_ends = quality_and_link.find("]").unwrap_or(0) + 1;
+            let quality = &quality_and_link[0..quality_ends];
+            let link = &quality_and_link[quality_ends..];
+
+            sources.push(ContentMediaItemSource::Video {
+                link: link.to_owned(),
+                description: format!("{quality}{title}"),
+                headers: None,
+            });
+        }
+    } else {
+        sources.push(ContentMediaItemSource::Video {
+            link: file.to_owned(),
+            description: String::from(title.trim()),
+            headers: None,
+        });
     }
 }
 
