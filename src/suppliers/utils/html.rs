@@ -31,9 +31,9 @@ impl DOMProcessor<ContentInfo> for ContentInfoProcessor {
     }
 }
 
-impl Into<Box<dyn DOMProcessor<ContentInfo>>> for ContentInfoProcessor {
-    fn into(self) -> Box<dyn DOMProcessor<ContentInfo>> {
-        Box::new(self)
+impl From<ContentInfoProcessor> for Box<dyn DOMProcessor<ContentInfo>> {
+    fn from(value: ContentInfoProcessor) -> Self {
+        Box::new(value)
     }
 }
 
@@ -64,13 +64,13 @@ impl DOMProcessor<ContentDetails> for ContentDetailsProcessor {
     }
 }
 
-impl Into<Box<dyn DOMProcessor<ContentDetails>>> for ContentDetailsProcessor {
-    fn into(self) -> Box<dyn DOMProcessor<ContentDetails>> {
-        Box::new(self)
+impl From<ContentDetailsProcessor> for Box<dyn DOMProcessor<ContentDetails>> {
+    fn from(value: ContentDetailsProcessor) -> Self {
+        Box::new(value)
     }
 }
-
 // text nodes
+#[derive(Default)]
 pub struct TextValue {
     pub all_nodes: bool,
 }
@@ -85,9 +85,9 @@ impl DOMProcessor<String> for TextValue {
     }
 }
 
-impl Into<Box<dyn DOMProcessor<String>>> for TextValue {
-    fn into(self) -> Box<dyn DOMProcessor<String>> {
-        Box::new(self)
+impl From<TextValue> for Box<dyn DOMProcessor<String>> {
+    fn from(value: TextValue) -> Self {
+        Box::new(value)
     }
 }
 
@@ -134,13 +134,13 @@ pub struct AttrValue {
 
 impl DOMProcessor<String> for AttrValue {
     fn process(&self, el: &ElementRef) -> String {
-        el.attr(&self.attr).map(|s| s.into()).unwrap_or_default()
+        el.attr(self.attr).map(|s| s.into()).unwrap_or_default()
     }
 }
 
-impl Into<Box<dyn DOMProcessor<String>>> for AttrValue {
-    fn into(self) -> Box<dyn DOMProcessor<String>> {
-        Box::new(self)
+impl From<AttrValue> for Box<dyn DOMProcessor<String>> {
+    fn from(value: AttrValue) -> Self {
+        Box::new(value)
     }
 }
 
@@ -191,9 +191,9 @@ impl<Out> DOMProcessor<Out> for ExtractValue<Out> {
     }
 }
 
-impl<Out: 'static> Into<Box<dyn DOMProcessor<Out>>> for ExtractValue<Out> {
-    fn into(self) -> Box<dyn DOMProcessor<Out>> {
-        Box::new(self)
+impl<Out: 'static> From<ExtractValue<Out>> for Box<dyn DOMProcessor<Out>> {
+    fn from(value: ExtractValue<Out>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -219,9 +219,9 @@ impl<Out: 'static> ExtractValue<Out> {
 }
 
 impl<Item: Default + 'static> ExtractValue<Item> {
-    pub fn map<Map: 'static + Sync + Send, Out>(self, map: Map) -> MapValue<Item, Out>
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<Item, Out>
     where
-        Map: Fn(Item) -> Out,
+        Map: Fn(Item) -> Out + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
     }
@@ -239,9 +239,9 @@ impl<In, Out> DOMProcessor<Out> for MapValue<In, Out> {
     }
 }
 
-impl<In: 'static, Out: 'static> Into<Box<dyn DOMProcessor<Out>>> for MapValue<In, Out> {
-    fn into(self) -> Box<dyn DOMProcessor<Out>> {
-        Box::new(self)
+impl<In: 'static, Out: 'static> From<MapValue<In, Out>> for Box<dyn DOMProcessor<Out>> {
+    fn from(value: MapValue<In, Out>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -299,9 +299,9 @@ impl<Item> DOMProcessor<Vec<Item>> for ItemsProcessor<Item> {
     }
 }
 
-impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for ItemsProcessor<Item> {
-    fn into(self) -> Box<dyn DOMProcessor<Vec<Item>>> {
-        Box::new(self)
+impl<Item: 'static> From<ItemsProcessor<Item>> for Box<dyn DOMProcessor<Vec<Item>>> {
+    fn from(value: ItemsProcessor<Item>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -359,9 +359,9 @@ impl<Item> DOMProcessor<Vec<Item>> for JoinProcessors<Item> {
     }
 }
 
-impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for JoinProcessors<Item> {
-    fn into(self) -> Box<dyn DOMProcessor<Vec<Item>>> {
-        Box::new(self)
+impl<Item: 'static> From<JoinProcessors<Item>> for Box<dyn DOMProcessor<Vec<Item>>> {
+    fn from(value: JoinProcessors<Item>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -441,9 +441,9 @@ impl<Item> FlattenProcessor<Item> {
     }
 }
 
-impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for FlattenProcessor<Item> {
-    fn into(self) -> Box<dyn DOMProcessor<Vec<Item>>> {
-        Box::new(self)
+impl<Item: 'static> From<FlattenProcessor<Item>> for Box<dyn DOMProcessor<Vec<Item>>> {
+    fn from(value: FlattenProcessor<Item>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -479,14 +479,14 @@ impl<Item> DOMProcessor<Vec<Item>> for FilterProcessor<Item> {
         self.items_processor
             .process(el)
             .into_iter()
-            .filter(|i| ((self.predicate)(&i)))
+            .filter(|i| ((self.predicate)(i)))
             .collect()
     }
 }
 
-impl<Item: 'static> Into<Box<dyn DOMProcessor<Vec<Item>>>> for FilterProcessor<Item> {
-    fn into(self) -> Box<dyn DOMProcessor<Vec<Item>>> {
-        Box::new(self)
+impl<Item: 'static> From<FilterProcessor<Item>> for Box<dyn DOMProcessor<Vec<Item>>> {
+    fn from(value: FilterProcessor<Item>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -536,9 +536,9 @@ impl<Item> DOMProcessor<Option<Item>> for ScopeProcessor<Item> {
     }
 }
 
-impl<Item: 'static> Into<Box<dyn DOMProcessor<Option<Item>>>> for ScopeProcessor<Item> {
-    fn into(self) -> Box<dyn DOMProcessor<Option<Item>>> {
-        Box::new(self)
+impl<Item: 'static> From<ScopeProcessor<Item>> for Box<dyn DOMProcessor<Option<Item>>> {
+    fn from(value: ScopeProcessor<Item>) -> Self {
+        Box::new(value)
     }
 }
 
@@ -559,22 +559,16 @@ impl<Item: Default + 'static> ScopeProcessor<Item> {
         MapValue::new(|opt| opt.unwrap_or_default(), self.into())
     }
 
-    pub fn map<Map: 'static + Sync + Send, Out>(
-        self,
-        map: Map,
-    ) -> MapValue<Option<Item>, Option<Out>>
+    pub fn map<Map, Out>(self, map: Map) -> MapValue<Option<Item>, Option<Out>>
     where
-        Map: Fn(Option<Item>) -> Option<Out>,
+        Map: Fn(Option<Item>) -> Option<Out> + 'static + Sync + Send,
     {
         MapValue::new(map, self.into())
     }
 
-    pub fn map_optional<Map: 'static + Copy + Sync + Send, Out>(
-        self,
-        map: Map,
-    ) -> MapValue<Option<Item>, Option<Out>>
+    pub fn map_optional<Map, Out>(self, map: Map) -> MapValue<Option<Item>, Option<Out>>
     where
-        Map: Fn(Item) -> Out,
+        Map: Fn(Item) -> Out + 'static + Copy + Sync + Send,
     {
         MapValue::new(move |opt| opt.map(map), self.into())
     }
@@ -603,11 +597,15 @@ impl DefaultValue {
     }
 }
 
-pub fn default_value<V: Default>() -> Box<DefaultValue> {
+//pub fn default_value<V: Default>() -> Box<dyn DOMProcessor<V>> {
+//Box::new(DefaultValue::new())
+//}
+
+pub fn default_value() -> Box<DefaultValue> {
     Box::new(DefaultValue::new())
 }
 
-pub fn sanitize_text<'h>(text: String) -> String {
+pub fn sanitize_text(text: String) -> String {
     static SANITIZE_TEXT_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
     let re = SANITIZE_TEXT_REGEXP.get_or_init(|| Regex::new(r#"[\n\t\s]+"#).unwrap());
 

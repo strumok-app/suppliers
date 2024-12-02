@@ -1,5 +1,6 @@
 use anyhow::anyhow;
-use std::{collections::HashMap, sync::OnceLock};
+use indexmap::IndexMap;
+use std::sync::OnceLock;
 
 use super::utils::{self, html, playerjs};
 use super::ContentSupplier;
@@ -17,7 +18,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         get_channels_map()
             .keys()
-            .map(|s| s.clone())
+            .map(|s| s.into())
             .collect::<Vec<_>>()
     }
 
@@ -83,11 +84,8 @@ impl ContentSupplier for UASerialsProContentSupplier {
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(
-                &params[0],
-                playerjs::convert_strategy_season_ep_dub,
-            )
-            .await
+            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_ep_dub)
+                .await
         } else {
             Err(anyhow!("iframe url expected"))
         }
@@ -139,7 +137,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     "ul.short-list > li:not(.mylists-mobile)",
                     html::TextValue::new().all_nodes().into(),
                 ),
-                similar: html::default_value::<Vec<ContentInfo>>(),
+                similar: html::default_value(),
                 params: html::AttrValue::new("data-src")
                     .map(|s| vec![s])
                     .in_scope("#content > .video_box > iframe")
@@ -151,10 +149,10 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        HashMap::from([
+        IndexMap::from([
             ("Фільми".into(), format!("{URL}/films/page/")),
             ("Серіали".into(), format!("{URL}/series/page/")),
             ("Мультфільми".into(), format!("{URL}/fcartoon/page/")),

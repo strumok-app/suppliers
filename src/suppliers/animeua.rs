@@ -1,5 +1,6 @@
 use anyhow::anyhow;
-use std::{collections::HashMap, sync::OnceLock};
+use indexmap::IndexMap;
+use std::sync::OnceLock;
 
 use crate::{
     models::{
@@ -103,7 +104,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .map(|s| datalife::extract_id_from_url(URL, s))
             .into(),
         title: html::text_value(".poster__desc > .poster__title"),
-        secondary_title: html::default_value::<Option<String>>(),
+        secondary_title: html::default_value(),
         image: html::self_hosted_image(URL, ".poster__img img", "data-src"),
     }
     .into()
@@ -163,10 +164,10 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        HashMap::from([
+        IndexMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("ТОП 100".into(), format!("{URL}/top.html")),
             ("Повнометражки".into(), format!("{URL}/film/page/")),

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Ok};
+use indexmap::IndexMap;
 use scraper::{ElementRef, Selector};
-use std::{collections::HashMap, sync::OnceLock};
+use std::sync::OnceLock;
 
 use crate::{
     models::{
@@ -143,7 +144,7 @@ fn try_extract_episodes(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
     let items: Vec<_> = root
         .select(selector)
         .enumerate()
-        .map(|(number, el)| {
+        .filter_map(|(number, el)| {
             let url = el.attr("value")?;
             let title = el.text().next()?;
 
@@ -156,7 +157,6 @@ fn try_extract_episodes(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
                 params: vec![url.into()],
             })
         })
-        .flatten()
         .collect();
 
     if items.is_empty() {
@@ -188,24 +188,23 @@ fn try_extract_movie(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
 }
 
 async fn try_extract_iframe_options(url: String) -> Result<Vec<(String, String)>, anyhow::Error> {
-    const ALLOWED_VIDEO_HOSTS: &'static [&'static str] = &["ashdi", "tortuga"];
+    const ALLOWED_VIDEO_HOSTS: &[&str] = &["ashdi", "tortuga"];
     static OPTIONS_SELECTOR: OnceLock<Selector> = OnceLock::new();
     let selector =
         OPTIONS_SELECTOR.get_or_init(|| Selector::parse("option[data-type='link']").unwrap());
 
     let html = utils::create_client().get(url).send().await?.text().await?;
 
-    let ref document = scraper::Html::parse_document(&html);
+    let document = &scraper::Html::parse_document(&html);
     let root = document.root_element();
     let options: Vec<_> = root
         .select(selector)
-        .map(|el| {
+        .filter_map(|el| {
             let link = el.attr("value")?;
             let description = el.text().next()?;
 
             Some((description.to_owned(), link.to_owned()))
         })
-        .flatten()
         .filter(|(_, link)| ALLOWED_VIDEO_HOSTS.iter().any(|&host| link.contains(host)))
         .collect();
 
@@ -215,7 +214,7 @@ async fn try_extract_iframe_options(url: String) -> Result<Vec<(String, String)>
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(|id| extract_id_from_url(id))
+            .map(extract_id_from_url)
             .in_scope(".item > a")
             .unwrap_or_default()
             .into(),
@@ -287,18 +286,18 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .collect::<Vec<_>>()
                     })
                     .into(),
-                similar: html::default_value::<Vec<ContentInfo>>(),
-                params: html::default_value::<Vec<String>>(),
+                similar: html::default_value(),
+                params: html::default_value(),
             }
             .into(),
         )
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        HashMap::from([
+        IndexMap::from([
             ("Фільми".into(), format!("{URL}/movie/")),
             ("Серіали".into(), format!("{URL}/serial/")),
             ("Аніме".into(), format!("{URL}/animeukr/")),

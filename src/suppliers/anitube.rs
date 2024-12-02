@@ -1,5 +1,6 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::sync::OnceLock;
 
+use indexmap::IndexMap;
 use regex::Regex;
 
 use crate::{
@@ -126,7 +127,9 @@ impl ContentSupplier for AniTubeContentSupplier {
             let description = params.remove(0);
             let url = params.remove(0);
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(&description, &url).await?;
+            let mut sources = playerjs::load_and_parse_playerjs_sources(&description, &url)
+                .await
+                .unwrap_or_default();
             results.append(&mut sources);
         }
 
@@ -134,16 +137,15 @@ impl ContentSupplier for AniTubeContentSupplier {
     }
 }
 
-fn extract_params(id: &String, html: &String) -> Option<Vec<String>> {
+fn extract_params(id: &str, html: &str) -> Option<Vec<String>> {
     static DLE_HASH_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
     let dle_hash_re = DLE_HASH_REGEXP
         .get_or_init(|| Regex::new(r#"dle_login_hash\s+=\s+'(?<hash>[a-z0-9]+)'"#).unwrap());
 
     let (news_id, _) = id.split_once("-")?;
     let hash = dle_hash_re
-        .captures(&html)
-        .map(|c| c.name("hash"))
-        .flatten()
+        .captures(html)
+        .and_then(|c| c.name("hash"))
         .map(|m| m.as_str())?;
 
     Some(vec![news_id.into(), hash.into()])
@@ -157,7 +159,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .unwrap_or_default()
             .into(),
         title: html::text_value(".story_c > h2 > a"),
-        secondary_title: html::default_value::<Option<String>>(),
+        secondary_title: html::default_value(),
         image: html::self_hosted_image(URL, ".story_c_l img", "src"),
     }
     .into()
@@ -179,11 +181,11 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
                 title: html::TextValue::new()
-                    .map(|s| html::sanitize_text(s))
+                    .map(html::sanitize_text)
                     .in_scope(".story_c > .rcol > h2")
                     .unwrap_or_default()
                     .into(),
-                original_title: html::default_value::<Option<String>>(),
+                original_title: html::default_value(),
                 image: html::self_hosted_image(URL, ".story_c .story_post img", "src"),
                 description: html::text_value(
                     ".story_c > .rcol > .story_c_r > .story_c_text > .my-text",
@@ -215,7 +217,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .unwrap_or_default()
                             .into(),
                         title: html::text_value(".text_content > a"),
-                        secondary_title: html::default_value::<Option<String>>(),
+                        secondary_title: html::default_value(),
                         image: html::ExtractValue::new(|el| {
                             el.attr("src")
                                 .or(el.attr("data-src"))
@@ -229,15 +231,15 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     }
                     .into(),
                 ),
-                params: html::default_value::<Vec<String>>(),
+                params: html::default_value(),
             }
             .into(),
         )
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR
-        .get_or_init(|| HashMap::from([("Новинки".into(), format!("{URL}/anime/page/"))]))
+        .get_or_init(|| IndexMap::from([("Новинки".into(), format!("{URL}/anime/page/"))]))
 }

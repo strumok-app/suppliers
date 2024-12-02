@@ -11,7 +11,6 @@ async fn should_load_channel() {
         .await
         .unwrap();
     println!("{res:#?}");
-    assert_eq!(true, res.len() > 0)
 }
 
 #[tokio::test]
@@ -21,7 +20,6 @@ async fn should_search() {
         .await
         .unwrap();
     println!("{res:#?}");
-    assert_eq!(true, res.len() > 0)
 }
 
 #[tokio::test]

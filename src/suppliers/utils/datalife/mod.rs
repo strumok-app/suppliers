@@ -2,7 +2,8 @@ mod playlist_html;
 mod tests;
 
 use anyhow::anyhow;
-use std::collections::{BTreeMap, HashMap};
+use indexmap::IndexMap;
+use std::collections::BTreeMap;
 
 use reqwest::{self, RequestBuilder};
 use serde::Deserialize;
@@ -16,14 +17,14 @@ pub fn search_request(url: &str, query: &String) -> RequestBuilder {
     client.post(format!("{url}/index.php")).form(&[
         ("do", "search"),
         ("subaction", "search"),
-        ("story", &query),
+        ("story", query),
         ("sortby", "date"),
         ("resorder", "desc"),
     ])
 }
 
 pub fn get_channel_url(
-    channels_map: &HashMap<String, String>,
+    channels_map: &IndexMap<String, String>,
     channel: &str,
     page: u16,
 ) -> anyhow::Result<String> {
@@ -59,7 +60,7 @@ struct AjaxPlaylistResponse {
 pub async fn load_ajax_playlist(
     playlist_req: reqwest::RequestBuilder,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
-    const ALLOWED_VIDEO_HOSTS: &'static [&'static str] = &["ashdi", "tortuga", "moonanime", "monstro"];
+    const ALLOWED_VIDEO_HOSTS: &[&str] = &["ashdi", "tortuga", "moonanime", "monstro"];
 
     let res: AjaxPlaylistResponse = playlist_req
         .header("X-Requested-With", "XMLHttpRequest")
@@ -87,7 +88,7 @@ pub async fn load_ajax_playlist(
             sorted_media_items
                 .entry(video.number)
                 .or_insert_with(|| ContentMediaItem {
-                    title: String::from(video.name),
+                    title: video.name,
                     section: None,
                     number: video.number,
                     image: None,

@@ -1,32 +1,34 @@
 /// flutter_rust_bridge:ignore
-
 mod tests;
 mod utils;
 
 // suppliers
-mod anitube;
 mod animeua;
+mod anitube;
+mod hianime;
+mod uafilms;
+mod uakinoclub;
 mod uaserial;
 mod uaserials_pro;
-mod uakinoclub; 
-mod uafilms;
 mod ufdub;
 
-use anitube::AniTubeContentSupplier;
 use animeua::AnimeUAContentSupplier;
+use anitube::AniTubeContentSupplier;
+use hianime::HianimeContentSupplier;
+use uafilms::UAFilmsContentSupplier;
+use uakinoclub::UAKinoClubContentSupplier;
 use uaserial::UAserialContentSupplier;
 use uaserials_pro::UASerialsProContentSupplier;
-use uakinoclub::UAKinoClubContentSupplier;
-use uafilms::UAFilmsContentSupplier;
 use ufdub::UFDubContentSupplier;
 
-use std::str::FromStr;
 use enum_dispatch::enum_dispatch;
+use std::str::FromStr;
 use strum::VariantNames;
 use strum_macros::{EnumIter, EnumString, VariantNames};
 
-use crate::models::{ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType};
-
+use crate::models::{
+    ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
+};
 
 #[enum_dispatch]
 pub trait ContentSupplier {
@@ -62,25 +64,31 @@ pub trait ContentSupplier {
 
 #[enum_dispatch(ContentSupplier)]
 #[derive(EnumIter, EnumString, VariantNames)]
+#[warn(clippy::enum_variant_names)]
 pub enum AllContentSuppliers {
-    #[strum(serialize="AniTube")]
+    #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
-    #[strum(serialize="AnimeUA")]
+    #[strum(serialize = "AnimeUA")]
     AnimeUAContentSupplier,
-    #[strum(serialize="UASerial")]
+    #[strum(serialize = "UASerial")]
     UAserialContentSupplier,
-    #[strum(serialize="UASerialsPro")]
+    #[strum(serialize = "UASerialsPro")]
     UASerialsProContentSupplier,
-    #[strum(serialize="UAKinoClub")]
+    #[strum(serialize = "UAKinoClub")]
     UAKinoClubContentSupplier,
-    #[strum(serialize="UAFilms")]
+    #[strum(serialize = "UAFilms")]
     UAFilmsContentSupplier,
-    #[strum(serialize="UFDub")]
+    #[strum(serialize = "UFDub")]
     UFDubContentSupplier,
+    #[strum(serialize = "Hianime")]
+    HianimeContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {
-    AllContentSuppliers::VARIANTS.iter().map(|&s| s.to_owned()).collect()
+    AllContentSuppliers::VARIANTS
+        .iter()
+        .map(|&s| s.to_owned())
+        .collect()
 }
 
 pub fn get_supplier(name: &str) -> Result<AllContentSuppliers, anyhow::Error> {

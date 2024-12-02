@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::sync::OnceLock;
 use std::time::Instant;
 
@@ -201,7 +201,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .map(|s| datalife::extract_id_from_url(URL, s))
                             .into(),
                         title: html::text_value(".full-movie-title"),
-                        secondary_title: html::default_value::<Option<String>>(),
+                        secondary_title: html::default_value(),
                         image: html::self_hosted_image(URL, "img", "src"),
                     }
                     .into(),
@@ -216,10 +216,10 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        HashMap::from([
+        IndexMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("Фільми".into(), format!("{URL}/filmy/page/")),
             ("Серіали".into(), format!("{URL}/seriesss/page/")),

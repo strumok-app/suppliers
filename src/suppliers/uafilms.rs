@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::sync::OnceLock;
 
 use chrono::Datelike;
@@ -83,11 +83,8 @@ impl ContentSupplier for UAFilmsContentSupplier {
         params: Vec<String>,
     ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(
-                &params[0],
-                playerjs::convert_strategy_dub_season_ep,
-            )
-            .await
+            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_dub_season_ep)
+                .await
         } else {
             Err(anyhow!("iframe url expected"))
         }
@@ -112,7 +109,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
         title: html::text_value("a.movie-title"),
         secondary_title: html::JoinProcessors::default()
             .add_processor(html::text_value(".movie-img>span"))
-            .add_processor( html::text_value(".movie-img>.movie-series"))
+            .add_processor(html::text_value(".movie-img>.movie-series"))
             .filter(|s| !s.is_empty())
             .map(|v| Some(v.join(",")))
             .into(),
@@ -163,7 +160,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .map(|s| datalife::extract_id_from_url(URL, s))
                             .into(),
                         title: html::text_value(".rel-movie-title"),
-                        secondary_title: html::default_value::<Option<String>>(),
+                        secondary_title: html::default_value(),
                         image: html::self_hosted_image(URL, "img", "data-src"),
                     }
                     .into(),
@@ -175,13 +172,13 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
         let now = chrono::Utc::now();
         let year = now.year();
 
-        HashMap::from([
+        IndexMap::from([
             ("Новинки".into(), format!("{URL}/year/{year}/page/")),
             ("Фільми".into(), format!("{URL}/filmys/page/")),
             ("Серіали".into(), format!("{URL}/serialy/page/")),

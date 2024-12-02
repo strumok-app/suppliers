@@ -45,5 +45,6 @@ scraper = "0.21.0"
 regex = "1.11.1"
 chrono = "0.4.38"
 futures = "0.3.31"
+indexmap = "2.6.0"
 
 

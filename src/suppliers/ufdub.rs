@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::sync::OnceLock;
 
 use crate::{
     models::{
@@ -14,6 +14,7 @@ use super::{
 };
 
 use anyhow::anyhow;
+use indexmap::IndexMap;
 use regex::Regex;
 
 const URL: &str = "https://ufdub.com";
@@ -99,13 +100,12 @@ impl ContentSupplier for UFDubContentSupplier {
 
         let result: Vec<_> = re
             .captures_iter(&html)
-            .map(|c| {
+            .filter_map(|c| {
                 Some((
                     c.name("title")?.as_str().to_owned(),
                     c.name("url")?.as_str().to_owned(),
                 ))
             })
-            .flatten()
             .filter(|(title, _)| title != "Трейлер")
             .enumerate()
             .map(|(number, (title, url))| ContentMediaItem {
@@ -205,7 +205,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .map(|s| datalife::extract_id_from_url(URL, s))
                             .into(),
                         title: html::attr_value("img", "alt"),
-                        secondary_title: html::default_value::<Option<String>>(),
+                        secondary_title: html::default_value(),
                         image: html::self_hosted_image(URL, "img", "src"),
                     }
                     .into(),
@@ -221,10 +221,10 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static HashMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<HashMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<String, String> {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        HashMap::from([
+        IndexMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("Фільми".into(), format!("{URL}/film/page/")),
             ("Серіали".into(), format!("{URL}/serial/page/")),

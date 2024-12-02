@@ -1806,6 +1806,7 @@ dependencies = [
  "enum_dispatch",
  "flutter_rust_bridge",
  "futures",
+ "indexmap",
  "regex",
  "reqwest",
  "scraper",
