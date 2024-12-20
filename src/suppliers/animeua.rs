@@ -7,13 +7,12 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    suppliers::utils::html,
+    utils::{html, playerjs},
 };
 
-use super::{
-    utils::{self, datalife, playerjs},
-    ContentSupplier,
-};
+use crate::utils::{self, datalife};
+
+use super::ContentSupplier;
 
 const URL: &str = "https://animeua.club";
 
@@ -41,7 +40,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
         &self,
         query: String,
         _types: Vec<String>,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -53,7 +52,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
         &self,
         channel: String,
         page: u16,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -66,7 +65,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
     async fn get_content_details(
         &self,
         id: String,
-    ) -> Result<Option<ContentDetails>, anyhow::Error> {
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -80,7 +79,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
         &self,
         _id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
             playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_dub_season_ep)
                 .await
@@ -93,7 +92,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
         &self,
         _id: String,
         _params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
     }
 }
@@ -145,7 +144,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         ".page__subcol-side2 li",
                         html::TextValue::new()
                             .all_nodes()
-                            .map(html::sanitize_text)
+                            .map(|s| html::sanitize_text(&s))
                             .into(),
                     ),
                 ]),
@@ -165,8 +164,8 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 }
 
 fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
+    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("ТОП 100".into(), format!("{URL}/top.html")),
@@ -174,4 +173,48 @@ fn get_channels_map() -> &'static IndexMap<String, String> {
             ("Аніме серіали".into(), format!("{URL}/anime/page/")),
         ])
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = AnimeUAContentSupplier
+            .load_channel("ТОП 100".into(), 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = AnimeUAContentSupplier
+            .search("Доктор Стоун".into(), vec![])
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details() {
+        let res = AnimeUAContentSupplier
+            .get_content_details("7633-dr-stone-4".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items() {
+        let res = AnimeUAContentSupplier
+            .load_media_items(
+                "7633-dr-stone-4".into(),
+                vec![String::from("https://ashdi.vip/serial/971?season=4")],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 }

@@ -5,12 +5,11 @@ use std::time::Instant;
 
 use anyhow::Ok;
 
-use super::utils::{self, html, playerjs};
 use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
-use crate::suppliers::utils::datalife;
+use crate::utils::{self, datalife, html, playerjs};
 
 const URL: &str = "https://uakino.me";
 
@@ -43,7 +42,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         &self,
         query: String,
         _types: Vec<String>,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let result = utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -62,7 +61,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         &self,
         channel: String,
         page: u16,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -75,7 +74,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
     async fn get_content_details(
         &self,
         id: String,
-    ) -> Result<Option<ContentDetails>, anyhow::Error> {
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -89,7 +88,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         &self,
         id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
             playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_dub).await
         } else {
@@ -124,7 +123,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         &self,
         _id: String,
         mut params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() % 2 != 0 {
             return Err(anyhow!("Wrong params size"));
         }
@@ -150,7 +149,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .flatten()
             .into(),
         title: html::TextValue::new()
-            .map(html::sanitize_text)
+            .map(|s| html::sanitize_text(&s))
             .in_scope(".movie-title")
             .unwrap_or_default()
             .into(),
@@ -180,7 +179,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 original_title: html::optional_text_value(".origintitle"),
                 image: html::self_hosted_image(URL, ".film-poster img", "src"),
                 description: html::TextValue::new()
-                    .map(html::sanitize_text)
+                    .map(|s| html::sanitize_text(&s))
                     .in_scope("div[itemprop=description]")
                     .unwrap_or_default()
                     .into(),
@@ -217,8 +216,8 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 }
 
 fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
+    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("Фільми".into(), format!("{URL}/filmy/page/")),
@@ -227,4 +226,74 @@ fn get_channels_map() -> &'static IndexMap<String, String> {
             ("Мультфільми".into(), format!("{URL}/cartoon/page/")),
         ])
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = UAKinoClubContentSupplier
+            .load_channel("Новинки".into(), 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = UAKinoClubContentSupplier
+            .search("Термінатор".into(), vec![])
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details() {
+        let res = UAKinoClubContentSupplier
+            .get_content_details("filmy/genre_comedy/24898-zhyv-sobi-policeiskyi".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items() {
+        let res = UAKinoClubContentSupplier
+            .load_media_items(
+                "filmy/genre_comedy/24898-zhyv-sobi-policeiskyi".into(),
+                vec!["https://ashdi.vip/vod/151972".into()],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items_for_dle_playlist() {
+        let res = UAKinoClubContentSupplier
+            .load_media_items(
+                "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon".into(),
+                vec![],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items_source() {
+        let res = UAKinoClubContentSupplier
+            .load_media_item_sources(
+                "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon".into(),
+                vec![
+                    "ТакТребаПродакшн (1-2)".into(),
+                    "https://ashdi.vip/vod/150511".into(),
+                ],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 }

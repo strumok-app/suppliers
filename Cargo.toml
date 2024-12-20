@@ -4,7 +4,7 @@ version = "1.1.0"
 edition = "2021"
 
 [profile.release]
-opt-level = 'z' 
+opt-level = 'z'
 #lto = true
 codegen-units = 1
 strip = true
@@ -16,35 +16,43 @@ crate-type = ["cdylib", "staticlib"]
 version = "0.12.9"
 default-features = false
 features = [
-    "charset",
-    "http2",
-    "rustls-tls",
-    "rustls-tls-native-roots",
-    # Compression
-    "brotli",
-    "gzip",
-    "json",
+  "charset",
+  "http2",
+  "rustls-tls",
+  "rustls-tls-native-roots",
+  # Compression
+  "brotli",
+  "gzip",
+  "json",
 ]
 
 [dependencies.tokio]
 version = "1"
-features = [
-    "rt-multi-thread", 
-    "macros",
-]
+features = ["rt-multi-thread", "macros"]
 
 [dependencies]
-flutter_rust_bridge = "=2.6.0"
+url = "2.5.4"
+flutter_rust_bridge = "=2.7.0"
 anyhow = "1.0.93"
 enum_dispatch = "0.3.13"
 strum = { version = "0.26.3", features = ["strum_macros"] }
 strum_macros = "0.26.4"
 serde_json = "1.0.132"
 serde = { version = "1.0", features = ["derive"] }
-scraper = "0.21.0"
+scraper = "0.22.0"
 regex = "1.11.1"
 chrono = "0.4.38"
 futures = "0.3.31"
 indexmap = "2.6.0"
-
-
+cached = { version = "0.54.0", features = [
+  "async",
+  "async_tokio_rt_multi_thread",
+] }
+log = "0.4.9"
+env_logger = "0.11.5"
+test-log = "0.2.16"
+md-5 = "0.10.6"
+base64 = "0.22.1"
+aes = "0.8.4"
+block-modes = "0.9.1"
+cbc = { version = "0.1.2", features = ["std"] }

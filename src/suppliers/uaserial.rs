@@ -8,13 +8,14 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    suppliers::utils::{html, playerjs},
+    utils::{
+        self,
+        html::{self, DOMProcessor},
+        playerjs,
+    },
 };
 
-use super::{
-    utils::{self, html::DOMProcessor},
-    ContentSupplier,
-};
+use super::ContentSupplier;
 
 const URL: &str = "https://uaserial.tv";
 const SEARCH_URL: &str = "https://uaserial.tv/search";
@@ -48,7 +49,7 @@ impl ContentSupplier for UAserialContentSupplier {
         &self,
         query: String,
         _types: Vec<String>,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let request_builder = utils::create_client()
             .get(SEARCH_URL)
             .query(&[("query", &query)]);
@@ -60,7 +61,7 @@ impl ContentSupplier for UAserialContentSupplier {
         &self,
         channel: String,
         page: u16,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let url = match get_channels_map().get(&channel) {
             Some(url) => format!("{url}{page}"),
             None => return Err(anyhow!("unknown channel")),
@@ -76,7 +77,7 @@ impl ContentSupplier for UAserialContentSupplier {
     async fn get_content_details(
         &self,
         id: String,
-    ) -> Result<Option<ContentDetails>, anyhow::Error> {
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}");
 
         let html = utils::create_client().get(url).send().await?.text().await?;
@@ -100,7 +101,7 @@ impl ContentSupplier for UAserialContentSupplier {
         &self,
         _id: String,
         _params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
         Err(anyhow!("unimplemented"))
     }
 
@@ -108,7 +109,7 @@ impl ContentSupplier for UAserialContentSupplier {
         &self,
         _id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
             return Err(anyhow!("iframe url expected"));
         }
@@ -187,7 +188,7 @@ fn try_extract_movie(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
         .collect()
 }
 
-async fn try_extract_iframe_options(url: String) -> Result<Vec<(String, String)>, anyhow::Error> {
+async fn try_extract_iframe_options(url: String) -> anyhow::Result<Vec<(String, String)>, anyhow::Error> {
     const ALLOWED_VIDEO_HOSTS: &[&str] = &["ashdi", "tortuga"];
     static OPTIONS_SELECTOR: OnceLock<Selector> = OnceLock::new();
     let selector =
@@ -281,7 +282,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     ))
                     .map(|v| {
                         v.into_iter()
-                            .map(html::sanitize_text)
+                            .map(|s| html::sanitize_text(&s))
                             .filter(|s| !s.is_empty())
                             .collect::<Vec<_>>()
                     })
@@ -295,8 +296,8 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 }
 
 fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
+    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
             ("Фільми".into(), format!("{URL}/movie/")),
             ("Серіали".into(), format!("{URL}/serial/")),
@@ -308,6 +309,60 @@ fn get_channels_map() -> &'static IndexMap<String, String> {
 }
 
 fn extract_id_from_url(mut id: String) -> String {
-    id.remove(0);
+    if !id.is_empty() {
+        id.remove(0);
+    }
     id
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = UAserialContentSupplier
+            .load_channel("Серіали".into(), 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = UAserialContentSupplier
+            .search("Термінатор".into(), vec![])
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details_for_movie() {
+        let res = UAserialContentSupplier
+            .get_content_details("movie-the-terminator".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details_for_tv_show() {
+        let res = UAserialContentSupplier
+            .get_content_details("universal-basic-guys/season-1".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_item_sources() {
+        let res = UAserialContentSupplier
+            .load_media_item_sources(
+                "blue-exorcist/season-1".into(),
+                vec!["/embed/blue-exorcist/season-1/episode-1".into()],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 }

@@ -5,13 +5,10 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    suppliers::utils::html::ContentInfoProcessor,
+    utils::{self, datalife, html},
 };
 
-use super::{
-    utils::{self, datalife, html},
-    ContentSupplier,
-};
+use super::ContentSupplier;
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
@@ -43,7 +40,7 @@ impl ContentSupplier for UFDubContentSupplier {
         &self,
         query: String,
         _types: Vec<String>,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -55,7 +52,7 @@ impl ContentSupplier for UFDubContentSupplier {
         &self,
         channel: String,
         page: u16,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -68,7 +65,7 @@ impl ContentSupplier for UFDubContentSupplier {
     async fn get_content_details(
         &self,
         id: String,
-    ) -> Result<Option<ContentDetails>, anyhow::Error> {
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -82,7 +79,7 @@ impl ContentSupplier for UFDubContentSupplier {
         &self,
         _id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
         static VIDEO_LIKNS_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
         let re =
         VIDEO_LIKNS_REGEXP.get_or_init(|| Regex::new(r#"\['(?<title>[^']*)','mp4','(?<url>https://ufdub\.com/video/VIDEOS\.php\?[^']*?)'\]"#).unwrap());
@@ -129,7 +126,7 @@ impl ContentSupplier for UFDubContentSupplier {
         &self,
         _id: String,
         _params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         todo!()
     }
 }
@@ -186,7 +183,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     "article > .full-desc > .full-text p",
                     html::TextValue::new().into(),
                 )
-                .map(|v| html::sanitize_text(v.join("")))
+                .map(|v| html::sanitize_text(&v.join("")))
                 .into(),
                 additional_info: html::flatten(vec![
                     html::items_processor(
@@ -200,7 +197,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 ]),
                 similar: html::items_processor(
                     "article > .rels .rel",
-                    ContentInfoProcessor {
+                    html::ContentInfoProcessor {
                         id: html::AttrValue::new("href")
                             .map(|s| datalife::extract_id_from_url(URL, s))
                             .into(),
@@ -222,8 +219,8 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 }
 
 fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
+    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
             ("Новинки".into(), format!("{URL}/page/")),
             ("Фільми".into(), format!("{URL}/film/page/")),
@@ -234,4 +231,59 @@ fn get_channels_map() -> &'static IndexMap<String, String> {
             ("Дорами".into(), format!("{URL}/dorama/page/")),
         ])
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = UFDubContentSupplier
+            .load_channel("Аніме".into(), 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = UFDubContentSupplier
+            .search("Засновник темного шляху".into(), vec![])
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details() {
+        let res = UFDubContentSupplier
+            .get_content_details("anime/302-the-oni-girl-moia-divchyna-oni".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items_serial() {
+        let res = UFDubContentSupplier
+            .load_media_items(
+                "anime/301-zasnovnyk-temnogo-shliakhu-mo-dao-zu-shi".into(),
+                vec![String::from("https://video.ufdub.com/AT/VP.php?ID=301")],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items_movie() {
+        let res = UFDubContentSupplier
+            .load_media_items(
+                "anime/302-the-oni-girl-moia-divchyna-oni".into(),
+                vec![String::from("https://video.ufdub.com/AT/VP.php?ID=302")],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 }

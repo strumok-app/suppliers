@@ -2,12 +2,11 @@ use anyhow::anyhow;
 use indexmap::IndexMap;
 use std::sync::OnceLock;
 
-use super::utils::{self, html, playerjs};
 use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
-use crate::suppliers::utils::datalife;
+use crate::utils::{self, datalife, html, playerjs};
 
 const URL: &str = "https://uaserials.pro";
 
@@ -43,7 +42,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         &self,
         channel: String,
         page: u16,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -57,7 +56,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         &self,
         query: String,
         _types: Vec<String>,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -68,7 +67,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
     async fn get_content_details(
         &self,
         id: String,
-    ) -> Result<Option<ContentDetails>, anyhow::Error> {
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -82,7 +81,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         &self,
         _id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
             playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_ep_dub)
                 .await
@@ -95,7 +94,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         &self,
         _id: String,
         _params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
     }
 }
@@ -150,8 +149,8 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 }
 
 fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
+    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
             ("Фільми".into(), format!("{URL}/films/page/")),
             ("Серіали".into(), format!("{URL}/series/page/")),
@@ -159,4 +158,47 @@ fn get_channels_map() -> &'static IndexMap<String, String> {
             ("Мультсеріали".into(), format!("{URL}/cartoon/page/")),
         ])
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = UASerialsProContentSupplier
+            .load_channel("Серіали".into(), 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = UASerialsProContentSupplier
+            .search("Термінатор".into(), vec![])
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details() {
+        let res = UASerialsProContentSupplier
+            .get_content_details("8831-gotel-kokayin".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items() {
+        let res = UASerialsProContentSupplier
+            .load_media_items(
+                "8831-gotel-kokayin".into(),
+                vec!["https://hdvbua.pro/embed/8831".into()],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 }

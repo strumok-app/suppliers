@@ -8,17 +8,14 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    suppliers::utils::html::ContentInfoProcessor,
-};
-
-use super::{
     utils::{
         self, datalife,
         html::{self, DOMProcessor},
         playerjs,
     },
-    ContentSupplier,
 };
+
+use super::ContentSupplier;
 
 use anyhow::anyhow;
 
@@ -48,7 +45,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         &self,
         query: String,
         _types: Vec<String>,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -60,7 +57,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         &self,
         channel: String,
         page: u16,
-    ) -> Result<Vec<ContentInfo>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -73,7 +70,7 @@ impl ContentSupplier for AniTubeContentSupplier {
     async fn get_content_details(
         &self,
         id: String,
-    ) -> Result<Option<ContentDetails>, anyhow::Error> {
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         let html = utils::create_client()
@@ -99,7 +96,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         &self,
         _id: String,
         params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.len() != 2 {
             return Err(anyhow!("news_id and user hash expected"));
         }
@@ -117,7 +114,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         &self,
         _id: String,
         mut params: Vec<String>,
-    ) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() % 2 != 0 {
             return Err(anyhow!("Wrong params size"));
         }
@@ -181,7 +178,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
                 title: html::TextValue::new()
-                    .map(html::sanitize_text)
+                    .map(|s| html::sanitize_text(&s))
                     .in_scope(".story_c > .rcol > h2")
                     .unwrap_or_default()
                     .into(),
@@ -195,7 +192,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         .text()
                         .collect::<String>()
                         .split("\n")
-                        .map(|s| html::sanitize_text(s.to_owned()))
+                        .map(html::sanitize_text)
                         .filter(|s| !s.is_empty() && !s.starts_with("."))
                         .collect();
 
@@ -210,7 +207,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 .into(),
                 similar: html::items_processor(
                     "ul.portfolio_items > li",
-                    ContentInfoProcessor {
+                    html::ContentInfoProcessor {
                         id: html::AttrValue::new("href")
                             .map(|s| datalife::extract_id_from_url(URL, s))
                             .in_scope(".sl_poster > a")
@@ -239,7 +236,75 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 }
 
 fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR
-        .get_or_init(|| IndexMap::from([("Новинки".into(), format!("{URL}/anime/page/"))]))
+    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| IndexMap::from([("Новинки".into(), format!("{URL}/anime/page/"))]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = AniTubeContentSupplier
+            .load_channel("Новинки".into(), 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = AniTubeContentSupplier
+            .search("Доктор Стоун".into(), vec![])
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_content_details() {
+        let res = AniTubeContentSupplier
+            .get_content_details("3419-dokor-kamin".into())
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items() {
+        let res = AniTubeContentSupplier
+            .load_media_items(
+                "7633-dr-stone-4".into(),
+                vec![
+                    "3419".into(),
+                    "fa06e9031e506c6f56099b6500b0613e50a60656".into(),
+                ],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items_source() {
+        let res = AniTubeContentSupplier
+            .load_media_item_sources(
+                "7633-dr-stone-4".into(),
+                vec![
+                    "ОЗВУЧУВАННЯ DZUSKI ПЛЕЄР ASHDI".into(),
+                    "https://ashdi.vip/vod/43190".into(),
+                    "ОЗВУЧУВАННЯ DZUSKI ПЛЕЄР TRG".into(),
+                    "https://tortuga.tw/vod/10654".into(),
+                    // "ОЗВУЧУВАННЯ Togarashi ПЛЕЄР MOON".into(),
+                    // "https://moonanime.art/iframe/qcsyutjdkhtucmzxdmmw".into(),
+                    // "ОЗВУЧУВАННЯ Togarashi ПЛЕЄР МОНСТР ".into(),
+                    // "https://mmonstro.site/embed/649292".into(),
+                    "СУБТИТРИ СУБТИТРИ ПЛЕЄР МОНСТР ".into(),
+                    "https://mmonstro.site/embed/704444/".into(),
+                ],
+            )
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 }

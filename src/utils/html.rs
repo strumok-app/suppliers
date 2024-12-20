@@ -101,11 +101,11 @@ impl TextValue {
         self
     }
 
-    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<String> {
+    pub fn in_scope(self, selectors: &str) -> ScopeProcessor<String> {
         ScopeProcessor::new(selectors, self.into())
     }
 
-    pub fn itr_scope(self, selectors: &'static str) -> ItemsProcessor<String> {
+    pub fn itr_scope(self, selectors: &str) -> ItemsProcessor<String> {
         ItemsProcessor::new(selectors, self.into())
     }
 
@@ -117,14 +117,14 @@ impl TextValue {
     }
 }
 
-pub fn text_value(selectors: &'static str) -> Box<dyn DOMProcessor<String>> {
+pub fn text_value(selectors: &str) -> Box<dyn DOMProcessor<String>> {
     TextValue::new()
         .in_scope(selectors)
         .unwrap_or_default()
         .into()
 }
 
-pub fn optional_text_value(selectors: &'static str) -> Box<dyn DOMProcessor<Option<String>>> {
+pub fn optional_text_value(selectors: &str) -> Box<dyn DOMProcessor<Option<String>>> {
     TextValue::new().in_scope(selectors).into()
 }
 
@@ -149,11 +149,11 @@ impl AttrValue {
         AttrValue { attr }
     }
 
-    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<String> {
+    pub fn in_scope(self, selectors: &str) -> ScopeProcessor<String> {
         ScopeProcessor::new(selectors, self.into())
     }
 
-    pub fn itr_scope(self, selectors: &'static str) -> ItemsProcessor<String> {
+    pub fn itr_scope(self, selectors: &str) -> ItemsProcessor<String> {
         ItemsProcessor::new(selectors, self.into())
     }
 
@@ -165,7 +165,7 @@ impl AttrValue {
     }
 }
 
-pub fn attr_value(selectors: &'static str, attr: &'static str) -> Box<dyn DOMProcessor<String>> {
+pub fn attr_value(selectors: &str, attr: &'static str) -> Box<dyn DOMProcessor<String>> {
     AttrValue::new(attr)
         .in_scope(selectors)
         .unwrap_or_default()
@@ -174,7 +174,7 @@ pub fn attr_value(selectors: &'static str, attr: &'static str) -> Box<dyn DOMPro
 
 pub fn optional_attr_value(
     attr: &'static str,
-    selectors: &'static str,
+    selectors: &str,
 ) -> Box<dyn DOMProcessor<Option<String>>> {
     AttrValue::new(attr).in_scope(selectors).into()
 }
@@ -209,11 +209,11 @@ impl<Out> ExtractValue<Out> {
 }
 
 impl<Out: 'static> ExtractValue<Out> {
-    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<Out> {
+    pub fn in_scope(self, selectors: &str) -> ScopeProcessor<Out> {
         ScopeProcessor::new(selectors, self.into())
     }
 
-    pub fn itr_scope(self, selectors: &'static str) -> ItemsProcessor<Out> {
+    pub fn itr_scope(self, selectors: &str) -> ItemsProcessor<Out> {
         ItemsProcessor::new(selectors, self.into())
     }
 }
@@ -265,7 +265,7 @@ impl<A: 'static, B: 'static> MapValue<A, B> {
         MapValue::new(map, self.into())
     }
 
-    pub fn in_scope(self, selectors: &'static str) -> ScopeProcessor<B> {
+    pub fn in_scope(self, selectors: &str) -> ScopeProcessor<B> {
         ScopeProcessor::new(selectors, self.into())
     }
 }
@@ -306,10 +306,7 @@ impl<Item: 'static> From<ItemsProcessor<Item>> for Box<dyn DOMProcessor<Vec<Item
 }
 
 impl<Item> ItemsProcessor<Item> {
-    pub fn new(
-        scope: &'static str,
-        item_processor: Box<dyn DOMProcessor<Item>>,
-    ) -> ItemsProcessor<Item> {
+    pub fn new(scope: &str, item_processor: Box<dyn DOMProcessor<Item>>) -> ItemsProcessor<Item> {
         ItemsProcessor {
             scope: Selector::parse(scope).unwrap(),
             item_processor,
@@ -334,14 +331,10 @@ impl<Item: 'static> ItemsProcessor<Item> {
 }
 
 pub fn items_processor<Item>(
-    scope: &'static str,
+    scope: &str,
     item_processor: Box<dyn DOMProcessor<Item>>,
 ) -> Box<ItemsProcessor<Item>> {
-    ItemsProcessor {
-        scope: Selector::parse(scope).unwrap(),
-        item_processor,
-    }
-    .into()
+    ItemsProcessor::new(scope, item_processor).into()
 }
 pub struct JoinProcessors<Item> {
     pub item_processors: Vec<Box<dyn DOMProcessor<Item>>>,
@@ -543,10 +536,7 @@ impl<Item: 'static> From<ScopeProcessor<Item>> for Box<dyn DOMProcessor<Option<I
 }
 
 impl<Item> ScopeProcessor<Item> {
-    pub fn new(
-        scope: &'static str,
-        item_processor: Box<dyn DOMProcessor<Item>>,
-    ) -> ScopeProcessor<Item> {
+    pub fn new(scope: &str, item_processor: Box<dyn DOMProcessor<Item>>) -> ScopeProcessor<Item> {
         ScopeProcessor {
             scope: Selector::parse(scope).unwrap(),
             item_processor,
@@ -558,7 +548,9 @@ impl<Item: Default + 'static> ScopeProcessor<Item> {
     pub fn unwrap_or_default(self) -> MapValue<Option<Item>, Item> {
         MapValue::new(|opt| opt.unwrap_or_default(), self.into())
     }
+}
 
+impl<Item: 'static> ScopeProcessor<Item> {
     pub fn map<Map, Out>(self, map: Map) -> MapValue<Option<Item>, Option<Out>>
     where
         Map: Fn(Option<Item>) -> Option<Out> + 'static + Sync + Send,
@@ -575,7 +567,7 @@ impl<Item: Default + 'static> ScopeProcessor<Item> {
 }
 
 pub fn scope_processor<Item>(
-    scope: &'static str,
+    scope: &str,
     item_processor: Box<dyn DOMProcessor<Item>>,
 ) -> Box<ScopeProcessor<Item>> {
     ScopeProcessor::new(scope, item_processor).into()
@@ -605,16 +597,16 @@ pub fn default_value() -> Box<DefaultValue> {
     Box::new(DefaultValue::new())
 }
 
-pub fn sanitize_text(text: String) -> String {
+pub fn sanitize_text(text: &str) -> String {
     static SANITIZE_TEXT_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
     let re = SANITIZE_TEXT_REGEXP.get_or_init(|| Regex::new(r#"[\n\t\s]+"#).unwrap());
 
-    re.replace_all(&text, " ").into_owned().trim().into()
+    re.replace_all(text, " ").into_owned().trim().into()
 }
 
 pub fn self_hosted_image(
     url: &'static str,
-    selectors: &'static str,
+    selectors: &str,
     attr: &'static str,
 ) -> Box<dyn DOMProcessor<String>> {
     AttrValue::new(attr)

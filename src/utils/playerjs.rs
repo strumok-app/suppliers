@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, sync::OnceLock};
 
 use anyhow::Ok;
+use log::error;
 use regex::Regex;
 use serde::Deserialize;
 
@@ -26,7 +27,7 @@ pub async fn load_and_parse_playerjs(
     let maybe_file = extract_playerjs_playlist(&html);
 
     if maybe_file.is_none() {
-        println!("PlayerJS playlist not found");
+        error!("PlayerJS playlist not found");
         return Ok(vec![]);
     }
 
@@ -70,24 +71,23 @@ pub async fn load_and_parse_playerjs_sources(
         let playerjs_file: Vec<PlayerJSFile> = serde_json::from_str(file)?;
         let mut result: Vec<ContentMediaItemSource> = vec![];
         for file in playerjs_file {
-            populate_sources(&mut result, &description, &file);
+            populate_sources(&mut result, description, &file);
         }
         Ok(result)
     } else {
         let mut sources: Vec<ContentMediaItemSource> = Vec::new();
-        populate_video_sources(&mut sources, description, &file);
+        populate_video_sources(&mut sources, description, file);
         Ok(sources)
     }
 }
 
-pub fn extract_playerjs_playlist(content: &String) -> Option<&str> {
+pub fn extract_playerjs_playlist(content: &str) -> Option<&str> {
     static PLAYER_JS_FILE_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
     let re =
         PLAYER_JS_FILE_REGEXP.get_or_init(|| Regex::new(r#"file:\s?['"](?<file>.+)['"]"#).unwrap());
 
-    re.captures(&content)
-        .map(|c| c.name("file"))
-        .flatten()
+    re.captures(content)
+        .and_then(|c| c.name("file"))
         .map(|m| m.as_str())
 }
 
@@ -174,7 +174,7 @@ fn populate_media_items_map(
 
 fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str, src: &PlayerJSFile) {
     if let Some(file) = src.file.as_ref() {
-        populate_video_sources(sources, title, &file)
+        populate_video_sources(sources, title, file)
     }
 
     if let Some(subtitle) = src.subtitle.as_ref() {
@@ -206,11 +206,7 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
     }
 }
 
-fn populate_subtitle(
-    sources: &mut Vec<ContentMediaItemSource>,
-    url: &str,
-    default_title: &str,
-) {
+fn populate_subtitle(sources: &mut Vec<ContentMediaItemSource>, url: &str, default_title: &str) {
     static PLAYER_JS_SUBTITLE_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
 
     if url.starts_with("[") {
@@ -236,6 +232,6 @@ fn populate_subtitle(
     }
 }
 
-fn default_season_episode_id(season: &String, episode: &String) -> u32 {
+fn default_season_episode_id(season: &str, episode: &str) -> u32 {
     extract_digits(season) * 10000 + extract_digits(episode)
 }

@@ -1,4 +1,4 @@
-use crate::suppliers::utils::{extract_digits, html::{self, DOMProcessor}};
+use crate::utils::{extract_digits, html::{self, DOMProcessor}};
 
 #[derive(Debug)]
 pub struct AjaxPlaylist {

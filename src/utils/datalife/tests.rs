@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use crate::suppliers::utils;
+use crate::utils;
 
 #[tokio::test]
 async fn shold_load_large_dle_playlist() {

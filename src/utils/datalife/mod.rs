@@ -52,15 +52,15 @@ pub fn format_id_from_url(url: &str, id: &String) -> String {
     format!("{url}/{id}.html")
 }
 
-#[derive(Deserialize, Debug)]
-struct AjaxPlaylistResponse {
-    response: String,
-}
-
 pub async fn load_ajax_playlist(
     playlist_req: reqwest::RequestBuilder,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
     const ALLOWED_VIDEO_HOSTS: &[&str] = &["ashdi", "tortuga", "moonanime", "monstro"];
+
+    #[derive(Deserialize, Debug)]
+    struct AjaxPlaylistResponse {
+        response: String,
+    }
 
     let res: AjaxPlaylistResponse = playlist_req
         .header("X-Requested-With", "XMLHttpRequest")
