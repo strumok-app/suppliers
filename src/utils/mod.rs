@@ -1,5 +1,5 @@
 pub mod crypto;
-pub mod crypto_js;
+// pub mod crypto_js;
 pub mod datalife;
 pub mod html;
 pub mod jwp_player;
@@ -26,11 +26,15 @@ pub fn create_client() -> reqwest::Client {
         HeaderValue::from_str(get_user_agent()).unwrap(),
     );
 
-    ClientBuilder::new()
+    let builder = ClientBuilder::new()
         .connect_timeout(Duration::from_secs(30))
-        .default_headers(headers)
-        .build()
-        .unwrap()
+        .default_headers(headers);
+
+    // if cfg!(test) {
+    //     builder = builder.connection_verbose(true);
+    // }
+
+    builder.build().unwrap()
 }
 
 pub async fn scrap_page<T>(

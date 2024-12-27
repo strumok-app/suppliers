@@ -16,11 +16,13 @@ pub async fn extract(
 
     let html = utils::create_client()
         .get(url)
-        .header("Refere", referer)
+        .header("Referer", referer)
         .send()
         .await?
         .text()
         .await?;
+
+    // println!("{html:#?}");
 
     let document = scraper::Html::parse_document(&html);
     let packer_script = document

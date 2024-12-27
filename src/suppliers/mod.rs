@@ -5,6 +5,7 @@ mod anitaku;
 mod anitube;
 mod hianime;
 mod mangadex;
+mod tmdb;
 mod uafilms;
 mod uakinoclub;
 mod uaserial;

@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use std::sync::OnceLock;
 
 use anyhow::anyhow;
@@ -21,6 +19,7 @@ use super::ContentSupplier;
 
 const URL: &str = "https://hianime.to";
 const SEARCH_URL: &str = "https://hianime.to/search";
+static HIANIME_API: &str = env!("HIANIME_API");
 
 #[derive(Default)]
 pub struct HianimeContentSupplier;
@@ -150,7 +149,6 @@ impl ContentSupplier for HianimeContentSupplier {
 
 #[derive(Debug)]
 struct HianimeServer {
-    id: String,
     title: String,
     dub: bool,
 }
@@ -182,34 +180,34 @@ async fn extract_servers(id: &str, episode_id: &str) -> anyhow::Result<Vec<Hiani
 
     let mut servers: Vec<HianimeServer> = vec![];
 
-    servers.extend(document.select(subs_selector).filter_map(|el| {
-        let data_id = el.attr("data-id")?;
+    servers.extend(document.select(subs_selector).map(|el| {
+        // let data_id = el.attr("data-id")?;
         let title = el
             .text()
             .map(html::sanitize_text)
             .collect::<Vec<_>>()
             .join("");
 
-        Some(HianimeServer {
-            id: data_id.to_owned(),
+        HianimeServer {
+            // id: data_id.to_owned(),
             title: html::sanitize_text(&title),
             dub: false,
-        })
+        }
     }));
 
-    servers.extend(document.select(dubs_selector).filter_map(|el| {
-        let data_id = el.attr("data-id")?;
+    servers.extend(document.select(dubs_selector).map(|el| {
+        // let data_id = el.attr("data-id")?;
         let title = el
             .text()
             .map(html::sanitize_text)
             .collect::<Vec<_>>()
             .join("");
 
-        Some(HianimeServer {
-            id: data_id.to_owned(),
+        HianimeServer {
+            // id: data_id.to_owned(),
             title: title.to_owned(),
             dub: true,
-        })
+        }
     }));
 
     // print!("HianimeServers: {servers:#?}");
@@ -222,11 +220,13 @@ async fn load_server_sources(
     episode_id: &str,
     server: &HianimeServer,
 ) -> Vec<ContentMediaItemSource> {
+    // let res = extract_server_with_api(id, episode_id, server).await;
     let res = match server.title.as_str() {
         "HD-1" | "HD-2" => extract_server_with_api(id, episode_id, server).await,
         _ => return vec![],
     };
 
+    // println!("{server:#?}: {res:#?}");
     match res {
         Ok(sources) => sources,
         Err(err) => {
@@ -248,10 +248,9 @@ async fn extract_server_with_api(
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let server_name = &server.title.to_lowercase();
     let dub_or_sub = if server.dub { "dub" } else { "sub" };
-    let hianime_api = env!("HIANIME_API");
 
     let res_str = utils::create_client()
-        .get(format!("{hianime_api}/api/v2/hianime/episode/sources"))
+        .get(format!("{HIANIME_API}/api/v2/hianime/episode/sources"))
         .query(&[("animeEpisodeId", format!("{id}?ep={episode_id}"))])
         .query(&[("server", server_name.as_str()), ("category", dub_or_sub)])
         .send()
@@ -267,29 +266,6 @@ async fn extract_server_with_api(
         .to_media_item_sources(format!("[{dub_or_sub}] {server_name}").as_str(), None))
 }
 
-// impl From<HianimeApiRes> for Vec<ContentMediaItemSource> {
-//     fn from(value: HianimeApiRes) -> Self {
-//         let mut result: Vec<ContentMediaItemSource> = vec![];
-//
-//         value.tracks.into_iter().for_each(|item| {
-//             result.push(ContentMediaItemSource::Subtitle {
-//                 link: item.file,
-//                 description: item.lable,
-//                 headers: None,
-//             });
-//         });
-//
-//         value.sources.into_iter().for_each(|item| {
-//             result.push(ContentMediaItemSource::Video {
-//                 link: item.url,
-//                 description: item.lable,
-//                 headers: None,
-//             });
-//         });
-//         result
-//     }
-// }
-//
 // async fn load_server_source_link(id: &str, server_id: &str) -> anyhow::Result<String> {
 //     #[derive(Deserialize)]
 //     struct SourcesResponse {
