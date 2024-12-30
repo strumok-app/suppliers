@@ -36,6 +36,9 @@ jobs:
       - name: Build Linux x86
         if: startsWith(github.ref, 'refs/tags/') || inputs.linux
         run: make linux
+        env:
+          HIANIME_API: ${{ secrets.HIANIME_API }}
+          TMDB_SECRET: ${{ secrets.TMDB_SECRET }}
       - name: Prepare artifacts
         run: |
           mkdir output
@@ -60,6 +63,9 @@ jobs:
       - name: Build for Windows x86
         run: cargo build --target x86_64-pc-windows-msvc --release
         shell: bash
+        env:
+          HIANIME_API: ${{ secrets.HIANIME_API }}
+          TMDB_SECRET: ${{ secrets.TMDB_SECRET }}
       - name: Prepare artifacts
         run: |
           mkdir output
