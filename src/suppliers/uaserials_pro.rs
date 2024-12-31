@@ -38,11 +38,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn load_channel(
-        &self,
-        channel: String,
-        page: u16,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -52,11 +48,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn search(
-        &self,
-        query: String,
-        _types: Vec<String>,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -64,10 +56,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: String,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -83,7 +72,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_ep_dub)
+            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_dub_ep)
                 .await
         } else {
             Err(anyhow!("iframe url expected"))
@@ -195,7 +184,7 @@ mod tests {
         let res = UASerialsProContentSupplier
             .load_media_items(
                 "8831-gotel-kokayin".into(),
-                vec!["https://hdvbua.pro/embed/8831".into()],
+                vec!["https://hdvbua.pro/embed/9123".into()],
             )
             .await
             .unwrap();

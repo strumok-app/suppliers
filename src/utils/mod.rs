@@ -68,3 +68,11 @@ pub fn extract_file_property(script: &str) -> Option<&str> {
         .captures(script)
         .and_then(|m| Some(m.name("file")?.as_str()))
 }
+
+pub fn to_full_url(url: &str) -> String {
+    if url.starts_with("//") {
+        format!("https:{url}")
+    } else {
+        url.into()
+    }
+}

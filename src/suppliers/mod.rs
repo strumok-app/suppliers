@@ -17,6 +17,7 @@ use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
+use tmdb::TMDBContentSupplier;
 use uafilms::UAFilmsContentSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
 use uaserial::UAserialContentSupplier;
@@ -57,6 +58,8 @@ pub trait ContentSupplier {
 #[derive(EnumIter, EnumString, VariantNames)]
 #[allow(clippy::enum_variant_names)]
 pub enum AllContentSuppliers {
+    #[strum(serialize = "TMDB")]
+    TMDBContentSupplier,
     #[strum(serialize = "Anitaku")]
     AnitakuContentSupplier,
     #[strum(serialize = "AniTube")]

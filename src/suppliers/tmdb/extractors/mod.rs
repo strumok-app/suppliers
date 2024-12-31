@@ -1,5 +1,6 @@
-mod embed_su;
+// mod embed_su;
 mod two_embed;
+mod vidsrc_net;
 
 use futures::future::BoxFuture;
 use log::warn;
@@ -8,12 +9,12 @@ use serde::{Deserialize, Serialize};
 use crate::models::ContentMediaItemSource;
 
 type BoxExtractor =
-    Box<dyn Fn(&SourceParams) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>>>;
+    Box<dyn Fn(&SourceParams) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>> + Send>;
 
 pub async fn run_extractors(params: &SourceParams) -> Vec<ContentMediaItemSource> {
     let extractors: Vec<(&str, BoxExtractor)> = vec![
         ("two_embed", Box::new(|p| Box::pin(two_embed::extract(p)))),
-        ("embed_su", Box::new(|p| Box::pin(embed_su::extract(p)))),
+        // ("embed_su", Box::new(|p| Box::pin(embed_su::extract(p)))),
     ];
 
     let etractors_itr = extractors.into_iter().map(|(name, f)| async move {

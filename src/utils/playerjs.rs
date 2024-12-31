@@ -91,6 +91,23 @@ pub fn extract_playerjs_playlist(content: &str) -> Option<&str> {
         .map(|m| m.as_str())
 }
 
+pub fn convert_strategy_season_dub_ep(
+    playerjs_playlist: &Vec<PlayerJSFile>,
+) -> Vec<ContentMediaItem> {
+    let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
+
+    for season in playerjs_playlist {
+        for dub in season.folder.iter().flatten() {
+            for episode in dub.folder.iter().flatten() {
+                populate_media_items_map(season, episode, dub, episode, &mut sorted_media_items);
+            }
+        }
+    }
+
+    sorted_media_items.into_values().collect()
+}
+
+#[allow(dead_code)]
 pub fn convert_strategy_season_ep_dub(
     playerjs_playlist: &Vec<PlayerJSFile>,
 ) -> Vec<ContentMediaItem> {

@@ -51,7 +51,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     streamwish::extract(
         format!("{PLAYER_URL}/e/{id}").as_str(),
         REF_URL,
-        "Two Embed]",
+        "[Two Embed]",
     )
     .await
 }

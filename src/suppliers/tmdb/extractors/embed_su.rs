@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{collections::HashMap, sync::OnceLock};
 
 use base64::{
     prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
@@ -97,7 +97,10 @@ async fn load_server(server: &Server, idx: usize) -> anyhow::Result<Vec<ContentM
     let mut result: Vec<ContentMediaItemSource> = vec![ContentMediaItemSource::Video {
         link: res.source,
         description: format!("Embed.su {idx}. {name}"),
-        headers: None,
+        headers: Some(HashMap::from([
+            ("Referer".into(), URL.into()),
+            ("User-Agent".into(), utils::get_user_agent().into()),
+        ])),
     }];
 
     for subtitle in res.subtitles {
@@ -105,7 +108,10 @@ async fn load_server(server: &Server, idx: usize) -> anyhow::Result<Vec<ContentM
         result.push(ContentMediaItemSource::Subtitle {
             link: subtitle.file,
             description: format!("[embed_su] {idx}. {lang}"),
-            headers: None,
+            headers: Some(HashMap::from([
+                ("Referer".into(), URL.into()),
+                ("User-Agent".into(), utils::get_user_agent().into()),
+            ])),
         });
     }
 
