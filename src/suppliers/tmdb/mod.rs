@@ -8,8 +8,9 @@ use crate::{
     utils::{self},
 };
 use anyhow::anyhow;
-use extractors::{run_extractors, SourceParams};
+use extractors::{run_extractors, Episode, SourceParams};
 use indexmap::IndexMap;
+use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -45,9 +46,10 @@ impl ContentSupplier for TMDBContentSupplier {
     }
 
     async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
-        let res: TMDBSearchResponse = utils::create_client()
+        let res: TMDBSearchResponse = utils::create_json_client()
             .get(format!("{URL}/search/multi"))
-            .header("Authorization", format!("Bearer {SECRET}"))
+            .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
+            .header(header::ACCEPT, "application/json")
             .query(&[("query", query.as_str()), ("langauge", "en-US")])
             .send()
             .await?
@@ -70,9 +72,10 @@ impl ContentSupplier for TMDBContentSupplier {
             None => return Err(anyhow!("Unknow channel")),
         };
 
-        let res: TMDBSearchResponse = utils::create_client()
+        let res: TMDBSearchResponse = utils::create_json_client()
             .get(format!("{URL}{path}"))
-            .header("Authorization", format!("Bearer {SECRET}"))
+            .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
+            .header(header::ACCEPT, "application/json")
             .query(&[("page", page.to_string().as_str()), ("langauge", "en-US")])
             .send()
             .await?
@@ -87,9 +90,9 @@ impl ContentSupplier for TMDBContentSupplier {
     }
 
     async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
-        let res: TMDBDetailsResponse = utils::create_client()
+        let res: TMDBDetailsResponse = utils::create_json_client()
             .get(format!("{URL}/{id}"))
-            .header("Authorization", format!("Bearer {SECRET}"))
+            .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
             .query(&[("append_to_response", "external_ids,credits,recommendations")])
             .send()
             .await?
@@ -136,8 +139,7 @@ impl SourceParams {
         Self {
             id,
             imdb_id: external_ids.imdb_id.as_deref().map(String::from),
-            season: None,
-            episode: None,
+            ep: None,
         }
     }
 
@@ -145,8 +147,10 @@ impl SourceParams {
         Self {
             id,
             imdb_id: external_ids.imdb_id.as_deref().map(String::from),
-            season: Some(ep.season_number),
-            episode: Some(ep.episode_number),
+            ep: Some(Episode {
+                s: ep.season_number,
+                e: ep.episode_number,
+            }),
         }
     }
 }
@@ -325,12 +329,13 @@ async fn build_media_items(id: &str, params: Vec<String>) -> anyhow::Result<Vec<
     match params.get(1) {
         Some(last_season_num_param) => {
             let last_season_num = last_season_num_param.parse::<u32>()?;
-            let client = &utils::create_client();
+            let client = &utils::create_json_client();
 
             let seasons_res_itr = (1..=last_season_num).map(|season_number| async move {
                 client
                     .get(format!("{URL}/{id}/season/{season_number}"))
-                    .header("Authorization", format!("Bearer {SECRET}"))
+                    .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
+                    .header(header::ACCEPT, "application/json")
                     .send()
                     .await?
                     .json::<TMDBSeasonResponse>()
@@ -467,7 +472,10 @@ mod test {
     #[tokio::test]
     async fn should_load_media_item_sources() {
         let res = TMDBContentSupplier
-            .load_media_item_sources("movie/310131".into(), vec![r#"{"id": 310131}"#.into()])
+            .load_media_item_sources(
+                "tv/253".into(),
+                vec![r#"{"id": 253, "imdb_id":"tt0060028", "ep":{"e":1, "s":1}}"#.into()],
+            )
             .await;
         println!("{res:#?}")
     }

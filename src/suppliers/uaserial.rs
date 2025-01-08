@@ -45,11 +45,7 @@ impl ContentSupplier for UAserialContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(
-        &self,
-        query: String,
-        _types: Vec<String>,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
         let request_builder = utils::create_client()
             .get(SEARCH_URL)
             .query(&[("query", &query)]);
@@ -57,11 +53,7 @@ impl ContentSupplier for UAserialContentSupplier {
         utils::scrap_page(request_builder, search_items_processor()).await
     }
 
-    async fn load_channel(
-        &self,
-        channel: String,
-        page: u16,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let url = match get_channels_map().get(&channel) {
             Some(url) => format!("{url}{page}"),
             None => return Err(anyhow!("unknown channel")),
@@ -74,10 +66,7 @@ impl ContentSupplier for UAserialContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: String,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}");
 
         let html = utils::create_client().get(url).send().await?.text().await?;
@@ -188,7 +177,9 @@ fn try_extract_movie(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
         .collect()
 }
 
-async fn try_extract_iframe_options(url: String) -> anyhow::Result<Vec<(String, String)>, anyhow::Error> {
+async fn try_extract_iframe_options(
+    url: String,
+) -> anyhow::Result<Vec<(String, String)>, anyhow::Error> {
     const ALLOWED_VIDEO_HOSTS: &[&str] = &["ashdi", "tortuga"];
     static OPTIONS_SELECTOR: OnceLock<Selector> = OnceLock::new();
     let selector =

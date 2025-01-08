@@ -1,9 +1,8 @@
 use core::str;
 use std::{cmp::min, sync::OnceLock};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Ok};
 use base64::{prelude::BASE64_STANDARD, Engine};
-use indexmap::map;
 
 use crate::{models::ContentMediaItemSource, utils};
 
@@ -16,10 +15,11 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     let tmdb_id = params.id.to_string();
     let id = params.imdb_id.as_ref().unwrap_or(&tmdb_id);
 
-    let url = match params.episode {
+    let url = match &params.ep {
         Some(ep) => {
-            let s = params.season.unwrap_or(0);
-            format!("{URL}/embed/tv/{id}/{s}-{ep}")
+            let e = ep.e;
+            let s = ep.s;
+            format!("{URL}/embed/tv/{id}/{s}-{e}")
         }
         None => format!("{URL}/embed/movie/{id}"),
     };
@@ -35,9 +35,11 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .map(|m| utils::to_full_url(m.as_str()))
         .ok_or_else(|| anyhow!("No second iframe found"))?;
 
+    // tokio::time::sleep(Duration::from_millis(300)).await;
+
     let iframe_html2 = client
         .get(&second_url)
-        .header("Referer", URL)
+        .header("Referer", &url)
         .send()
         .await?
         .text()
@@ -86,19 +88,23 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         "ux8qjPHC66" => decoder5(content),
         "eSfH1IRMyL" => decoder6(content),
         "KJHidj7det" => decoder7(content),
-        "o2VSUnjnZl" => return Err(anyhow!("unimplemented")),
-        "Oi3v1dAlaM" => return Err(anyhow!("unimplemented")),
-        "TsA2KGDGux" => return Err(anyhow!("unimplemented")),
-        "JoAHUMCLXV" => return Err(anyhow!("unimplemented")),
+        "o2VSUnjnZl" => decoder8(content),
+        "Oi3v1dAlaM" => decoder9(content, 5),
+        "TsA2KGDGux" => decoder9(content, 7),
+        "JoAHUMCLXV" => decoder9(content, 3),
         _ => return Err(anyhow!("Unknow encoding method: {id}")),
     };
 
     let decoded =
         decoder_res.map_err(|err| anyhow!("decoder {id} failed with content: {content}: {err}"))?;
 
-    println!("{decoded}");
+    // println!("{decoded}");
 
-    todo!()
+    Ok(vec![ContentMediaItemSource::Video {
+        link: decoded,
+        description: "VidSrc.net".into(),
+        headers: None,
+    }])
 }
 
 // NdonQLf1Tzyx7bMG
@@ -137,8 +143,8 @@ fn decoder3(a: &str) -> anyhow::Result<String> {
         .map(|b| {
             let ch = *b;
             match char::from(ch) {
-                'a'..'m' | 'A'..'M' => ch + 13,
-                'n'..'z' | 'N'..'Z' => ch - 13,
+                'a'..='m' | 'A'..='M' => ch + 13,
+                'n'..='z' | 'N'..='Z' => ch - 13,
                 _ => ch,
             }
         })
@@ -151,7 +157,7 @@ fn decoder3(a: &str) -> anyhow::Result<String> {
 fn decoder4(a: &str) -> anyhow::Result<String> {
     let d = a
         .as_bytes()
-        .into_iter()
+        .iter()
         .enumerate()
         .filter(|(index, _)| *index % 2usize == 0)
         .map(|(_, v)| *v)
@@ -179,7 +185,7 @@ fn decoder5(a: &str) -> anyhow::Result<String> {
 fn decoder6(a: &str) -> anyhow::Result<String> {
     let d = a
         .as_bytes()
-        .into_iter()
+        .iter()
         .rev()
         .map(|i| *i - 1u8)
         .collect::<Vec<_>>()
@@ -195,12 +201,7 @@ fn decoder7(a: &str) -> anyhow::Result<String> {
     let b = &a[10..a.len() - 16];
     let c = r#"3SAY~#%Y(V%>5d/Yg"$G[Lh1rK4a;7ok"#.as_bytes();
     let d = BASE64_STANDARD.decode(b)?;
-    let e = c
-        .iter()
-        .cycle()
-        .take(d.len())
-        .map(|v| *v)
-        .collect::<Vec<_>>();
+    let e = c.iter().cycle().take(d.len()).copied().collect::<Vec<_>>();
 
     let f = d
         .iter()
@@ -211,17 +212,84 @@ fn decoder7(a: &str) -> anyhow::Result<String> {
     String::from_utf8(f).map_err(|err| anyhow!(err))
 }
 
+// o2VSUnjnZl
+fn decoder8(a: &str) -> anyhow::Result<String> {
+    let shift = 1u8;
+
+    let d = a
+        .as_bytes()
+        .iter()
+        .map(|b| {
+            let ch = char::from(*b);
+            match ch {
+                'a'..='z' => {
+                    let shifted = *b - shift;
+                    if shifted < 'a' as u8 {
+                        shifted + 26
+                    } else {
+                        shifted
+                    }
+                }
+                'A'..='Z' => {
+                    let shifted = *b - shift;
+                    if shifted < 'A' as u8 {
+                        shifted + 26
+                    } else {
+                        shifted
+                    }
+                }
+                _ => *b,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    String::from_utf8(d).map_err(|err| anyhow!(err))
+}
+
+// Oi3v1dAlaM, TsA2KGDGux, JoAHUMCLXV
+fn decoder9(a: &str, f: u8) -> anyhow::Result<String> {
+    let c = a
+        .chars()
+        .rev()
+        .map(|ch| match ch {
+            '-' => '+',
+            '_' => '/',
+            _ => ch,
+        })
+        .filter(|ch| *ch != '\n')
+        .collect::<String>();
+
+    let d = BASE64_STANDARD.decode(&c)?;
+
+    let e = d.into_iter().map(|b| b - f).collect::<Vec<_>>();
+
+    String::from_utf8(e).map_err(|err| anyhow!(err))
+}
+
 #[cfg(test)]
 mod test {
+    use crate::suppliers::tmdb::extractors::Episode;
+
     use super::*;
+
+    // Oi3v1dAlaM
+    #[test]
+    fn decoder9_1() {
+        let content = "=0je4I3M3pWe4Zmc0YkRWZ0R-gkce52fG5TU9RlS-0XT6MTe2NHbshzZRpDcqRHZP5HX893R1VXS91jffF3e-JVPKxDf2onRqVlOSZFUWdUe9gXWwZzU55jWQ9FSPZEck53Xx9Ef452d2d3d71Xeud1N70VdwVDVN9naJtnP64HX513XTZWU1dGb2ZW
+dvh0e5lEbIxmd3gGU3slOsZzMHdkTK9mTy9mb_1zfbFVNzVDTfxDfa1TSTZlbLxla-YXU903T4pmSZFnU78VO-ZDSahmZPNlVW12b101WYZVf21zazFXXm1UeqhVU95Td1Uzfe5WcatWe651fYB3fe93d4NleJFXayx3MQJXPLZWTyh2MpxlRt1nf9Vjf5cUfRR1aQtzNWhHW2U1U5dEczQFS8gFSzslNIp0arhV
+PXR3b0lWN3M1RpdTafp3OztnUud1c3AHdq1HVwp3cZNFVe9VUyp1X5hmUI5zS1YkVH5ESm9FfH1FfGZkRGZkRGZkROhXONRDfqNHZyZma3lHe0IHdoNzcqtnZtJnZqdXe4hne0NnbypXczYzd5hnc5RDN_gXd5lXb";
+
+        let res = decoder9(content, 5).unwrap();
+
+        println!("{res}")
+    }
 
     #[tokio::test()]
     async fn should_load_source() {
         let res = extract(&SourceParams {
             id: 1399,
             imdb_id: Some("tt0944947".into()),
-            season: Some(1),
-            episode: Some(1),
+            ep: Some(Episode { e: 1, s: 1 }),
         })
         .await;
 

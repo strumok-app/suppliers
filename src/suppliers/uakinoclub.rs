@@ -38,11 +38,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(
-        &self,
-        query: String,
-        _types: Vec<String>,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
         let result = utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -57,11 +53,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         Ok(filtered_results)
     }
 
-    async fn load_channel(
-        &self,
-        channel: String,
-        page: u16,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -71,10 +63,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: String,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(

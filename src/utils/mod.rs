@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub mod crypto;
 // pub mod crypto_js;
 pub mod datalife;
@@ -10,31 +12,63 @@ use std::{sync::OnceLock, time::Duration};
 
 use regex::Regex;
 use reqwest::{
-    header::{HeaderMap, HeaderValue},
+    header::{self, HeaderMap},
     ClientBuilder,
 };
 
 pub fn get_user_agent<'a>() -> &'a str {
     // todo: rotate user agent
-    "Mozilla/5.0 (X11; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0"
+    "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0"
 }
 
 pub fn create_client() -> reqwest::Client {
-    let mut headers = HeaderMap::new();
+    let builder = create_client_builder();
+
+    let mut headers = get_default_headers();
     headers.insert(
-        "User-Agent",
-        HeaderValue::from_str(get_user_agent()).unwrap(),
+        header::ACCEPT,
+        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            .parse()
+            .unwrap(),
     );
 
-    let builder = ClientBuilder::new()
-        .connect_timeout(Duration::from_secs(30))
-        .default_headers(headers);
+    builder.default_headers(headers).build().unwrap()
+}
 
-    // if cfg!(test) {
-    //     builder = builder.connection_verbose(true);
-    // }
+pub fn create_json_client() -> reqwest::Client {
+    let builder = create_client_builder();
 
-    builder.build().unwrap()
+    let mut headers = get_default_headers();
+    headers.insert(header::ACCEPT, "application/json".parse().unwrap());
+    headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+    headers.insert("X-Requested-With", "XMLHttpRequest".parse().unwrap());
+
+    builder.default_headers(headers).build().unwrap()
+}
+
+pub fn create_client_builder() -> reqwest::ClientBuilder {
+    ClientBuilder::new()
+        .connect_timeout(Duration::from_secs(5))
+        .read_timeout(Duration::from_secs(30))
+        .user_agent(get_user_agent())
+        .cookie_store(true)
+}
+
+pub fn get_default_headers() -> HeaderMap {
+    let mut headers = HeaderMap::default();
+
+    headers.insert(
+        header::ACCEPT_ENCODING,
+        "gzip, deflate, br".parse().unwrap(),
+    );
+    headers.insert(header::ACCEPT_LANGUAGE, "en-US,en;q=0.5".parse().unwrap());
+    headers.insert(header::CACHE_CONTROL, "no-cache".parse().unwrap());
+    headers.insert(header::PRAGMA, "no-cache".parse().unwrap());
+    headers.insert(header::CONNECTION, "keep-alive".parse().unwrap());
+    headers.insert(header::DNT, "1".parse().unwrap());
+    headers.insert(header::UPGRADE_INSECURE_REQUESTS, "1".parse().unwrap());
+    headers.insert(header::TE, "trailers".parse().unwrap());
+    headers
 }
 
 pub async fn scrap_page<T>(

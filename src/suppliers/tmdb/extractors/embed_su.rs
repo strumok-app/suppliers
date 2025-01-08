@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::sync::OnceLock;
 
 use base64::{
     prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
     Engine,
 };
+use futures::future::BoxFuture;
 use log::warn;
 use regex::Regex;
 use serde::Deserialize;
@@ -20,12 +21,19 @@ struct Server {
     hash: String,
 }
 
+pub fn extract_boxed(
+    params: &SourceParams,
+) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>> {
+    Box::pin(extract(params))
+}
+
 pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let tmdb_id = params.id;
-    let url = match params.episode {
+    let url = match &params.ep {
         Some(ep) => {
-            let s = params.season.unwrap_or(0);
-            format!("{URL}/embed/tv/{tmdb_id}/{s}/{ep}")
+            let s = ep.s;
+            let e = ep.e;
+            format!("{URL}/embed/tv/{tmdb_id}/{s}/{e}")
         }
         None => format!("{URL}/embed/movie/{tmdb_id}"),
     };
@@ -94,25 +102,26 @@ async fn load_server(server: &Server, idx: usize) -> anyhow::Result<Vec<ContentM
         .json()
         .await?;
 
+    static STRIP_PROXY_RE: OnceLock<Regex> = OnceLock::new();
+    let striped_url = STRIP_PROXY_RE
+        .get_or_init(|| Regex::new(r#"[a-z\.0-9]+/api/proxy/[a-z0-9]+/"#).unwrap())
+        .replace(&res.source, "");
+
     let mut result: Vec<ContentMediaItemSource> = vec![ContentMediaItemSource::Video {
-        link: res.source,
+        link: striped_url.into(),
         description: format!("Embed.su {idx}. {name}"),
-        headers: Some(HashMap::from([
-            ("Referer".into(), URL.into()),
-            ("User-Agent".into(), utils::get_user_agent().into()),
-        ])),
+        headers: None,
     }];
 
     for subtitle in res.subtitles {
-        let lang = subtitle.label;
-        result.push(ContentMediaItemSource::Subtitle {
-            link: subtitle.file,
-            description: format!("[embed_su] {idx}. {lang}"),
-            headers: Some(HashMap::from([
-                ("Referer".into(), URL.into()),
-                ("User-Agent".into(), utils::get_user_agent().into()),
-            ])),
-        });
+        if !subtitle.file.is_empty() {
+            let lang = subtitle.label;
+            result.push(ContentMediaItemSource::Subtitle {
+                link: subtitle.file,
+                description: format!("[embed_su] {idx}. {lang}"),
+                headers: None,
+            });
+        }
     }
 
     Ok(result)
@@ -138,15 +147,16 @@ fn extract_server_hash(hash: &str) -> anyhow::Result<Vec<Server>> {
 
 #[cfg(test)]
 mod test {
+    use crate::suppliers::tmdb::extractors::Episode;
+
     use super::*;
 
     #[tokio::test]
     async fn should_extract_tv() {
         let res = extract(&SourceParams {
-            id: 48891,
+            id: 253,
             imdb_id: None,
-            season: Some(1),
-            episode: Some(1),
+            ep: Some(Episode { s: 1, e: 1 }),
         })
         .await;
 
@@ -158,8 +168,7 @@ mod test {
         let res = extract(&SourceParams {
             id: 310131,
             imdb_id: None,
-            season: None,
-            episode: None,
+            ep: Some(Episode { s: 1, e: 1 }),
         })
         .await;
 

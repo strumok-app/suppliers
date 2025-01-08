@@ -1,5 +1,6 @@
 use std::sync::OnceLock;
 
+use futures::future::BoxFuture;
 use log::info;
 use regex::Regex;
 
@@ -11,12 +12,19 @@ const URL: &str = "https://www.2embed.cc";
 const PLAYER_URL: &str = "https://uqloads.xyz";
 const REF_URL: &str = "https://streamsrcs.2embed.cc/";
 
+pub fn extract_boxed(
+    params: &SourceParams,
+) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>> {
+    Box::pin(extract(params))
+}
+
 pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let tmdb_id = params.id;
-    let url = match params.episode {
+    let url = match &params.ep {
         Some(ep) => {
-            let s = params.season.unwrap_or(0);
-            format!("{URL}/embedtv/{tmdb_id}&s={s}&e={ep}")
+            let e = ep.e;
+            let s = ep.s;
+            format!("{URL}/embedtv/{tmdb_id}&s={s}&e={e}")
         }
         None => format!("{URL}/embed/{tmdb_id}"),
     };
@@ -51,12 +59,14 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     streamwish::extract(
         format!("{PLAYER_URL}/e/{id}").as_str(),
         REF_URL,
-        "[Two Embed]",
+        "Two Embed",
     )
     .await
 }
 #[cfg(test)]
 mod test {
+    use crate::suppliers::tmdb::extractors::Episode;
+
     use super::*;
 
     #[tokio::test]
@@ -64,8 +74,7 @@ mod test {
         let res = extract(&SourceParams {
             id: 609681,
             imdb_id: None,
-            episode: None,
-            season: None,
+            ep: Some(Episode { e: 1, s: 1 }),
         })
         .await;
         println!("{res:#?}")

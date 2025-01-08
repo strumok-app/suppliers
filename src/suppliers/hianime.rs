@@ -1,9 +1,11 @@
 use std::sync::OnceLock;
+use std::time::Duration;
 
 use anyhow::anyhow;
 use log::error;
 
 use indexmap::IndexMap;
+use reqwest::header;
 use scraper::Selector;
 use serde::Deserialize;
 
@@ -11,9 +13,9 @@ use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
 
+use crate::utils;
 use crate::utils::html;
 use crate::utils::jwp_player::JWPConfig;
-use crate::utils::{self, scrap_page};
 
 use super::ContentSupplier;
 
@@ -42,7 +44,7 @@ impl ContentSupplier for HianimeContentSupplier {
     }
 
     async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
-        scrap_page(
+        utils::scrap_page(
             utils::create_client()
                 .get(SEARCH_URL)
                 .query(&[("keyword", query)]),
@@ -93,7 +95,8 @@ impl ContentSupplier for HianimeContentSupplier {
 
         let list_response: ListResponse = utils::create_client()
             .get(format!("{URL}/ajax/v2/episode/list/{data_id}"))
-            .header("Referer", format!("{URL}/watch/{id}"))
+            .header(header::ACCEPT, "application/json")
+            .header(header::REFERER, format!("{URL}/watch/{id}"))
             .send()
             .await?
             .json()
@@ -249,7 +252,12 @@ async fn extract_server_with_api(
     let server_name = &server.title.to_lowercase();
     let dub_or_sub = if server.dub { "dub" } else { "sub" };
 
-    let res_str = utils::create_client()
+    let res_str = utils::create_client_builder()
+        .default_headers(utils::get_default_headers())
+        .connect_timeout(Duration::from_secs(30))
+        .read_timeout(Duration::from_secs(90))
+        .build()
+        .unwrap()
         .get(format!("{HIANIME_API}/api/v2/hianime/episode/sources"))
         .query(&[("animeEpisodeId", format!("{id}?ep={episode_id}"))])
         .query(&[("server", server_name.as_str()), ("category", dub_or_sub)])

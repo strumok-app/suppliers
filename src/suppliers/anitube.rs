@@ -41,11 +41,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(
-        &self,
-        query: String,
-        _types: Vec<String>,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -53,11 +49,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         .await
     }
 
-    async fn load_channel(
-        &self,
-        channel: String,
-        page: u16,
-    ) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
 
         utils::scrap_page(
@@ -67,10 +59,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: String,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         let html = utils::create_client()
