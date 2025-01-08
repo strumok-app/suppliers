@@ -82,12 +82,14 @@ async fn lookup_page(client: &Client, params: &SourceParams) -> Result<String, a
     let link = match &params.ep {
         Some(ep) => {
             let s = ep.s;
-            let e = ep.s;
+            let e = ep.e;
             let t = original_link.replacen("-", "/", 1);
             format!("{URL}{t}-season-{s}-episode-{e}")
         }
         _ => original_link.to_string(),
     };
+
+    println!("{link}");
 
     Ok(link)
 }
@@ -216,8 +218,8 @@ mod test {
     async fn should_load_source() {
         let res = extract(&SourceParams {
             id: 0,
-            imdb_id: Some("tt0060028".into()),
-            ep: Some(Episode { s: 1, e: 1 }),
+            imdb_id: Some("tt15435876".into()),
+            ep: Some(Episode { s: 1, e: 3 }),
         })
         .await;
         println!("{res:#?}")

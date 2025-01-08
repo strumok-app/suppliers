@@ -1,6 +1,7 @@
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animeua;
+// mod aniplay;
 mod anitaku;
 mod anitube;
 mod hianime;

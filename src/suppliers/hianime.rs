@@ -110,9 +110,11 @@ impl ContentSupplier for HianimeContentSupplier {
             .filter_map(|(idx, el)| {
                 let data_id = el.attr("data-id")?;
                 let title = el.attr("title")?;
+                let num = idx + 1;
+
                 Some(ContentMediaItem {
                     number: idx as u32,
-                    title: title.to_owned(),
+                    title: format!("{num}. {title}"),
                     section: None,
                     image: None,
                     sources: None,
