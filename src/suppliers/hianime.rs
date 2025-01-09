@@ -191,21 +191,6 @@ async fn extract_servers(id: &str, episode_id: &str) -> anyhow::Result<Vec<Hiani
 
     let mut servers: Vec<HianimeServer> = vec![];
 
-    servers.extend(document.select(subs_selector).filter_map(|el| {
-        let data_id = el.attr("data-id")?;
-        let title = el
-            .text()
-            .map(html::sanitize_text)
-            .collect::<Vec<_>>()
-            .join("");
-
-        Some(HianimeServer {
-            id: data_id.to_owned(),
-            title: html::sanitize_text(&title),
-            dub: false,
-        })
-    }));
-
     servers.extend(document.select(dubs_selector).filter_map(|el| {
         let data_id = el.attr("data-id")?;
         let title = el
@@ -218,6 +203,21 @@ async fn extract_servers(id: &str, episode_id: &str) -> anyhow::Result<Vec<Hiani
             id: data_id.to_owned(),
             title: title.to_owned(),
             dub: true,
+        })
+    }));
+
+    servers.extend(document.select(subs_selector).filter_map(|el| {
+        let data_id = el.attr("data-id")?;
+        let title = el
+            .text()
+            .map(html::sanitize_text)
+            .collect::<Vec<_>>()
+            .join("");
+
+        Some(HianimeServer {
+            id: data_id.to_owned(),
+            title: html::sanitize_text(&title),
+            dub: false,
         })
     }));
 
