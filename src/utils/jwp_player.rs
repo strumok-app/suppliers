@@ -50,7 +50,9 @@ impl JWPConfig {
 
         self.tracks
             .iter()
-            .filter(|&track| track.kind == "caption" || track.kind == "subtitle")
+            .filter(|&track| {
+                track.kind == "caption" || track.kind == "captions" || track.kind == "subtitle"
+            })
             .enumerate()
             .for_each(|(idx, track)| {
                 let num = idx + 1;
@@ -63,7 +65,7 @@ impl JWPConfig {
 
                 result.push(ContentMediaItemSource::Video {
                     link: String::from(&track.file),
-                    headers: headers.clone(),
+                    headers: None,
                     description,
                 });
             });

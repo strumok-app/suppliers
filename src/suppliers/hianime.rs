@@ -1,5 +1,4 @@
 use std::sync::OnceLock;
-use std::time::Duration;
 
 use anyhow::anyhow;
 use log::error;
@@ -9,19 +8,19 @@ use reqwest::header;
 use scraper::Selector;
 use serde::Deserialize;
 
+use crate::extractors::megacloud;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
 
 use crate::utils;
 use crate::utils::html;
-use crate::utils::jwp_player::JWPConfig;
 
 use super::ContentSupplier;
 
 const URL: &str = "https://hianime.to";
 const SEARCH_URL: &str = "https://hianime.to/search";
-static HIANIME_API: &str = env!("HIANIME_API");
+// static HIANIME_API: &str = env!("HIANIME_API");
 
 #[derive(Default)]
 pub struct HianimeContentSupplier;
@@ -138,15 +137,21 @@ impl ContentSupplier for HianimeContentSupplier {
         let episode_id = &params[0];
         let servers = extract_servers(&id, episode_id).await?;
 
-        let sources_futures = servers
-            .iter()
-            .map(|server| load_server_sources(&id, episode_id, server));
+        let mut sources = vec![];
 
-        let sources = futures::future::join_all(sources_futures)
-            .await
-            .into_iter()
-            .flatten()
-            .collect();
+        for server in servers {
+            let mut server_sources = load_server_sources(&id, episode_id, &server).await;
+            sources.append(&mut server_sources);
+        }
+        // let sources_futures = servers
+        //     .iter()
+        //     .map(|server| load_server_sources(&id, episode_id, server));
+        //
+        // let sources = futures::future::join_all(sources_futures)
+        //     .await
+        //     .into_iter()
+        //     .flatten()
+        //     .collect();
 
         Ok(sources)
     }
@@ -154,6 +159,7 @@ impl ContentSupplier for HianimeContentSupplier {
 
 #[derive(Debug)]
 struct HianimeServer {
+    id: String,
     title: String,
     dub: bool,
 }
@@ -185,34 +191,34 @@ async fn extract_servers(id: &str, episode_id: &str) -> anyhow::Result<Vec<Hiani
 
     let mut servers: Vec<HianimeServer> = vec![];
 
-    servers.extend(document.select(subs_selector).map(|el| {
-        // let data_id = el.attr("data-id")?;
+    servers.extend(document.select(subs_selector).filter_map(|el| {
+        let data_id = el.attr("data-id")?;
         let title = el
             .text()
             .map(html::sanitize_text)
             .collect::<Vec<_>>()
             .join("");
 
-        HianimeServer {
-            // id: data_id.to_owned(),
+        Some(HianimeServer {
+            id: data_id.to_owned(),
             title: html::sanitize_text(&title),
             dub: false,
-        }
+        })
     }));
 
-    servers.extend(document.select(dubs_selector).map(|el| {
-        // let data_id = el.attr("data-id")?;
+    servers.extend(document.select(dubs_selector).filter_map(|el| {
+        let data_id = el.attr("data-id")?;
         let title = el
             .text()
             .map(html::sanitize_text)
             .collect::<Vec<_>>()
             .join("");
 
-        HianimeServer {
-            // id: data_id.to_owned(),
+        Some(HianimeServer {
+            id: data_id.to_owned(),
             title: title.to_owned(),
             dub: true,
-        }
+        })
     }));
 
     // print!("HianimeServers: {servers:#?}");
@@ -225,9 +231,21 @@ async fn load_server_sources(
     episode_id: &str,
     server: &HianimeServer,
 ) -> Vec<ContentMediaItemSource> {
-    // let res = extract_server_with_api(id, episode_id, server).await;
+    let server_id = &server.id;
+    let server_name = &server.title.to_lowercase();
+    let dub_or_sub = if server.dub { "dub" } else { "sub" };
+    let prefix = format!("[{dub_or_sub}] {server_name}");
+
+    let link = match load_server_source_link(id, server_id).await {
+        Ok(link) => link,
+        Err(err) => {
+            error!("[hianime] fail to load source link (id: {id}, server_id: {id}, episode_id: {episode_id}): {err}");
+            return vec![];
+        }
+    };
+
     let res = match server.title.as_str() {
-        "HD-1" | "HD-2" => extract_server_with_api(id, episode_id, server).await,
+        "HD-1" | "HD-2" => megacloud::extract(&link, URL, &prefix).await,
         _ => return vec![],
     };
 
@@ -235,64 +253,63 @@ async fn load_server_sources(
     match res {
         Ok(sources) => sources,
         Err(err) => {
-            error!("[hianime] fail to load source link (id: {id}, server_id: {id}): {err}");
+            error!("[hianime] fail to load source (id: {id}, server_id: {id}, episode_id: {episode_id}): {err}");
             vec![]
         }
     }
 }
 
-#[derive(Deserialize, Debug)]
-struct HianimeApiRes {
-    data: JWPConfig,
-}
-
-async fn extract_server_with_api(
-    id: &str,
-    episode_id: &str,
-    server: &HianimeServer,
-) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let server_name = &server.title.to_lowercase();
-    let dub_or_sub = if server.dub { "dub" } else { "sub" };
-
-    let res_str = utils::create_client_builder()
-        .default_headers(utils::get_default_headers())
-        .connect_timeout(Duration::from_secs(30))
-        .read_timeout(Duration::from_secs(90))
-        .build()
-        .unwrap()
-        .get(format!("{HIANIME_API}/api/v2/hianime/episode/sources"))
-        .query(&[("animeEpisodeId", format!("{id}?ep={episode_id}"))])
-        .query(&[("server", server_name.as_str()), ("category", dub_or_sub)])
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    // println!("{res_str:#?}");
-
-    let res: HianimeApiRes = serde_json::from_str(&res_str)?;
-    Ok(res
-        .data
-        .to_media_item_sources(format!("[{dub_or_sub}] {server_name}").as_str(), None))
-}
-
-// async fn load_server_source_link(id: &str, server_id: &str) -> anyhow::Result<String> {
-//     #[derive(Deserialize)]
-//     struct SourcesResponse {
-//         link: String,
-//     }
+// #[derive(Deserialize, Debug)]
+// struct HianimeApiRes {
+//     data: JWPConfig,
+// }
 //
-//     let sources_resposne: SourcesResponse = utils::create_client()
-//         .get(format!("{URL}/ajax/v2/episode/sources"))
-//         .query(&[("id", server_id)])
-//         .header("Referer", format!("{URL}/{id}"))
+// async fn extract_server_with_api(
+//     id: &str,
+//     episode_id: &str,
+//     server: &HianimeServer,
+// ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+//     let server_name = &server.title.to_lowercase();
+//     let dub_or_sub = if server.dub { "dub" } else { "sub" };
+//
+//     let res_str = utils::create_client_builder()
+//         .default_headers(utils::get_default_headers())
+//         .connect_timeout(Duration::from_secs(30))
+//         .read_timeout(Duration::from_secs(90))
+//         .build()
+//         .unwrap()
+//         .get(format!("{HIANIME_API}/api/v2/hianime/episode/sources"))
+//         .query(&[("animeEpisodeId", format!("{id}?ep={episode_id}"))])
+//         .query(&[("server", server_name.as_str()), ("category", dub_or_sub)])
 //         .send()
 //         .await?
-//         .json()
+//         .text()
 //         .await?;
 //
-//     Ok(sources_resposne.link)
+//     let res: HianimeApiRes = serde_json::from_str(&res_str)?;
+//
+//     Ok(res
+//         .data
+//         .to_media_item_sources(format!("[{dub_or_sub}] {server_name}").as_str(), None))
 // }
+
+async fn load_server_source_link(id: &str, server_id: &str) -> anyhow::Result<String> {
+    #[derive(Deserialize)]
+    struct SourcesResponse {
+        link: String,
+    }
+
+    let sources_resposne: SourcesResponse = utils::create_client()
+        .get(format!("{URL}/ajax/v2/episode/sources"))
+        .query(&[("id", server_id)])
+        .header("Referer", format!("{URL}/{id}"))
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    Ok(sources_resposne.link)
+}
 
 fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
     static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
