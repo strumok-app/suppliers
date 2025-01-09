@@ -63,7 +63,7 @@ impl JWPConfig {
                     description.push_str(label);
                 }
 
-                result.push(ContentMediaItemSource::Video {
+                result.push(ContentMediaItemSource::Subtitle {
                     link: String::from(&track.file),
                     headers: None,
                     description,
