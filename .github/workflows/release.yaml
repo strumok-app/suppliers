@@ -34,13 +34,13 @@ jobs:
           echo "Android NDK home: $ANDROID_NDK_HOME"
           make android
         env:
-          HIANIME_API: ${{ secrets.HIANIME_API }}
+          MEGACLOUD_EXTRACTOR: ${{ secrets.MEGACLOUD_EXTRACTOR }}
           TMDB_SECRET: ${{ secrets.TMDB_SECRET }}
       - name: Build Linux x86
         if: startsWith(github.ref, 'refs/tags/') || inputs.linux
         run: make linux
         env:
-          HIANIME_API: ${{ secrets.HIANIME_API }}
+          MEGACLOUD_EXTRACTOR: ${{ secrets.MEGACLOUD_EXTRACTOR }}
           TMDB_SECRET: ${{ secrets.TMDB_SECRET }}
       - name: Prepare artifacts
         run: |
@@ -67,7 +67,7 @@ jobs:
         run: cargo build --target x86_64-pc-windows-msvc --release
         shell: bash
         env:
-          HIANIME_API: ${{ secrets.HIANIME_API }}
+          MEGACLOUD_EXTRACTOR: ${{ secrets.MEGACLOUD_EXTRACTOR }}
           TMDB_SECRET: ${{ secrets.TMDB_SECRET }}
       - name: Prepare artifacts
         run: |
