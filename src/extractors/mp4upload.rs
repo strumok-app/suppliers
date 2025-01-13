@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{collections::HashMap, sync::OnceLock};
 
 use regex::Regex;
 
@@ -29,7 +29,7 @@ pub async fn extract(
     Ok(vec![ContentMediaItemSource::Video {
         link: file.into(),
         description: prefix.into(),
-        headers: None,
+        headers: Some(HashMap::from([("Referer".into(), url.into())])),
     }])
 }
 

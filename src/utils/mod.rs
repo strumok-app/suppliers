@@ -2,9 +2,11 @@
 
 pub mod crypto;
 // pub mod crypto_js;
+pub mod anilist;
 pub mod datalife;
 pub mod html;
 pub mod jwp_player;
+pub mod nextjs;
 pub mod playerjs;
 pub mod unpack;
 

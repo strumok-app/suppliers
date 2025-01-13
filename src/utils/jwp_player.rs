@@ -20,7 +20,9 @@ pub struct Source {
 
 #[derive(Deserialize, Debug)]
 pub struct JWPConfig {
+    #[serde(default)]
     pub sources: Vec<Source>,
+    #[serde(default)]
     pub tracks: Vec<Track>,
 }
 

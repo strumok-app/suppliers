@@ -1,7 +1,7 @@
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animeua;
-// mod aniplay;
+mod aniplay;
 mod anitaku;
 mod anitube;
 mod hianime;
@@ -14,6 +14,7 @@ mod uaserials_pro;
 mod ufdub;
 
 use animeua::AnimeUAContentSupplier;
+use aniplay::AniplayContentSupplier;
 use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
 use hianime::HianimeContentSupplier;
@@ -61,8 +62,12 @@ pub trait ContentSupplier {
 pub enum AllContentSuppliers {
     #[strum(serialize = "TMDB")]
     TMDBContentSupplier,
+    #[strum(serialize = "Hianime")]
+    HianimeContentSupplier,
     #[strum(serialize = "Anitaku")]
     AnitakuContentSupplier,
+    #[strum(serialize = "Aniplay")]
+    AniplayContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
@@ -79,8 +84,6 @@ pub enum AllContentSuppliers {
     UFDubContentSupplier,
     #[strum(serialize = "MangaDex")]
     MangaDexContentSupplier,
-    #[strum(serialize = "Hianime")]
-    HianimeContentSupplier,
 }
 
 #[enum_dispatch]
