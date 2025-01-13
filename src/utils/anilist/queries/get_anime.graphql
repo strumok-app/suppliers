@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2022-2025 Andriel Ferreira <https://github.com/AndrielFR>
+
+query ($id: Int) {
+  Media (id: $id, type: ANIME) {
+    id
+    title {
+      romaji
+      english
+      native
+    }
+    status(version: 2)
+    description(asHtml: false)
+    startDate {
+      year
+      month
+      day
+    }
+    endDate {
+      year
+      month
+      day
+    }
+    countryOfOrigin
+    coverImage {
+      large
+      extraLarge
+    }
+    genres
+    averageScore
+    relations {
+      edges {
+        node {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            large
+            extraLarge
+          }
+        }
+        id
+      }
+    }
+  }
+}
