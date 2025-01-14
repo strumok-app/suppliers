@@ -64,7 +64,7 @@ pub async fn get_anime(id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let status = media.status;
         let start_date: String = media.start_date.into();
         let score = media.average_score;
-        let genres = media.genres.join(",");
+        let genres = media.genres.join(", ");
 
         let mut additional_info = vec![
             score.to_string(),

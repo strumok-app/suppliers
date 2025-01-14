@@ -154,7 +154,7 @@ mod test {
     #[tokio::test]
     async fn should_extract_tv() {
         let res = extract(&SourceParams {
-            id: 253,
+            id: 48891,
             imdb_id: None,
             ep: Some(Episode { s: 1, e: 1 }),
         })
@@ -168,7 +168,7 @@ mod test {
         let res = extract(&SourceParams {
             id: 310131,
             imdb_id: None,
-            ep: Some(Episode { s: 1, e: 1 }),
+            ep: None,
         })
         .await;
 

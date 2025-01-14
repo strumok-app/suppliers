@@ -86,17 +86,18 @@ impl ContentSupplier for AniplayContentSupplier {
         for server in servers {
             let provider = server.provider_id;
             for episode in server.episodes {
-                let media_item =
-                    sorted_media_items
-                        .entry(episode.number)
-                        .or_insert_with(|| ContentMediaItem {
-                            number: episode.number - 1,
-                            title: episode.title,
-                            section: None,
-                            image: None,
-                            sources: None,
-                            params: vec![episode.number.to_string()],
-                        });
+                let media_item = sorted_media_items.entry(episode.number).or_insert_with(|| {
+                    let num = episode.number;
+                    let title = episode.title;
+                    ContentMediaItem {
+                        number: num - 1,
+                        title: format!("{num}. {title}"),
+                        section: None,
+                        image: None,
+                        sources: None,
+                        params: vec![episode.number.to_string()],
+                    }
+                });
 
                 if media_item.image.is_none() && episode.img.starts_with("http") {
                     media_item.image = Some(episode.img);
