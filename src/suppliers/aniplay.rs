@@ -34,7 +34,7 @@ impl ContentSupplier for AniplayContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         anilist::search_anime(&query).await
     }
 

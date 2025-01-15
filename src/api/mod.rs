@@ -33,13 +33,9 @@ pub fn get_supported_languages(supplier: &String) -> anyhow::Result<Vec<String>>
     Ok(AllContentSuppliers::get_supported_languages(&sup))
 }
 
-pub async fn search(
-    supplier: String,
-    query: String,
-    types: Vec<String>,
-) -> anyhow::Result<Vec<ContentInfo>> {
+pub async fn search(supplier: String, query: String) -> anyhow::Result<Vec<ContentInfo>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::search(&sup, query, types).await
+    AllContentSuppliers::search(&sup, query).await
 }
 
 pub async fn load_channel(
@@ -93,7 +89,6 @@ pub fn avalaible_suppliers() -> Vec<String> {
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
-    env_logger::init();
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();
 }

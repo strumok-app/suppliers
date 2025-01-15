@@ -39,7 +39,7 @@ impl ContentSupplier for MangaDexContentSupplier {
         vec!["multi".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         let res_json = utils::create_client()
             .get(format!("{API_URL}/manga"))
             .query(&[
@@ -141,6 +141,7 @@ impl ContentSupplier for MangaDexContentSupplier {
 
                 sources.push(ContentMediaItemSource::Manga {
                     description: format!("[{translation_lang}] {scanlation_group}"),
+                    headers: None,
                     page_numbers,
                     pages: None,
                     params: vec![id.to_owned()],
@@ -470,7 +471,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = MangaDexContentSupplier
-            .search("Dr Stone".into(), vec![])
+            .search("Dr Stone".into())
             .await
             .unwrap();
         println!("{res:#?}");

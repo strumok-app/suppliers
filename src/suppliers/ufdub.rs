@@ -36,7 +36,7 @@ impl ContentSupplier for UFDubContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -237,7 +237,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UFDubContentSupplier
-            .search("Засновник темного шляху".into(), vec![])
+            .search("Засновник темного шляху".into())
             .await
             .unwrap();
         println!("{res:#?}");

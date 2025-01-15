@@ -45,7 +45,7 @@ impl ContentSupplier for TMDBContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         let res: TMDBSearchResponse = utils::create_json_client()
             .get(format!("{URL}/search/multi"))
             .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
@@ -420,7 +420,7 @@ mod test {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = TMDBContentSupplier.search("venom".into(), vec![]).await;
+        let res = TMDBContentSupplier.search("venom".into()).await;
         println!("{res:#?}")
     }
 

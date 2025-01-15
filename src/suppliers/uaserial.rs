@@ -45,7 +45,7 @@ impl ContentSupplier for UAserialContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         let request_builder = utils::create_client()
             .get(SEARCH_URL)
             .query(&[("query", &query)]);
@@ -321,7 +321,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UAserialContentSupplier
-            .search("Термінатор".into(), vec![])
+            .search("Термінатор".into())
             .await
             .unwrap();
         println!("{res:#?}");

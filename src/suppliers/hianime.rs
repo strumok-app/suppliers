@@ -42,7 +42,7 @@ impl ContentSupplier for HianimeContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
                 .get(SEARCH_URL)
@@ -425,7 +425,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = HianimeContentSupplier
-            .search("Dr Stone".into(), vec![])
+            .search("Dr Stone".into())
             .await
             .unwrap();
         println!("{res:#?}");
