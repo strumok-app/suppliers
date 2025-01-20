@@ -66,7 +66,11 @@ impl ContentSupplier for UAserialContentSupplier {
         .await
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}");
 
         let html = utils::create_client().get(url).send().await?.text().await?;
@@ -90,6 +94,7 @@ impl ContentSupplier for UAserialContentSupplier {
         &self,
         _id: String,
         _params: Vec<String>,
+        _langs: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         Err(anyhow!("unimplemented"))
     }
@@ -97,6 +102,7 @@ impl ContentSupplier for UAserialContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -330,7 +336,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details_for_movie() {
         let res = UAserialContentSupplier
-            .get_content_details("movie-the-terminator".into())
+            .get_content_details("movie-the-terminator".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -339,7 +345,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details_for_tv_show() {
         let res = UAserialContentSupplier
-            .get_content_details("universal-basic-guys/season-1".into())
+            .get_content_details("universal-basic-guys/season-1".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -350,6 +356,7 @@ mod tests {
         let res = UAserialContentSupplier
             .load_media_item_sources(
                 "blue-exorcist/season-1".into(),
+                vec![],
                 vec!["/embed/blue-exorcist/season-1/episode-1".into()],
             )
             .await

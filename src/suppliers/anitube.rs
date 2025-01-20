@@ -59,7 +59,11 @@ impl ContentSupplier for AniTubeContentSupplier {
         .await
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         let html = utils::create_client()
@@ -84,6 +88,7 @@ impl ContentSupplier for AniTubeContentSupplier {
     async fn load_media_items(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.len() != 2 {
@@ -102,18 +107,19 @@ impl ContentSupplier for AniTubeContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
-        mut params: Vec<String>,
+        _langs: Vec<String>,
+        params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() % 2 != 0 {
             return Err(anyhow!("Wrong params size"));
         }
 
         let mut results = vec![];
-        while !params.is_empty() {
-            let description = params.remove(0);
-            let url = params.remove(0);
+        for chunk in params.chunks(2) {
+            let description = &chunk[0];
+            let url = &chunk[1];
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(&description, &url)
+            let mut sources = playerjs::load_and_parse_playerjs_sources(description, url)
                 .await
                 .unwrap_or_default();
             results.append(&mut sources);
@@ -253,7 +259,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AniTubeContentSupplier
-            .get_content_details("3419-dokor-kamin".into())
+            .get_content_details("3419-dokor-kamin".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -264,6 +270,7 @@ mod tests {
         let res = AniTubeContentSupplier
             .load_media_items(
                 "7633-dr-stone-4".into(),
+                vec![],
                 vec![
                     "3419".into(),
                     "fa06e9031e506c6f56099b6500b0613e50a60656".into(),
@@ -279,6 +286,7 @@ mod tests {
         let res = AniTubeContentSupplier
             .load_media_item_sources(
                 "7633-dr-stone-4".into(),
+                vec![],
                 vec![
                     "ОЗВУЧУВАННЯ DZUSKI ПЛЕЄР ASHDI".into(),
                     "https://ashdi.vip/vod/43190".into(),

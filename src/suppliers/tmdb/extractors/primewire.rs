@@ -62,7 +62,8 @@ async fn lookup_page(client: &Client, params: &SourceParams) -> Result<String, a
     let (ds, _) = hash.split_at(10);
 
     let html = client
-        .get(format!("{URL}/filter?s={imdb_id}&ds={ds}"))
+        .get(format!("{URL}/filter"))
+        .query(&[("s", imdb_id.as_str()), ("ds", ds)])
         .send()
         .await?
         .text()
@@ -76,6 +77,7 @@ async fn lookup_page(client: &Client, params: &SourceParams) -> Result<String, a
             Selector::parse(".index_container .index_item.index_item_ie a").unwrap()
         }))
         .filter_map(|a| a.attr("href"))
+        .map(|href| utils::html::sanitize_text(href))
         .next()
         .ok_or_else(|| anyhow!("[primewire] No search results found for imdb_id: {imdb_id}"))?;
 
@@ -86,10 +88,10 @@ async fn lookup_page(client: &Client, params: &SourceParams) -> Result<String, a
             let t = original_link.replacen("-", "/", 1);
             format!("{URL}{t}-season-{s}-episode-{e}")
         }
-        _ => original_link.to_string(),
+        _ => format!("{URL}/{original_link}"),
     };
 
-    println!("{link}");
+    // println!("{link:#?}");
 
     Ok(link)
 }
@@ -204,7 +206,6 @@ struct Server {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::suppliers::tmdb::extractors::Episode;
 
     #[test]
     fn should_decrypt_links() {
@@ -218,8 +219,9 @@ mod test {
     async fn should_load_source() {
         let res = extract(&SourceParams {
             id: 0,
-            imdb_id: Some("tt15435876".into()),
-            ep: Some(Episode { s: 1, e: 3 }),
+            imdb_id: Some("tt18259086".into()),
+            ep: None,
+            // ep: Some(Episode { s: 1, e: 3 }),
         })
         .await;
         println!("{res:#?}")

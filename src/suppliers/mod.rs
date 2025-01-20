@@ -6,6 +6,7 @@ mod anitaku;
 mod anitube;
 mod hianime;
 mod mangadex;
+mod mangafire;
 mod tmdb;
 mod uafilms;
 mod uakinoclub;
@@ -19,6 +20,7 @@ use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
+use mangafire::MangaFireContentSupplier;
 use tmdb::TMDBContentSupplier;
 use uafilms::UAFilmsContentSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
@@ -43,15 +45,21 @@ pub trait ContentSupplier {
     fn get_supported_languages(&self) -> Vec<String>;
     async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>>;
     async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>>;
+    async fn get_content_details(
+        &self,
+        id: String,
+        langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>>;
     async fn load_media_items(
         &self,
         id: String,
+        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>>;
     async fn load_media_item_sources(
         &self,
         id: String,
+        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>>;
 }
@@ -84,6 +92,8 @@ pub enum AllContentSuppliers {
     UFDubContentSupplier,
     #[strum(serialize = "MangaDex")]
     MangaDexContentSupplier,
+    #[strum(serialize = "MangaFire")]
+    MangaFireContentSupplier,
 }
 
 #[enum_dispatch]

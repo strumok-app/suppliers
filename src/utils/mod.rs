@@ -79,6 +79,8 @@ pub async fn scrap_page<T>(
 ) -> Result<T, anyhow::Error> {
     let html = request_builder.send().await?.text().await?;
 
+    // println!("{html:#?}");
+
     let document = scraper::Html::parse_document(&html);
     let root = document.root_element();
 

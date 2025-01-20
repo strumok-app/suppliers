@@ -55,7 +55,11 @@ impl ContentSupplier for UAFilmsContentSupplier {
         .await
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -68,6 +72,7 @@ impl ContentSupplier for UAFilmsContentSupplier {
     async fn load_media_items(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
@@ -81,6 +86,7 @@ impl ContentSupplier for UAFilmsContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
@@ -201,7 +207,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UAFilmsContentSupplier
-            .get_content_details("21707-terminator-zero".into())
+            .get_content_details("21707-terminator-zero".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -212,6 +218,7 @@ mod tests {
         let res = UAFilmsContentSupplier
             .load_media_items(
                 "21707-terminator-zero".into(),
+                vec![],
                 vec!["https://ashdi.vip/serial/4000".into()],
             )
             .await

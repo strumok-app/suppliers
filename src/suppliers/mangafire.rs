@@ -1,0 +1,393 @@
+use core::str;
+use std::{collections::BTreeMap, sync::OnceLock};
+
+use anyhow::anyhow;
+use log::{error, warn};
+use serde::Deserialize;
+
+use crate::{
+    models::{
+        ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
+        MediaType,
+    },
+    utils::{self, html},
+};
+
+use super::ContentSupplier;
+
+const URL: &str = "https://mangafire.to";
+
+#[derive(Default)]
+pub struct MangaFireContentSupplier;
+
+impl ContentSupplier for MangaFireContentSupplier {
+    fn get_channels(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn get_default_channels(&self) -> Vec<String> {
+        vec![]
+    }
+
+    fn get_supported_types(&self) -> Vec<ContentType> {
+        vec![ContentType::Manga]
+    }
+
+    fn get_supported_languages(&self) -> Vec<String> {
+        vec!["en".into(), "jp".into()]
+    }
+
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+        utils::scrap_page(
+            utils::create_client()
+                .get(format!("{URL}/filter"))
+                .query(&[("keyword", query)]),
+            content_info_items_processor(),
+        )
+        .await
+    }
+
+    async fn load_channel(&self, _channel: String, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        Ok(vec![])
+    }
+
+    async fn get_content_details(
+        &self,
+        id: String,
+        langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
+        let url = format!("{URL}/manga/{id}");
+
+        let maybe_details =
+            utils::scrap_page(utils::create_client().get(url), content_details_processor()).await;
+
+        let mut details = match maybe_details {
+            Ok(d) => d,
+            _ => {
+                warn!("[mangafire] failed to fetch details for id: {id}");
+                return Ok(None);
+            }
+        };
+
+        details.params = langs;
+
+        Ok(Some(details))
+    }
+
+    async fn load_media_items(
+        &self,
+        id: String,
+        langs: Vec<String>,
+        _params: Vec<String>,
+    ) -> anyhow::Result<Vec<ContentMediaItem>> {
+        let actual_id = id
+            .split_once(".")
+            .map(|(_, actual_id)| actual_id)
+            .ok_or_else(|| anyhow!("[mangafire] invalid id"))?;
+
+        let client = utils::create_json_client();
+        let mut media_items: BTreeMap<ChKey, ContentMediaItem> = BTreeMap::new();
+
+        for lang in langs {
+            let chapters = match load_chapters(&client, actual_id, &lang).await {
+                Ok(items) => items,
+                Err(err) => {
+                    error!("[mangafire] fail to fetch chaptes for {lang} and {id}: {err}");
+                    vec![]
+                }
+            };
+
+            for chapter in chapters {
+                let num = media_items.len() as u32;
+                let media_item =
+                    media_items
+                        .entry(chapter.key)
+                        .or_insert_with(|| ContentMediaItem {
+                            number: num,
+                            title: chapter.title,
+                            section: chapter.volume,
+                            image: None,
+                            sources: None,
+                            params: vec![],
+                        });
+
+                media_item.params.push(lang.clone());
+                media_item.params.push(chapter.id);
+            }
+        }
+
+        Ok(media_items.into_values().collect())
+    }
+
+    async fn load_media_item_sources(
+        &self,
+        _id: String,
+        _langs: Vec<String>,
+        params: Vec<String>,
+    ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+        if params.len() % 2 != 0 {
+            return Err(anyhow!("[mangafire] invalid params"));
+        }
+
+        let client = utils::create_json_client();
+        let mut sources: Vec<_> = vec![];
+
+        for chunk in params.chunks(2) {
+            let lang = &chunk[0];
+            let id = &chunk[1];
+
+            match load_chapter(&client, lang, id).await {
+                Ok(source) => sources.push(source),
+                Err(err) => {
+                    println!("[mangafire] fail to load source for lang {lang} id: {id}: {err}")
+                }
+            }
+        }
+
+        Ok(sources)
+    }
+}
+
+#[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct ChKey {
+    num: u16,
+    sub_num: u8,
+}
+
+impl ChKey {
+    fn from_str(s: &str) -> Self {
+        s.split_once(".")
+            .map(|(a, b)| Self {
+                num: a.parse::<u16>().unwrap_or_default(),
+                sub_num: b.parse::<u8>().unwrap_or_default(),
+            })
+            .unwrap_or_else(|| Self {
+                num: s.parse::<u16>().unwrap_or_default(),
+                sub_num: 0,
+            })
+    }
+}
+
+#[derive(Debug)]
+struct Chapter {
+    id: String,
+    title: String,
+    key: ChKey,
+    volume: Option<String>,
+}
+
+async fn load_chapters(
+    client: &reqwest::Client,
+    id: &str,
+    lang: &str,
+) -> anyhow::Result<Vec<Chapter>> {
+    let url = format!("{URL}/ajax/read/{id}/chapter/{lang}");
+
+    #[derive(Deserialize, Debug)]
+    struct ChaptersResult {
+        html: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct ChaptersRes {
+        status: u16,
+        result: ChaptersResult,
+    }
+
+    let res: ChaptersRes = client
+        .get(url)
+        .header("Referer", URL)
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    if res.status != 200 {
+        return Err(anyhow!(
+            "[mangafire] fail to fetch chaptes id: {id}, lang: {lang}"
+        ));
+    }
+
+    let doc = scraper::Html::parse_fragment(&res.result.html);
+    let root = doc.root_element();
+
+    let chapter_selector = scraper::Selector::parse("li a").unwrap();
+
+    let chapters = root
+        .select(&chapter_selector)
+        .filter_map(|el| {
+            let num = el.attr("data-number")?;
+            let id = el.attr("data-id")?;
+
+            Some(Chapter {
+                id: id.to_owned(),
+                key: ChKey::from_str(num),
+                volume: None,
+                title: format!("Chapter {num}"),
+            })
+        })
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+
+    Ok(chapters)
+}
+
+async fn load_chapter(
+    client: &reqwest::Client,
+    lang: &str,
+    id: &str,
+) -> anyhow::Result<ContentMediaItemSource> {
+    #[derive(Deserialize, Debug)]
+    struct ChapterResult {
+        images: Vec<Vec<serde_json::Value>>,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct ChapterRes {
+        status: u16,
+        result: ChapterResult,
+    }
+
+    let res: ChapterRes = client
+        .get(format!("{URL}/ajax/read/chapter/{id}"))
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    if res.status != 200 {
+        return Err(anyhow!(
+            "[mangafire] fail to fetch chapter id: {id}, lang: {lang}"
+        ));
+    }
+
+    let pages: Vec<_> = res
+        .result
+        .images
+        .into_iter()
+        .filter_map(|i| i.first().and_then(|v| v.as_str()).map(|s| s.to_owned()))
+        .collect();
+
+    Ok(ContentMediaItemSource::Manga {
+        description: lang.to_owned(),
+        headers: None,
+        page_numbers: pages.len() as u32,
+        pages: Some(pages),
+        params: vec![],
+    })
+}
+
+fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
+    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
+        OnceLock::new();
+    CONTENT_INFO_ITEMS_PROCESSOR
+        .get_or_init(|| html::ItemsProcessor::new(".original .unit", content_info_processor()))
+}
+
+fn content_info_processor() -> Box<html::ContentInfoProcessor> {
+    html::ContentInfoProcessor {
+        id: html::AttrValue::new("href")
+            .map(extract_id)
+            .in_scope("a.poster")
+            .unwrap_or_default()
+            .into(),
+        title: html::text_value(".info > a"),
+        secondary_title: html::default_value(),
+        image: html::attr_value(".poster img", "src"),
+    }
+    .into()
+}
+
+fn content_details_processor() -> &'static html::ContentDetailsProcessor {
+    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ContentDetailsProcessor> = OnceLock::new();
+    CONTENT_DETAILS_PROCESSOR.get_or_init(|| html::ContentDetailsProcessor {
+        media_type: MediaType::Manga,
+        title: html::text_value(".manga-detail .info > h1"),
+        original_title: html::optional_text_value(".info > h6"),
+        image: html::attr_value(".manga-detail .detail-bg > img", "src"),
+        description: html::TextValue::new()
+            .all_nodes()
+            .map(|s| html::strip_html(&s))
+            .in_scope("#synopsis .modal-content")
+            .unwrap_or_default()
+            .into(),
+        additional_info: html::flatten(vec![
+            html::items_processor(
+                ".manga-detail .min-info span",
+                html::TextValue::new()
+                    .all_nodes()
+                    .map(|s| html::sanitize_text(&s))
+                    .into(),
+            ),
+            html::items_processor(
+                ".manga-detail .sidebar .meta div",
+                html::TextValue::new()
+                    .all_nodes()
+                    .map(|s| html::sanitize_text(&s))
+                    .into(),
+            ),
+        ]),
+        similar: html::items_processor(
+            ".container .sidebar .side-manga .body .unit",
+            html::ContentInfoProcessor {
+                id: html::AttrValue::new("href").map(extract_id).into(),
+                title: html::text_value(".info h6"),
+                secondary_title: html::default_value(),
+                image: html::attr_value(".poster img", "src"),
+            }
+            .into(),
+        ),
+        params: html::default_value(),
+    })
+}
+
+fn extract_id(link: String) -> String {
+    link.rsplit_once("/")
+        .map(|(_, id)| String::from(id))
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn should_search() {
+        let res = MangaFireContentSupplier.search("onepunch".into()).await;
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_get_content_details() {
+        let res = MangaFireContentSupplier
+            .get_content_details("one-punch-mann.oo4".into(), vec!["en".into()])
+            .await;
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_media_items() {
+        let res = MangaFireContentSupplier
+            .load_media_items(
+                "one-punch-mann.oo4".into(),
+                vec!["en".into(), "ja".into()],
+                vec![],
+            )
+            .await;
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_load_media_item_sources() {
+        let res = MangaFireContentSupplier
+            .load_media_item_sources(
+                "one-punch-mann.oo4".into(),
+                vec![],
+                vec!["en".into(), "1655816".into(), "ja".into(), "1657766".into()],
+            )
+            .await;
+        println!("{res:#?}");
+    }
+}

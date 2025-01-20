@@ -53,7 +53,11 @@ impl ContentSupplier for AnitakuContentSupplier {
         Err(anyhow!("unimplemented"))
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         utils::scrap_page(
             utils::create_client().get(format!("{URL}/{id}")),
             content_details_processor(),
@@ -64,6 +68,7 @@ impl ContentSupplier for AnitakuContentSupplier {
     async fn load_media_items(
         &self,
         id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         static LINKS_SELECTOR: OnceLock<Selector> = OnceLock::new();
@@ -106,6 +111,7 @@ impl ContentSupplier for AnitakuContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -275,7 +281,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AnitakuContentSupplier
-            .get_content_details("category/dr-stone-ryuusui".into())
+            .get_content_details("category/dr-stone-ryuusui".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -284,7 +290,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = AnitakuContentSupplier
-            .load_media_items("category/dr-stone".into(), vec!["8205".into()])
+            .load_media_items("category/dr-stone".into(), vec![], vec!["8205".into()])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -293,7 +299,11 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items_for_movie() {
         let res = AnitakuContentSupplier
-            .load_media_items("category/dr-stone-ryuusui".into(), vec!["12734".into()])
+            .load_media_items(
+                "category/dr-stone-ryuusui".into(),
+                vec![],
+                vec!["12734".into()],
+            )
             .await
             .unwrap();
         println!("{res:#?}");
@@ -304,6 +314,7 @@ mod tests {
         let res = AnitakuContentSupplier
             .load_media_item_sources(
                 "category/fairy-tail-100-years-quest".into(),
+                vec![],
                 vec!["fairy-tail-100-years-quest-episode-20".into()],
             )
             .await

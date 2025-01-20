@@ -36,7 +36,7 @@ impl ContentSupplier for MangaDexContentSupplier {
     }
 
     fn get_supported_languages(&self) -> Vec<String> {
-        vec!["multi".into()]
+        vec!["uk".into(), "en".into()]
     }
 
     async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
@@ -75,7 +75,11 @@ impl ContentSupplier for MangaDexContentSupplier {
         Ok(search_res.into())
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let res: MangaDexSingeItemResponse = utils::create_client()
             .get(format!("{API_URL}/manga/{id}"))
             .query(&[("includes[]", "cover_art"), ("includes[]", "author")])
@@ -90,6 +94,7 @@ impl ContentSupplier for MangaDexContentSupplier {
     async fn load_media_items(
         &self,
         id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let mut requests_left = 30usize;
@@ -162,6 +167,7 @@ impl ContentSupplier for MangaDexContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("Unimplemented"))
@@ -480,7 +486,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details() {
         let res = MangaDexContentSupplier
-            .get_content_details("cfc3d743-bd89-48e2-991f-63e680cc4edf".into())
+            .get_content_details("cfc3d743-bd89-48e2-991f-63e680cc4edf".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -489,7 +495,11 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = MangaDexContentSupplier
-            .load_media_items("c1e284bc-0436-42fe-b571-fa35a94279ce".into(), vec![])
+            .load_media_items(
+                "c1e284bc-0436-42fe-b571-fa35a94279ce".into(),
+                vec![],
+                vec![],
+            )
             .await
             .unwrap();
         println!("{res:#?}");
