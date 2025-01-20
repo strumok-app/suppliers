@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::{collections::HashMap, sync::OnceLock};
 
 use base64::{
     prelude::{BASE64_STANDARD, BASE64_STANDARD_NO_PAD},
@@ -83,15 +83,8 @@ async fn load_server(server: &Server, idx: usize) -> anyhow::Result<Vec<ContentM
     let name = &server.name;
 
     #[derive(Deserialize, Debug)]
-    struct Subtitle {
-        label: String,
-        file: String,
-    }
-
-    #[derive(Deserialize, Debug)]
     struct SourceResponse {
         source: String,
-        subtitles: Vec<Subtitle>,
     }
 
     let res: SourceResponse = utils::create_client()
@@ -102,27 +95,14 @@ async fn load_server(server: &Server, idx: usize) -> anyhow::Result<Vec<ContentM
         .json()
         .await?;
 
-    static STRIP_PROXY_RE: OnceLock<Regex> = OnceLock::new();
-    let striped_url = STRIP_PROXY_RE
-        .get_or_init(|| Regex::new(r#"[a-z\.0-9]+/api/proxy/[a-z0-9]+/"#).unwrap())
-        .replace(&res.source, "");
-
-    let mut result: Vec<ContentMediaItemSource> = vec![ContentMediaItemSource::Video {
-        link: striped_url.into(),
+    let result: Vec<ContentMediaItemSource> = vec![ContentMediaItemSource::Video {
+        link: res.source,
         description: format!("Embed.su {idx}. {name}"),
-        headers: None,
+        headers: Some(HashMap::from([
+            ("Referer".to_owned(), URL.into()),
+            ("Origin".to_owned(), URL.into()),
+        ])),
     }];
-
-    for subtitle in res.subtitles {
-        if !subtitle.file.is_empty() {
-            let lang = subtitle.label;
-            result.push(ContentMediaItemSource::Subtitle {
-                link: subtitle.file,
-                description: format!("[embed_su] {idx}. {lang}"),
-                headers: None,
-            });
-        }
-    }
 
     Ok(result)
 }

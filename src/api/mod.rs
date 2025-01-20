@@ -33,13 +33,9 @@ pub fn get_supported_languages(supplier: &String) -> anyhow::Result<Vec<String>>
     Ok(AllContentSuppliers::get_supported_languages(&sup))
 }
 
-pub async fn search(
-    supplier: String,
-    query: String,
-    types: Vec<String>,
-) -> anyhow::Result<Vec<ContentInfo>> {
+pub async fn search(supplier: String, query: String) -> anyhow::Result<Vec<ContentInfo>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::search(&sup, query, types).await
+    AllContentSuppliers::search(&sup, query).await
 }
 
 pub async fn load_channel(
@@ -54,27 +50,30 @@ pub async fn load_channel(
 pub async fn get_content_details(
     supplier: String,
     id: String,
+    langs: Vec<String>,
 ) -> anyhow::Result<Option<ContentDetails>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::get_content_details(&sup, id).await
+    AllContentSuppliers::get_content_details(&sup, id, langs).await
 }
 
 pub async fn load_media_items(
     supplier: String,
     id: String,
+    langs: Vec<String>,
     params: Vec<String>,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_media_items(&sup, id, params).await
+    AllContentSuppliers::load_media_items(&sup, id, langs, params).await
 }
 
 pub async fn load_media_item_sources(
     supplier: String,
     id: String,
+    langs: Vec<String>,
     params: Vec<String>,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_media_item_sources(&sup, id, params).await
+    AllContentSuppliers::load_media_item_sources(&sup, id, langs, params).await
 }
 
 pub async fn load_manga_pages(

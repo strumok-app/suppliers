@@ -36,7 +36,7 @@ impl ContentSupplier for UFDubContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -54,7 +54,11 @@ impl ContentSupplier for UFDubContentSupplier {
         .await
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -67,6 +71,7 @@ impl ContentSupplier for UFDubContentSupplier {
     async fn load_media_items(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         static VIDEO_LIKNS_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
@@ -114,6 +119,7 @@ impl ContentSupplier for UFDubContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         todo!()
@@ -237,7 +243,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UFDubContentSupplier
-            .search("Засновник темного шляху".into(), vec![])
+            .search("Засновник темного шляху".into())
             .await
             .unwrap();
         println!("{res:#?}");
@@ -246,7 +252,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UFDubContentSupplier
-            .get_content_details("anime/302-the-oni-girl-moia-divchyna-oni".into())
+            .get_content_details("anime/302-the-oni-girl-moia-divchyna-oni".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -257,6 +263,7 @@ mod tests {
         let res = UFDubContentSupplier
             .load_media_items(
                 "anime/301-zasnovnyk-temnogo-shliakhu-mo-dao-zu-shi".into(),
+                vec![],
                 vec![String::from("https://video.ufdub.com/AT/VP.php?ID=301")],
             )
             .await
@@ -269,6 +276,7 @@ mod tests {
         let res = UFDubContentSupplier
             .load_media_items(
                 "anime/302-the-oni-girl-moia-divchyna-oni".into(),
+                vec![],
                 vec![String::from("https://video.ufdub.com/AT/VP.php?ID=302")],
             )
             .await

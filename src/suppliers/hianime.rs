@@ -42,7 +42,7 @@ impl ContentSupplier for HianimeContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
                 .get(SEARCH_URL)
@@ -65,7 +65,11 @@ impl ContentSupplier for HianimeContentSupplier {
         .await
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         utils::scrap_page(
             utils::create_client().get(format!("{URL}/{id}")),
             content_details_processor(),
@@ -76,6 +80,7 @@ impl ContentSupplier for HianimeContentSupplier {
     async fn load_media_items(
         &self,
         id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         static SEASONS_SELECTOR: OnceLock<Selector> = OnceLock::new();
@@ -128,6 +133,7 @@ impl ContentSupplier for HianimeContentSupplier {
     async fn load_media_item_sources(
         &self,
         id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -425,7 +431,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = HianimeContentSupplier
-            .search("Dr Stone".into(), vec![])
+            .search("Dr Stone".into())
             .await
             .unwrap();
         println!("{res:#?}");
@@ -434,7 +440,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = HianimeContentSupplier
-            .get_content_details("dr-stone-ryuusui-18114".into())
+            .get_content_details("dr-stone-ryuusui-18114".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -443,7 +449,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = HianimeContentSupplier
-            .load_media_items("dr-stone-ryuusui-18114".into(), vec![])
+            .load_media_items("dr-stone-ryuusui-18114".into(), vec![], vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -452,7 +458,11 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_item_sources() {
         let res = HianimeContentSupplier
-            .load_media_item_sources("dr-stone-ryuusui-18114".into(), vec!["92705".into()])
+            .load_media_item_sources(
+                "dr-stone-ryuusui-18114".into(),
+                vec![],
+                vec!["92705".into()],
+            )
             .await
             .unwrap();
         println!("{res:#?}");

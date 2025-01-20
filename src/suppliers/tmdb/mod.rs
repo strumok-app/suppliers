@@ -45,7 +45,7 @@ impl ContentSupplier for TMDBContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         let res: TMDBSearchResponse = utils::create_json_client()
             .get(format!("{URL}/search/multi"))
             .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
@@ -89,7 +89,11 @@ impl ContentSupplier for TMDBContentSupplier {
             .collect())
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let res: TMDBDetailsResponse = utils::create_json_client()
             .get(format!("{URL}/{id}"))
             .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
@@ -109,6 +113,7 @@ impl ContentSupplier for TMDBContentSupplier {
     async fn load_media_items(
         &self,
         id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.is_empty() {
@@ -121,6 +126,7 @@ impl ContentSupplier for TMDBContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -420,7 +426,7 @@ mod test {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = TMDBContentSupplier.search("venom".into(), vec![]).await;
+        let res = TMDBContentSupplier.search("venom".into()).await;
         println!("{res:#?}")
     }
 
@@ -435,7 +441,7 @@ mod test {
     #[test_log::test(tokio::test())]
     async fn should_get_movie_content_details() {
         let res = TMDBContentSupplier
-            .get_content_details("movie/90228".into())
+            .get_content_details("movie/939243".into(), vec![])
             .await;
         println!("{res:#?}");
     }
@@ -444,8 +450,21 @@ mod test {
     async fn should_should_load_movie_media_items() {
         let res = TMDBContentSupplier
             .load_media_items(
-                "movie/90228".into(),
-                vec![r#"{"imdb_id":"tt0059934"}"#.into()],
+                "movie/939243".into(),
+                vec![],
+                vec![r#"{"imdb_id":"tt18259086"}"#.into()],
+            )
+            .await;
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_should_load_movie_media_items_sources() {
+        let res = TMDBContentSupplier
+            .load_media_item_sources(
+                "movie/939243".into(),
+                vec![],
+                vec![r#"{"id": 939243, "imdb_id":"tt18259086"}"#.into()],
             )
             .await;
         println!("{res:#?}")
@@ -454,7 +473,7 @@ mod test {
     #[test_log::test(tokio::test())]
     async fn should_get_tv_content_details() {
         let res = TMDBContentSupplier
-            .get_content_details("tv/253".into())
+            .get_content_details("tv/253".into(), vec![])
             .await;
         println!("{res:#?}");
     }
@@ -464,16 +483,18 @@ mod test {
         let res = TMDBContentSupplier
             .load_media_items(
                 "tv/253".into(),
+                vec![],
                 vec![r#"{"imdb_id":"tt0060028"}"#.into(), "3".into()],
             )
             .await;
         println!("{res:#?}")
     }
     #[tokio::test]
-    async fn should_load_media_item_sources() {
+    async fn should_load_media_tv_item_sources() {
         let res = TMDBContentSupplier
             .load_media_item_sources(
                 "tv/253".into(),
+                vec![],
                 vec![r#"{"id": 253, "imdb_id":"tt0060028", "ep":{"e":1, "s":1}}"#.into()],
             )
             .await;

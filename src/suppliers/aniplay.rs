@@ -34,7 +34,7 @@ impl ContentSupplier for AniplayContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         anilist::search_anime(&query).await
     }
 
@@ -42,13 +42,18 @@ impl ContentSupplier for AniplayContentSupplier {
         Err(anyhow!("unimplemented"))
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         anilist::get_anime(&id).await
     }
 
     async fn load_media_items(
         &self,
         id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let url = format!("{URL}/anime/info/{id}");
@@ -119,6 +124,7 @@ impl ContentSupplier for AniplayContentSupplier {
     async fn load_media_item_sources(
         &self,
         id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() < 4 {
@@ -205,7 +211,7 @@ mod test {
     #[tokio::test]
     async fn should_media_items() {
         let res = AniplayContentSupplier
-            .load_media_items("21".into(), vec![])
+            .load_media_items("21".into(), vec![], vec![])
             // .load_media_items("170942".into(), vec![])
             .await;
 
@@ -217,6 +223,7 @@ mod test {
         let res = AniplayContentSupplier
             .load_media_item_sources(
                 "176508".into(),
+                vec![],
                 vec![
                     "1".into(),
                     "yuki".into(),

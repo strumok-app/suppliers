@@ -48,7 +48,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn search(&self, query: String, _types: Vec<String>) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -56,7 +56,11 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn get_content_details(&self, id: String) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(
+        &self,
+        id: String,
+        _langs: Vec<String>,
+    ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, &id);
 
         utils::scrap_page(
@@ -69,6 +73,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
     async fn load_media_items(
         &self,
         _id: String,
+        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
@@ -82,6 +87,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
+        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
@@ -164,7 +170,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UASerialsProContentSupplier
-            .search("Термінатор".into(), vec![])
+            .search("Термінатор".into())
             .await
             .unwrap();
         println!("{res:#?}");
@@ -173,7 +179,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UASerialsProContentSupplier
-            .get_content_details("8831-gotel-kokayin".into())
+            .get_content_details("8831-gotel-kokayin".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -184,6 +190,7 @@ mod tests {
         let res = UASerialsProContentSupplier
             .load_media_items(
                 "8831-gotel-kokayin".into(),
+                vec![],
                 vec!["https://hdvbua.pro/embed/9123".into()],
             )
             .await

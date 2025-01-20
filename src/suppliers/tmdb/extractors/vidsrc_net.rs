@@ -40,10 +40,13 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     let iframe_html2 = client
         .get(&second_url)
         .header("Referer", &url)
+        .header("Origin", &second_url)
         .send()
         .await?
         .text()
         .await?;
+
+    println!("{iframe_html2}");
 
     static IFRAME3_SRC_RE: OnceLock<regex::Regex> = OnceLock::new();
     let third_url = IFRAME3_SRC_RE
