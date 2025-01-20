@@ -2,6 +2,7 @@ use core::str;
 use std::{collections::BTreeMap, sync::OnceLock};
 
 use anyhow::anyhow;
+use indexmap::IndexMap;
 use log::{error, warn};
 use serde::Deserialize;
 
@@ -22,7 +23,7 @@ pub struct MangaFireContentSupplier;
 
 impl ContentSupplier for MangaFireContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        vec![]
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -34,7 +35,7 @@ impl ContentSupplier for MangaFireContentSupplier {
     }
 
     fn get_supported_languages(&self) -> Vec<String> {
-        vec!["en".into(), "jp".into()]
+        vec!["en".into(), "ja".into()]
     }
 
     async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
@@ -47,8 +48,17 @@ impl ContentSupplier for MangaFireContentSupplier {
         .await
     }
 
-    async fn load_channel(&self, _channel: String, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        Ok(vec![])
+    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = match get_channels_map().get(channel.as_str()) {
+            Some(url) => format!("{url}?={page}"),
+            None => return Err(anyhow!("unknown channel")),
+        };
+
+        utils::scrap_page(
+            utils::create_client().get(&url),
+            content_info_items_processor(),
+        )
+        .await
     }
 
     async fn get_content_details(
@@ -335,7 +345,11 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
                 id: html::AttrValue::new("href").map(extract_id).into(),
                 title: html::text_value(".info h6"),
                 secondary_title: html::default_value(),
-                image: html::attr_value(".poster img", "src"),
+                image: html::AttrValue::new("src")
+                    .map(|l| l.replace("@100", ""))
+                    .in_scope(".poster img")
+                    .unwrap_or_default()
+                    .into(),
             }
             .into(),
         ),
@@ -349,6 +363,16 @@ fn extract_id(link: String) -> String {
         .unwrap_or_default()
 }
 
+fn get_channels_map() -> &'static IndexMap<&'static str, String> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| {
+        IndexMap::from([
+            ("New Release", format!("{URL}/newest")),
+            ("Updated", format!("{URL}/updated")),
+        ])
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -356,6 +380,14 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = MangaFireContentSupplier.search("onepunch".into()).await;
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = MangaFireContentSupplier
+            .load_channel("Updated".into(), 2)
+            .await;
         println!("{res:#?}")
     }
 

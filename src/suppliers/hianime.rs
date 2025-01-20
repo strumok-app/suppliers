@@ -27,7 +27,7 @@ pub struct HianimeContentSupplier;
 
 impl ContentSupplier for HianimeContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|s| s.into()).collect()
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -53,7 +53,7 @@ impl ContentSupplier for HianimeContentSupplier {
     }
 
     async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = match get_channels_map().get(&channel) {
+        let url = match get_channels_map().get(channel.as_str()) {
             Some(url) => format!("{url}={page}"),
             None => return Err(anyhow!("unknown channel")),
         };
@@ -388,19 +388,16 @@ fn content_channel_items_processor() -> &'static html::ItemsProcessor<ContentInf
     })
 }
 
-fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<&'static str, String> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
     CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
-            ("New".into(), format!("{URL}/recently-added?page")),
-            ("Most Popular".into(), format!("{URL}/most-popular?page")),
-            (
-                "Recently Updated".into(),
-                format!("{URL}/recently-updated?page"),
-            ),
-            ("Top Airing".into(), format!("{URL}/top-airing?page")),
-            ("Movies".into(), format!("{URL}/movie?page")),
-            ("TV Series".into(), format!("{URL}/tv?page")),
+            ("New", format!("{URL}/recently-added?page")),
+            ("Most Popular", format!("{URL}/most-popular?page")),
+            ("Recently Updated", format!("{URL}/recently-updated?page")),
+            ("Top Airing", format!("{URL}/top-airing?page")),
+            ("Movies", format!("{URL}/movie?page")),
+            ("TV Series", format!("{URL}/tv?page")),
         ])
     })
 }

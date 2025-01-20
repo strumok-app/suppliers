@@ -17,8 +17,8 @@ impl ContentSupplier for UASerialsProContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         get_channels_map()
             .keys()
-            .map(|s| s.into())
-            .collect::<Vec<_>>()
+            .map(|&s| s.into())
+            .collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -143,14 +143,14 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<&'static str, String> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
     CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
-            ("Фільми".into(), format!("{URL}/films/page/")),
-            ("Серіали".into(), format!("{URL}/series/page/")),
-            ("Мультфільми".into(), format!("{URL}/fcartoon/page/")),
-            ("Мультсеріали".into(), format!("{URL}/cartoon/page/")),
+            ("Фільми", format!("{URL}/films/page/")),
+            ("Серіали", format!("{URL}/series/page/")),
+            ("Мультфільми", format!("{URL}/fcartoon/page/")),
+            ("Мультсеріали", format!("{URL}/cartoon/page/")),
         ])
     })
 }

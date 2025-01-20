@@ -24,7 +24,7 @@ pub fn search_request(url: &str, query: &String) -> RequestBuilder {
 }
 
 pub fn get_channel_url(
-    channels_map: &IndexMap<String, String>,
+    channels_map: &IndexMap<&'static str, String>,
     channel: &str,
     page: u16,
 ) -> anyhow::Result<String> {

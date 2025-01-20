@@ -25,7 +25,7 @@ pub struct UAserialContentSupplier;
 
 impl ContentSupplier for UAserialContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|s| s.into()).collect()
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -54,7 +54,7 @@ impl ContentSupplier for UAserialContentSupplier {
     }
 
     async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = match get_channels_map().get(&channel) {
+        let url = match get_channels_map().get(channel.as_str()) {
             Some(url) => format!("{url}{page}"),
             None => return Err(anyhow!("unknown channel")),
         };
@@ -292,15 +292,15 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<&'static str, String> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
     CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
-            ("Фільми".into(), format!("{URL}/movie/")),
-            ("Серіали".into(), format!("{URL}/serial/")),
-            ("Аніме".into(), format!("{URL}/animeukr/")),
-            ("Мультфільми".into(), format!("{URL}/cartoon-movie/")),
-            ("Мультсеріали".into(), format!("{URL}/cartoon-series/")),
+            ("Фільми", format!("{URL}/movie/")),
+            ("Серіали", format!("{URL}/serial/")),
+            ("Аніме", format!("{URL}/animeukr/")),
+            ("Мультфільми", format!("{URL}/cartoon-movie/")),
+            ("Мультсеріали", format!("{URL}/cartoon-series/")),
         ])
     })
 }

@@ -24,7 +24,7 @@ pub struct MangaDexContentSupplier;
 
 impl ContentSupplier for MangaDexContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|s| s.into()).collect()
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -58,7 +58,7 @@ impl ContentSupplier for MangaDexContentSupplier {
     }
 
     async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let query = match get_channels_map().get(&channel) {
+        let query = match get_channels_map().get(channel.as_str()) {
             Some(query) => query,
             None => return Err(anyhow!("Unknow channel")),
         };
@@ -435,12 +435,12 @@ fn lookup_scanlation_group(rels: &[MangaDexRelationship]) -> &str {
         .unwrap_or("Unknown")
 }
 
-fn get_channels_map() -> &'static IndexMap<String, Vec<(&'static str, &'static str)>> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, Vec<(&str, &str)>>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<&'static str, Vec<(&'static str, &'static str)>> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, Vec<(&str, &str)>>> = OnceLock::new();
     CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
             (
-                "Latest Updates".into(),
+                "Latest Updates",
                 vec![
                     ("order[createdAt]", "desc"),
                     ("includes[]", "cover_art"),
@@ -448,7 +448,7 @@ fn get_channels_map() -> &'static IndexMap<String, Vec<(&'static str, &'static s
                 ],
             ),
             (
-                "Popular Titles".into(),
+                "Popular Titles",
                 vec![
                     ("order[followedCount]", "desc"),
                     ("includes[]", "cover_art"),

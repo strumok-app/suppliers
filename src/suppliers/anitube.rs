@@ -26,7 +26,7 @@ pub struct AniTubeContentSupplier;
 
 impl ContentSupplier for AniTubeContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|s| s.into()).collect()
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -230,9 +230,9 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| IndexMap::from([("Новинки".into(), format!("{URL}/anime/page/"))]))
+fn get_channels_map() -> &'static IndexMap<&'static str, String> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
+    CHANNELS_MAP.get_or_init(|| IndexMap::from([("Новинки", format!("{URL}/anime/page/"))]))
 }
 
 #[cfg(test)]

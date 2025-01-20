@@ -17,7 +17,7 @@ pub struct UAFilmsContentSupplier;
 
 impl ContentSupplier for UAFilmsContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|s| s.into()).collect()
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -166,19 +166,19 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
     })
 }
 
-fn get_channels_map() -> &'static IndexMap<String, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, String>> = OnceLock::new();
+fn get_channels_map() -> &'static IndexMap<&'static str, String> {
+    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
     CHANNELS_MAP.get_or_init(|| {
         let now = chrono::Utc::now();
         let year = now.year();
 
         IndexMap::from([
-            ("Новинки".into(), format!("{URL}/year/{year}/page/")),
-            ("Фільми".into(), format!("{URL}/filmys/page/")),
-            ("Серіали".into(), format!("{URL}/serialy/page/")),
-            ("Аніме".into(), format!("{URL}/anime/page/")),
-            ("Мультфільми".into(), format!("{URL}/cartoons/page/")),
-            ("Мультсеріали".into(), format!("{URL}/multserialy/page/")),
+            ("Новинки", format!("{URL}/year/{year}/page/")),
+            ("Фільми", format!("{URL}/filmys/page/")),
+            ("Серіали", format!("{URL}/serialy/page/")),
+            ("Аніме", format!("{URL}/anime/page/")),
+            ("Мультфільми", format!("{URL}/cartoons/page/")),
+            ("Мультсеріали", format!("{URL}/multserialy/page/")),
         ])
     })
 }
