@@ -315,7 +315,7 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
     CONTENT_DETAILS_PROCESSOR.get_or_init(|| html::ContentDetailsProcessor {
         media_type: MediaType::Manga,
         title: html::text_value(".manga-detail .info > h1"),
-        original_title: html::optional_text_value(".info > h6"),
+        original_title: html::default_value(),
         image: html::attr_value(".manga-detail .detail-bg > img", "src"),
         description: html::TextValue::new()
             .all_nodes()
@@ -324,6 +324,11 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
             .unwrap_or_default()
             .into(),
         additional_info: html::flatten(vec![
+            html::TextValue::new()
+                .map(|s| vec![s])
+                .in_scope(".info > h6")
+                .unwrap_or_default()
+                .into(),
             html::items_processor(
                 ".manga-detail .min-info span",
                 html::TextValue::new()

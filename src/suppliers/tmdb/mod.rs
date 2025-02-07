@@ -410,12 +410,12 @@ fn get_channels_map() -> &'static IndexMap<String, (&'static str, &'static str)>
         IndexMap::from([
             ("Trending".into(), ("", "/trending/all/day")),
             ("Popular Movies".into(), ("movie", "/movie/popular")),
-            ("Popular TV Shows".into(), ("movie", "/tv/popular")),
+            ("Popular TV Shows".into(), ("tv", "/tv/popular")),
             ("Top Rated Movies".into(), ("movie", "/movie/top_rated")),
-            ("Top Rated TV Shows".into(), ("movie", "/tv/top_rated")),
+            ("Top Rated TV Shows".into(), ("tv", "/tv/top_rated")),
             ("Latest Movies".into(), ("movie", "/movie/latest")),
-            ("Latest TV Shows".into(), ("movie", "/movie/latest")),
-            ("On The Air TV Shows".into(), ("movie", "/tv/on_the_air")),
+            ("Latest TV Shows".into(), ("tv", "/tv/latest")),
+            ("On The Air TV Shows".into(), ("tv", "/tv/on_the_air")),
         ])
     })
 }

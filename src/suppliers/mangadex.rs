@@ -94,7 +94,7 @@ impl ContentSupplier for MangaDexContentSupplier {
     async fn load_media_items(
         &self,
         id: String,
-        _langs: Vec<String>,
+        langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let mut requests_left = 30usize;
@@ -102,15 +102,21 @@ impl ContentSupplier for MangaDexContentSupplier {
         let cleint = utils::create_client();
         let mut media_items: IndexMap<String, ContentMediaItem> = IndexMap::new();
         while requests_left > 0 {
+            let mut query = vec![
+                ("includes[]", "scanlation_group".to_string()),
+                ("order[volume]", "asc".to_string()),
+                ("order[chapter]", "asc".to_string()),
+                ("offset", last_offset.to_string()),
+                ("limit", CHAPTERS_LIMIT.to_string()),
+            ];
+
+            for lang in &langs {
+                query.push(("translatedLanguage[]", lang.to_string()));
+            }
+
             let res_str = cleint
                 .get(format!("{API_URL}/manga/{id}/feed"))
-                .query(&[
-                    ("includes[]", "scanlation_group"),
-                    ("order[volume]", "asc"),
-                    ("order[chapter]", "asc"),
-                    ("offset", last_offset.to_string().as_str()),
-                    ("limit", CHAPTERS_LIMIT.to_string().as_str()),
-                ])
+                .query(&query)
                 .send()
                 .await?
                 .text()
