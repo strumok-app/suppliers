@@ -133,7 +133,7 @@ impl ContentSupplier for HianimeContentSupplier {
     async fn load_media_item_sources(
         &self,
         id: String,
-        _langs: Vec<String>,
+        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -141,7 +141,7 @@ impl ContentSupplier for HianimeContentSupplier {
         }
 
         let episode_id = &params[0];
-        let servers = extract_servers(&id, episode_id).await?;
+        let servers = extract_servers(&id, episode_id, langs).await?;
 
         let mut sources = vec![];
 
@@ -170,7 +170,11 @@ struct HianimeServer {
     dub: bool,
 }
 
-async fn extract_servers(id: &str, episode_id: &str) -> anyhow::Result<Vec<HianimeServer>> {
+async fn extract_servers(
+    id: &str,
+    episode_id: &str,
+    langs: Vec<String>,
+) -> anyhow::Result<Vec<HianimeServer>> {
     static SUBS_SELECTOR: OnceLock<Selector> = OnceLock::new();
     let subs_selector =
         SUBS_SELECTOR.get_or_init(|| Selector::parse(".servers-sub .item").unwrap());
@@ -197,35 +201,39 @@ async fn extract_servers(id: &str, episode_id: &str) -> anyhow::Result<Vec<Hiani
 
     let mut servers: Vec<HianimeServer> = vec![];
 
-    servers.extend(document.select(dubs_selector).filter_map(|el| {
-        let data_id = el.attr("data-id")?;
-        let title = el
-            .text()
-            .map(html::sanitize_text)
-            .collect::<Vec<_>>()
-            .join("");
+    if langs.contains(&"en".to_owned()) {
+        servers.extend(document.select(dubs_selector).filter_map(|el| {
+            let data_id = el.attr("data-id")?;
+            let title = el
+                .text()
+                .map(html::sanitize_text)
+                .collect::<Vec<_>>()
+                .join("");
 
-        Some(HianimeServer {
-            id: data_id.to_owned(),
-            title: title.to_owned(),
-            dub: true,
-        })
-    }));
+            Some(HianimeServer {
+                id: data_id.to_owned(),
+                title: title.to_owned(),
+                dub: true,
+            })
+        }));
+    }
 
-    servers.extend(document.select(subs_selector).filter_map(|el| {
-        let data_id = el.attr("data-id")?;
-        let title = el
-            .text()
-            .map(html::sanitize_text)
-            .collect::<Vec<_>>()
-            .join("");
+    if langs.contains(&"ja".to_owned()) {
+        servers.extend(document.select(subs_selector).filter_map(|el| {
+            let data_id = el.attr("data-id")?;
+            let title = el
+                .text()
+                .map(html::sanitize_text)
+                .collect::<Vec<_>>()
+                .join("");
 
-        Some(HianimeServer {
-            id: data_id.to_owned(),
-            title: html::sanitize_text(&title),
-            dub: false,
-        })
-    }));
+            Some(HianimeServer {
+                id: data_id.to_owned(),
+                title: html::sanitize_text(&title),
+                dub: false,
+            })
+        }));
+    }
 
     // print!("HianimeServers: {servers:#?}");
 
@@ -457,7 +465,7 @@ mod tests {
         let res = HianimeContentSupplier
             .load_media_item_sources(
                 "dr-stone-ryuusui-18114".into(),
-                vec![],
+                vec!["en".to_owned(), "ja".to_owned()],
                 vec!["92705".into()],
             )
             .await

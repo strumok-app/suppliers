@@ -7,7 +7,7 @@ use reqwest::{header, redirect, Client};
 use scraper::{Html, Selector};
 
 use crate::{
-    extractors::{doodstream, streamwish},
+    extractors::streamwish,
     models::ContentMediaItemSource,
     utils::{self, crypto},
 };
@@ -167,7 +167,7 @@ async fn load_server_sources(
         }
     };
     let res = match server.name.as_str() {
-        "dood.watch" => doodstream::extract(location, &dysplay_name).await,
+        // "dood.watch" => doodstream::extract(location, &dysplay_name).await,
         "streamwish.to" | "filelions.to" => {
             streamwish::extract(location, server_link, &dysplay_name).await
         }

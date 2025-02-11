@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, vec};
+use std::collections::BTreeMap;
 
 use anyhow::anyhow;
 use log::warn;
@@ -124,30 +124,39 @@ impl ContentSupplier for AniplayContentSupplier {
     async fn load_media_item_sources(
         &self,
         id: String,
-        _langs: Vec<String>,
+        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() < 4 {
             return Err(anyhow!("Incorrect params"));
         }
 
-        let ep_numeber = &params[0];
+        let ep_number = &params[0];
         let server_params: Vec<_> = params.iter().skip(1).collect();
         if server_params.len() % 3 != 0 {
             return Err(anyhow!("Incorrect params"));
         }
 
-        let futures = server_params.chunks(3).map(|params| {
-            load_server_media_item_sources(&id, params[0], params[1], ep_numeber, params[2] == "1")
-        });
+        let mut results = vec![];
 
-        let sources: Vec<_> = futures::future::join_all(futures)
-            .await
-            .into_iter()
-            .flatten()
-            .collect();
+        for params in server_params.chunks(3) {
+            if langs.contains(&"en".to_string()) && params[2] == "1" {
+                let mut sources =
+                    load_server_media_item_sources(&id, params[0], params[1], ep_number, "dub")
+                        .await;
 
-        Ok(sources)
+                results.append(&mut sources);
+            }
+            if langs.contains(&"ja".to_string()) {
+                let mut sources =
+                    load_server_media_item_sources(&id, params[0], params[1], ep_number, "sub")
+                        .await;
+
+                results.append(&mut sources);
+            }
+        }
+
+        Ok(results)
     }
 }
 
@@ -156,30 +165,17 @@ async fn load_server_media_item_sources(
     provider: &str,
     ep_id: &str,
     ep_number: &str,
-    has_dub: bool,
+    r#type: &str,
 ) -> Vec<ContentMediaItemSource> {
-    let mut result: Vec<ContentMediaItemSource> = vec![];
+    let res = load_server_by_type(id, provider, ep_id, ep_number, r#type).await;
 
-    if has_dub {
-        let mut res = load_server_by_type(id, provider, ep_id, ep_number, "dub").await;
-
-        match &mut res {
-            Ok(sources) => result.append(sources),
-            Err(err) => {
-                warn!("[aniplay] fail to load server source(id: {id}, provider: {provider}, ep_id: {ep_id}, ep_numeber: {ep_number}, dub): {err}")
-            }
-        }
-    }
-
-    let mut res = load_server_by_type(id, provider, ep_id, ep_number, "sub").await;
-
-    match &mut res {
-        Ok(sources) => result.append(sources),
+    match res {
+        Ok(sources) => sources,
         Err(err) => {
-            warn!("[aniplay] fail to load server source(id: {id}, provider: {provider}, ep_id: {ep_id}, ep_numeber: {ep_number}, sub): {err}")
+            warn!("[aniplay] fail to load server source(id: {id}, provider: {provider}, ep_id: {ep_id}, ep_numeber: {ep_number}, {type}): {err}");
+            vec![]
         }
     }
-    result
 }
 
 async fn load_server_by_type(
@@ -211,7 +207,7 @@ mod test {
     #[tokio::test]
     async fn should_media_items() {
         let res = AniplayContentSupplier
-            .load_media_items("21".into(), vec![], vec![])
+            .load_media_items("151807".into(), vec![], vec![])
             // .load_media_items("170942".into(), vec![])
             .await;
 
@@ -222,17 +218,19 @@ mod test {
     async fn should_load_media_items() {
         let res = AniplayContentSupplier
             .load_media_item_sources(
-                "176508".into(),
-                vec![],
+                "151807".into(),
+                vec!["ja".to_owned(), "en".to_owned()],
                 vec![
-                    "1".into(),
-                    "yuki".into(),
-                    "shangri-la-frontier-season-2-19324?ep=128608".into(),
-                    "1".into(),
-                    "anya".into(),
-                    "shangri-la-frontier-kusoge-hunter-kamige-ni-idoman-to-su-2nd-season-episode-1"
-                        .into(),
-                    "1".into(),
+                    "12".to_owned(),
+                    "maze".to_owned(),
+                    "solo-leveling-310/epi-12-80446".to_owned(),
+                    "1".to_owned(),
+                    "yuki".to_owned(),
+                    "solo-leveling-18718?ep=123078".to_owned(),
+                    "1".to_owned(),
+                    "pahe".to_owned(),
+                    "62289-5421".to_owned(),
+                    "1".to_owned(),
                 ],
             )
             .await;
