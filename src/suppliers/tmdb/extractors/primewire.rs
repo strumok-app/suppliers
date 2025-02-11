@@ -77,7 +77,7 @@ async fn lookup_page(client: &Client, params: &SourceParams) -> Result<String, a
             Selector::parse(".index_container .index_item.index_item_ie a").unwrap()
         }))
         .filter_map(|a| a.attr("href"))
-        .map(|href| utils::html::sanitize_text(href))
+        .map(utils::html::sanitize_text)
         .next()
         .ok_or_else(|| anyhow!("[primewire] No search results found for imdb_id: {imdb_id}"))?;
 
@@ -168,7 +168,9 @@ async fn load_server_sources(
     };
     let res = match server.name.as_str() {
         "dood.watch" => doodstream::extract(location, &dysplay_name).await,
-        "streamwish.to" => streamwish::extract(location, server_link, &dysplay_name).await,
+        "streamwish.to" | "filelions.to" => {
+            streamwish::extract(location, server_link, &dysplay_name).await
+        }
         _ => return None,
     };
 

@@ -96,10 +96,10 @@ impl ContentSupplier for MangaFireContentSupplier {
             .ok_or_else(|| anyhow!("[mangafire] invalid id"))?;
 
         let client = utils::create_json_client();
-        let mut media_items: BTreeMap<ChKey, ContentMediaItem> = BTreeMap::new();
+        let mut media_items: BTreeMap<Key, ContentMediaItem> = BTreeMap::new();
 
         for lang in langs {
-            let chapters = match load_chapters(&client, actual_id, &lang).await {
+            let volumes = match load_volumes(&client, actual_id, &lang).await {
                 Ok(items) => items,
                 Err(err) => {
                     error!("[mangafire] fail to fetch chaptes for {lang} and {id}: {err}");
@@ -107,22 +107,22 @@ impl ContentSupplier for MangaFireContentSupplier {
                 }
             };
 
-            for chapter in chapters {
+            for volume in volumes {
                 let num = media_items.len() as u32;
                 let media_item =
                     media_items
-                        .entry(chapter.key)
+                        .entry(volume.key)
                         .or_insert_with(|| ContentMediaItem {
                             number: num,
-                            title: chapter.title,
-                            section: chapter.volume,
+                            title: volume.title,
+                            section: None,
                             image: None,
                             sources: None,
                             params: vec![],
                         });
 
                 media_item.params.push(lang.clone());
-                media_item.params.push(chapter.id);
+                media_item.params.push(volume.id);
             }
         }
 
@@ -146,7 +146,7 @@ impl ContentSupplier for MangaFireContentSupplier {
             let lang = &chunk[0];
             let id = &chunk[1];
 
-            match load_chapter(&client, lang, id).await {
+            match load_volume(&client, lang, id).await {
                 Ok(source) => sources.push(source),
                 Err(err) => {
                     println!("[mangafire] fail to load source for lang {lang} id: {id}: {err}")
@@ -159,12 +159,12 @@ impl ContentSupplier for MangaFireContentSupplier {
 }
 
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct ChKey {
+struct Key {
     num: u16,
     sub_num: u8,
 }
 
-impl ChKey {
+impl Key {
     fn from_str(s: &str) -> Self {
         s.split_once(".")
             .map(|(a, b)| Self {
@@ -179,19 +179,18 @@ impl ChKey {
 }
 
 #[derive(Debug)]
-struct Chapter {
+struct Volume {
     id: String,
     title: String,
-    key: ChKey,
-    volume: Option<String>,
+    key: Key,
 }
 
-async fn load_chapters(
+async fn load_volumes(
     client: &reqwest::Client,
     id: &str,
     lang: &str,
-) -> anyhow::Result<Vec<Chapter>> {
-    let url = format!("{URL}/ajax/read/{id}/chapter/{lang}");
+) -> anyhow::Result<Vec<Volume>> {
+    let url = format!("{URL}/ajax/read/{id}/volume/{lang}");
 
     #[derive(Deserialize, Debug)]
     struct ChaptersResult {
@@ -214,26 +213,25 @@ async fn load_chapters(
 
     if res.status != 200 {
         return Err(anyhow!(
-            "[mangafire] fail to fetch chaptes id: {id}, lang: {lang}"
+            "[mangafire] fail to fetch volume id: {id}, lang: {lang}"
         ));
     }
 
     let doc = scraper::Html::parse_fragment(&res.result.html);
     let root = doc.root_element();
 
-    let chapter_selector = scraper::Selector::parse("li a").unwrap();
+    let volume_selector = scraper::Selector::parse("li a").unwrap();
 
-    let chapters = root
-        .select(&chapter_selector)
+    let volumes = root
+        .select(&volume_selector)
         .filter_map(|el| {
             let num = el.attr("data-number")?;
             let id = el.attr("data-id")?;
 
-            Some(Chapter {
+            Some(Volume {
                 id: id.to_owned(),
-                key: ChKey::from_str(num),
-                volume: None,
-                title: format!("Chapter {num}"),
+                key: Key::from_str(num),
+                title: format!("Volume {num}"),
             })
         })
         .collect::<Vec<_>>()
@@ -241,27 +239,27 @@ async fn load_chapters(
         .rev()
         .collect();
 
-    Ok(chapters)
+    Ok(volumes)
 }
 
-async fn load_chapter(
+async fn load_volume(
     client: &reqwest::Client,
     lang: &str,
     id: &str,
 ) -> anyhow::Result<ContentMediaItemSource> {
     #[derive(Deserialize, Debug)]
-    struct ChapterResult {
+    struct VolumeResult {
         images: Vec<Vec<serde_json::Value>>,
     }
 
     #[derive(Deserialize, Debug)]
-    struct ChapterRes {
+    struct VolumeRes {
         status: u16,
-        result: ChapterResult,
+        result: VolumeResult,
     }
 
-    let res: ChapterRes = client
-        .get(format!("{URL}/ajax/read/chapter/{id}"))
+    let res: VolumeRes = client
+        .get(format!("{URL}/ajax/read/volume/{id}"))
         .send()
         .await?
         .json()
@@ -269,7 +267,7 @@ async fn load_chapter(
 
     if res.status != 200 {
         return Err(anyhow!(
-            "[mangafire] fail to fetch chapter id: {id}, lang: {lang}"
+            "[mangafire] fail to fetch volume id: {id}, lang: {lang}"
         ));
     }
 
@@ -422,7 +420,7 @@ mod tests {
             .load_media_item_sources(
                 "one-punch-mann.oo4".into(),
                 vec![],
-                vec!["en".into(), "1655816".into(), "ja".into(), "1657766".into()],
+                vec!["en".into(), "633".into(), "ja".into(), "126226".into()],
             )
             .await;
         println!("{res:#?}");
