@@ -1,4 +1,7 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::{BTreeMap, HashMap},
+    vec,
+};
 
 use anyhow::anyhow;
 use log::warn;
@@ -7,7 +10,7 @@ use serde_json::json;
 
 use crate::{
     models::{ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType},
-    utils::{anilist, jwp_player::JWPConfig, nextjs},
+    utils::{anilist, jwp_player::Source, nextjs},
 };
 
 use super::ContentSupplier;
@@ -187,7 +190,7 @@ async fn load_server_by_type(
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let url = format!("{URL}/anime/watch/{id}?host={provider}&ep={ep_number}&type={type}");
 
-    let config: JWPConfig = nextjs::server_action(
+    let res: ServerRes = nextjs::server_action(
         &url,
         "5dbcd21c7c276c4d15f8de29d9ef27aef5ea4a5e",
         1,
@@ -195,9 +198,37 @@ async fn load_server_by_type(
     )
     .await?;
 
-    let sources = config.to_media_item_sources(&format!("[{type}] {provider}"), None);
+    let prefix = format!("[{type}] {provider}");
+
+    let sources: Vec<_> = res
+        .sources
+        .iter()
+        .enumerate()
+        .map(|(idx, source)| {
+            let num = idx + 1;
+            let mut description = format!("{prefix} {num}.");
+
+            if let Some(label) = &source.label {
+                description.push(' ');
+                description.push_str(label);
+            }
+
+            ContentMediaItemSource::Video {
+                link: String::from(&source.file),
+                headers: res.headers.clone(),
+                description,
+            }
+        })
+        .collect();
 
     Ok(sources)
+}
+
+#[derive(Deserialize, Debug)]
+struct ServerRes {
+    headers: Option<HashMap<String, String>>,
+    #[serde(default)]
+    sources: Vec<Source>,
 }
 
 #[cfg(test)]

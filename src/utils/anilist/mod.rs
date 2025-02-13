@@ -83,12 +83,7 @@ pub async fn get_anime(id: &str) -> anyhow::Result<Option<ContentDetails>> {
             image: media.cover_image.extra_large,
             description: utils::html::strip_html(&media.description),
             additional_info,
-            similar: media
-                .relations
-                .edges
-                .into_iter()
-                .map(|m| m.node.into())
-                .collect(),
+            similar: vec![],
             media_items: None,
             media_type: MediaType::Video,
             params: vec![],
