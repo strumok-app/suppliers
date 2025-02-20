@@ -352,8 +352,7 @@ async fn build_media_items(id: &str, params: Vec<String>) -> anyhow::Result<Vec<
                 .await?
                 .into_iter()
                 .flat_map(|season| season.episodes)
-                .enumerate()
-                .map(|(i, episode)| {
+                .map(|episode| {
                     let media_item_param = serde_json::to_string(&SourceParams::new_episode(
                         tmdb,
                         &external_ids,
@@ -361,7 +360,6 @@ async fn build_media_items(id: &str, params: Vec<String>) -> anyhow::Result<Vec<
                     ))
                     .unwrap();
                     ContentMediaItem {
-                        number: i as u32,
                         title: episode.name,
                         image: episode.still_path.map(poster_image),
                         section: Some(episode.season_number.to_string()),
@@ -377,7 +375,6 @@ async fn build_media_items(id: &str, params: Vec<String>) -> anyhow::Result<Vec<
             let media_item_param =
                 serde_json::to_string(&SourceParams::new_movie(tmdb, &external_ids)).unwrap();
             Ok(vec![ContentMediaItem {
-                number: 1,
                 title: "".into(),
                 section: None,
                 image: None,

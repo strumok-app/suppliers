@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "1.4.2"
+version = "1.4.3"
 edition = "2021"
 
 [profile.release]
@@ -33,7 +33,7 @@ features = ["rt-multi-thread", "macros"]
 
 [dependencies]
 url = "2.5.4"
-flutter_rust_bridge = "=2.7.0"
+flutter_rust_bridge = "=2.8.0"
 anyhow = "1.0.95"
 enum_dispatch = "0.3.13"
 strum = { version = "0.26.3", features = ["strum_macros"] }

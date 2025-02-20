@@ -2,7 +2,7 @@
 // suppliers
 mod animeua;
 mod aniplay;
-mod anitaku;
+// mod anitaku;
 mod anitube;
 mod hianime;
 mod mangadex;
@@ -16,7 +16,7 @@ mod ufdub;
 
 use animeua::AnimeUAContentSupplier;
 use aniplay::AniplayContentSupplier;
-use anitaku::AnitakuContentSupplier;
+// use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
@@ -72,8 +72,8 @@ pub enum AllContentSuppliers {
     TMDBContentSupplier,
     #[strum(serialize = "Hianime")]
     HianimeContentSupplier,
-    #[strum(serialize = "Anitaku")]
-    AnitakuContentSupplier,
+    // #[strum(serialize = "Anitaku")]
+    // AnitakuContentSupplier,
     #[strum(serialize = "Aniplay")]
     AniplayContentSupplier,
     #[strum(serialize = "AniTube")]

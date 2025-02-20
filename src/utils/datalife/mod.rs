@@ -90,7 +90,6 @@ pub async fn load_ajax_playlist(
                 .or_insert_with(|| ContentMediaItem {
                     title: video.name,
                     section: None,
-                    number: video.number,
                     image: None,
                     sources: None,
                     params: vec![],

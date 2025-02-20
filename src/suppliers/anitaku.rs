@@ -95,7 +95,6 @@ impl ContentSupplier for AnitakuContentSupplier {
             .map(|(idx, _el)| {
                 let ep_num = idx as u32 + 1;
                 ContentMediaItem {
-                    number: ep_num,
                     title: format!("{ep_num}  episode"),
                     section: None,
                     image: None,

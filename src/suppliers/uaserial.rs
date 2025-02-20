@@ -139,13 +139,11 @@ fn try_extract_episodes(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
 
     let items: Vec<_> = root
         .select(selector)
-        .enumerate()
-        .filter_map(|(number, el)| {
+        .filter_map(|el| {
             let url = el.attr("value")?;
             let title = el.text().next()?;
 
             Some(ContentMediaItem {
-                number: number as u32,
                 title: title.into(),
                 section: None,
                 image: None,
@@ -171,7 +169,6 @@ fn try_extract_movie(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
             let url = el.attr("src")?;
 
             Some(ContentMediaItem {
-                number: 0,
                 title: "Default".into(),
                 section: None,
                 image: None,

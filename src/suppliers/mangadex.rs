@@ -130,12 +130,10 @@ impl ContentSupplier for MangaDexContentSupplier {
 
                 let chapter = lookup_chapter(attributes);
 
-                let num = media_items.len() as u32;
                 let media_item = media_items.entry(chapter.into()).or_insert_with(|| {
                     let volume = lookup_volume(attributes);
 
                     ContentMediaItem {
-                        number: num,
                         title: chapter.into(),
                         section: Some(volume.into()),
                         image: None,

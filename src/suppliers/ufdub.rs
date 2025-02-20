@@ -98,9 +98,7 @@ impl ContentSupplier for UFDubContentSupplier {
                 ))
             })
             .filter(|(title, _)| title != "Трейлер")
-            .enumerate()
-            .map(|(number, (title, url))| ContentMediaItem {
-                number: number as u32,
+            .map(|(title, url)| ContentMediaItem {
                 title: title.to_owned(),
                 section: None,
                 image: None,

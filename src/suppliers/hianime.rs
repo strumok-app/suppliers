@@ -117,7 +117,6 @@ impl ContentSupplier for HianimeContentSupplier {
                 let num = idx + 1;
 
                 Some(ContentMediaItem {
-                    number: idx as u32,
                     title: format!("{num}. {title}"),
                     section: None,
                     image: None,

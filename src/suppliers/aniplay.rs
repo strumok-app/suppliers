@@ -98,7 +98,6 @@ impl ContentSupplier for AniplayContentSupplier {
                     let num = episode.number;
                     let title = episode.title;
                     ContentMediaItem {
-                        number: num - 1,
                         title: format!("{num}. {title}"),
                         section: None,
                         image: None,

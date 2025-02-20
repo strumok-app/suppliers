@@ -38,7 +38,6 @@ pub async fn load_and_parse_playerjs(
         Ok(startegy(&playerjs_file))
     } else {
         Ok(vec![ContentMediaItem {
-            number: 0,
             title: String::new(),
             section: None,
             image: None,
@@ -148,7 +147,6 @@ pub fn convert_strategy_dub(playerjs_playlist: &Vec<PlayerJSFile>) -> Vec<Conten
         populate_sources(&mut sources, &dub.title, dub);
 
         media_items.push(ContentMediaItem {
-            number: media_items.len() as u32,
             title: String::new(),
             section: None,
             image: None,
@@ -168,7 +166,6 @@ fn populate_media_items_map(
     media_items: &mut BTreeMap<u32, ContentMediaItem>,
 ) {
     let id = default_season_episode_id(&season.title, &episode.title);
-    let number = media_items.len();
 
     let item = media_items.entry(id).or_insert_with(|| {
         let title = episode.title.trim();
@@ -177,7 +174,6 @@ fn populate_media_items_map(
         ContentMediaItem {
             title: String::from(title),
             section: Some(String::from(section)),
-            number: number as u32,
             image: episode.poster.clone(),
             sources: Some(vec![]),
             params: vec![],

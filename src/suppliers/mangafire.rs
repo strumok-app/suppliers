@@ -108,12 +108,10 @@ impl ContentSupplier for MangaFireContentSupplier {
             };
 
             for volume in volumes {
-                let num = media_items.len() as u32;
                 let media_item =
                     media_items
                         .entry(volume.key)
                         .or_insert_with(|| ContentMediaItem {
-                            number: num,
                             title: volume.title,
                             section: None,
                             image: None,
