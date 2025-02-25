@@ -7,7 +7,7 @@ use reqwest::{header, redirect, Client};
 use scraper::{Html, Selector};
 
 use crate::{
-    extractors::streamwish,
+    extractors::{doodstream, mixdrop, streamwish},
     models::ContentMediaItemSource,
     utils::{self, crypto},
 };
@@ -149,7 +149,7 @@ async fn load_server_sources(
 ) -> Option<Vec<ContentMediaItemSource>> {
     let server_link = &server.link;
     let server_name = &server.name;
-    let dysplay_name = format!("{idx}. {server_name}");
+    let display_name = format!("{idx}. {server_name}");
 
     let maybe_response = client.get(server_link).send().await;
     let maybe_location = match &maybe_response {
@@ -167,10 +167,11 @@ async fn load_server_sources(
         }
     };
     let res = match server.name.as_str() {
-        // "dood.watch" => doodstream::extract(location, &dysplay_name).await,
+        "dood.watch" => doodstream::extract(location, &display_name).await,
         "streamwish.to" | "filelions.to" => {
-            streamwish::extract(location, server_link, &dysplay_name).await
+            streamwish::extract(location, server_link, &display_name).await
         }
+        "mixdrop.ag" => mixdrop::extract(location, &display_name).await,
         _ => return None,
     };
 
