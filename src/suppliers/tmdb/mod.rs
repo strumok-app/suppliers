@@ -126,7 +126,7 @@ impl ContentSupplier for TMDBContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: String,
-        _langs: Vec<String>,
+        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -134,7 +134,7 @@ impl ContentSupplier for TMDBContentSupplier {
         }
 
         let source_params: SourceParams = serde_json::from_str(&params[0])?;
-        let sources = run_extractors(&source_params).await;
+        let sources = run_extractors(&source_params, &langs).await;
 
         Ok(sources)
     }

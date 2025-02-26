@@ -17,7 +17,10 @@ const EXTRACTORS: [(&str, BoxExtractor); 3] = [
     ("primewire", primewire::extract_boxed),
 ];
 
-pub async fn run_extractors(params: &SourceParams) -> Vec<ContentMediaItemSource> {
+pub async fn run_extractors(
+    params: &SourceParams,
+    _langs: &[String],
+) -> Vec<ContentMediaItemSource> {
     let etractors_itr = EXTRACTORS.into_iter().map(|(name, f)| async move {
         match f(params).await {
             Ok(r) => r,
