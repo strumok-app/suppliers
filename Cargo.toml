@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "1.4.3"
+version = "1.4.5"
 edition = "2021"
 
 [profile.release]
@@ -39,11 +39,11 @@ url = "2.5.4"
 flutter_rust_bridge = "=2.8.0"
 anyhow = "1.0.95"
 enum_dispatch = "0.3.13"
-strum = { version = "0.26.3", features = ["strum_macros"] }
-strum_macros = "0.26.4"
+strum = { version = "0.27.1", features = ["strum_macros"] }
+strum_macros = "0.27.1"
 serde_json = "1.0.132"
 serde = { version = "1.0", features = ["derive"] }
-scraper = "0.22.0"
+scraper = "0.23.1"
 regex = "1.11.1"
 chrono = "0.4.39"
 futures = "0.3.31"

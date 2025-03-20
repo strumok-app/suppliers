@@ -8,6 +8,7 @@ use crate::{
 };
 
 const MEGACLOUD_EXTRACTOR_API: &str = env!("MEGACLOUD_EXTRACTOR");
+const REFERER: &str = "https://megacloud.club/";
 
 pub async fn extract(
     url: &str,
@@ -33,7 +34,7 @@ pub async fn extract(
 
     Ok(config.to_media_item_sources(
         prefix,
-        Some(HashMap::from([("Referer".into(), url.into())])),
+        Some(HashMap::from([("Referer".into(), REFERER.into())])),
     ))
 }
 

@@ -1,7 +1,7 @@
 mod embed_su;
+mod embed_su_subs;
 mod primewire;
 mod two_embed;
-// mod vidsrc_net;
 
 use futures::future::BoxFuture;
 use log::warn;
@@ -9,20 +9,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::ContentMediaItemSource;
 
-type BoxExtractor = fn(&SourceParams) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>>;
+type BoxExtractor = for<'a> fn(
+    &'a SourceParams,
+    &'a [String],
+) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 3] = [
+const EXTRACTORS: [(&str, BoxExtractor); 4] = [
     ("two_embed", two_embed::extract_boxed),
     ("embed_su", embed_su::extract_boxed),
     ("primewire", primewire::extract_boxed),
+    ("embed_su_subs", embed_su_subs::extract_boxed),
 ];
 
 pub async fn run_extractors(
     params: &SourceParams,
-    _langs: &[String],
+    langs: &[String],
 ) -> Vec<ContentMediaItemSource> {
     let etractors_itr = EXTRACTORS.into_iter().map(|(name, f)| async move {
-        match f(params).await {
+        match f(params, langs).await {
             Ok(r) => r,
             Err(err) => {
                 warn!("[tmdb] extractor '{name}' failed: {err}");

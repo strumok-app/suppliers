@@ -12,9 +12,10 @@ const URL: &str = "https://www.2embed.cc";
 const PLAYER_URL: &str = "https://uqloads.xyz";
 const REF_URL: &str = "https://streamsrcs.2embed.cc/";
 
-pub fn extract_boxed(
-    params: &SourceParams,
-) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>> {
+pub fn extract_boxed<'a>(
+    params: &'a SourceParams,
+    _langs: &'a [String],
+) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
 
@@ -54,7 +55,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         }
     };
 
-    println!("{PLAYER_URL}/e/{id}");
+    // println!("{PLAYER_URL}/e/{id}");
 
     streamwish::extract(
         format!("{PLAYER_URL}/e/{id}").as_str(),

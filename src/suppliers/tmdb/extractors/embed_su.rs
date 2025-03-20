@@ -13,7 +13,7 @@ use crate::{models::ContentMediaItemSource, utils};
 
 use super::SourceParams;
 
-const URL: &str = "https://embed.su";
+pub const URL: &str = "https://embed.su";
 
 #[derive(Deserialize, Debug)]
 struct Server {
@@ -21,9 +21,10 @@ struct Server {
     hash: String,
 }
 
-pub fn extract_boxed(
-    params: &SourceParams,
-) -> BoxFuture<anyhow::Result<Vec<ContentMediaItemSource>>> {
+pub fn extract_boxed<'a>(
+    params: &'a SourceParams,
+    _langs: &'a [String],
+) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
 

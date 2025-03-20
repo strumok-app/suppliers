@@ -312,7 +312,7 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
         media_type: MediaType::Manga,
         title: html::text_value(".manga-detail .info > h1"),
         original_title: html::default_value(),
-        image: html::attr_value(".manga-detail .detail-bg > img", "src"),
+        image: html::attr_value(".manga-detail .container .main-inner .poster img", "src"),
         description: html::TextValue::new()
             .all_nodes()
             .map(|s| html::strip_html(&s))
