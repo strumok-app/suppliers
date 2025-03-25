@@ -3,8 +3,8 @@ use std::sync::OnceLock;
 use anyhow::{anyhow, Result};
 use futures::future::BoxFuture;
 use log::{error, warn};
+use regex::Regex;
 use reqwest::{header, redirect, Client};
-use scraper::{Html, Selector};
 
 use crate::{
     extractors::{doodstream, mixdrop, streamwish},
@@ -15,7 +15,6 @@ use crate::{
 use super::SourceParams;
 
 const URL: &str = "https://www.primewire.tf";
-const DS_KEY: &str = "JyjId97F9PVqUPuMO0";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -25,12 +24,27 @@ pub fn extract_boxed<'a>(
 }
 
 pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    if params.imdb_id.is_none() {
-        return Ok(vec![]);
-    }
+    // let id = match &params.imdb_id {
+    //     Some(imdb_id) => format!("imdb={imdb_id}"),
+    //     None => {
+    //         let tmdb = params.id;
+    //         format!("tmdb={tmdb}")
+    //     }
+    // };
+
+    let tmdb = params.id;
+    let id = format!("tmdb={tmdb}");
+
+    let link = match &params.ep {
+        Some(ep) => {
+            let s = ep.s;
+            let e = ep.e;
+            format!("{URL}/embed/tv?{id}&season={s}&episode={e}")
+        }
+        None => format!("{URL}/embed/movie?{id}"),
+    };
 
     let client = utils::create_client();
-    let link = lookup_page(&client, params).await?;
     let servers = load_servers(&client, &link).await?;
 
     // println!("{servers:#?}");
@@ -56,91 +70,44 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     Ok(sources)
 }
 
-async fn lookup_page(client: &Client, params: &SourceParams) -> Result<String, anyhow::Error> {
-    let imdb_id = params.imdb_id.as_ref().unwrap();
-
-    let hash = crypto::sha1_hex(format!("{imdb_id}{DS_KEY}").as_str());
-    let (ds, _) = hash.split_at(10);
-
-    let html = client
-        .get(format!("{URL}/filter"))
-        .query(&[("s", imdb_id.as_str()), ("ds", ds)])
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    let doc = Html::parse_document(&html);
-
-    static ITEM_SELECTOR: OnceLock<Selector> = OnceLock::new();
-    let original_link = doc
-        .select(ITEM_SELECTOR.get_or_init(|| {
-            Selector::parse(".index_container .index_item.index_item_ie a").unwrap()
-        }))
-        .filter_map(|a| a.attr("href"))
-        .map(utils::html::sanitize_text)
-        .next()
-        .ok_or_else(|| anyhow!("[primewire] No search results found for imdb_id: {imdb_id}"))?;
-
-    let link = match &params.ep {
-        Some(ep) => {
-            let s = ep.s;
-            let e = ep.e;
-            let t = original_link.replacen("-", "/", 1);
-            format!("{URL}{t}-season-{s}-episode-{e}")
-        }
-        _ => format!("{URL}/{original_link}"),
-    };
-
-    // println!("{link:#?}");
-
-    Ok(link)
-}
-
 async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow::Error> {
     let html = client.get(link).send().await?.text().await?;
 
-    let doc = Html::parse_document(&html);
+    // println!("{html}");
 
-    static SERVER_SEL: OnceLock<Selector> = OnceLock::new();
-    static LINK_SEL: OnceLock<Selector> = OnceLock::new();
-    static NAME_SEL: OnceLock<Selector> = OnceLock::new();
-    static KEY_SEL: OnceLock<Selector> = OnceLock::new();
+    static KEY_RE: OnceLock<Regex> = OnceLock::new();
+    static SERVERS_RE: OnceLock<Regex> = OnceLock::new();
 
-    let data = doc
-        .select(KEY_SEL.get_or_init(|| Selector::parse("#user-data").unwrap()))
-        .filter_map(|e| e.attr("v"))
-        .next()
-        .ok_or_else(|| anyhow!("[primewire] No link encryption data found"))?;
+    let key = KEY_RE
+        .get_or_init(|| Regex::new(r#"v="([-A-Za-z0-9+/=]+)""#).unwrap())
+        .captures(&html)
+        .and_then(|cap| cap.get(1))
+        .map(|m| m.as_str())
+        .ok_or_else(|| anyhow!("[primewire] cant extract key"))?;
 
-    let links = decrypt_links(data)?;
+    let links_hashes = decrypt_links(key)?;
 
-    let result = doc
-        .select(SERVER_SEL.get_or_init(|| Selector::parse(".movie_version").unwrap()))
-        .filter_map(|e| {
-            let link_version = e
-                .select(LINK_SEL.get_or_init(|| Selector::parse(".go-link").unwrap()))
-                .next()?
-                .attr("link_version")?
-                .parse::<usize>()
-                .ok()?;
+    // println!("{links_hashes:?}");
 
-            let name = e
-                .select(NAME_SEL.get_or_init(|| Selector::parse(".version-host").unwrap()))
-                .next()?
-                .text()
-                .collect::<String>();
-
-            let link_sufix = links.get(link_version)?;
+    let servers = SERVERS_RE
+        .get_or_init(|| Regex::new(r##""#([0-9]+)\s+\-\s+([a-zA-Z0-9\.]+)"##).unwrap())
+        .captures_iter(&html)
+        .enumerate()
+        .take_while(|&(n, _)| n < links_hashes.len())
+        .filter_map(|(n, cap)| {
+            let server_name = cap.get(2)?.as_str();
+            let link_hash = links_hashes.get(n)?;
 
             Some(Server {
-                name: name.trim().to_string(),
-                link: format!("{URL}/links/go/{link_sufix}"),
+                name: server_name.trim().to_string(),
+                link: format!("{URL}/links/go/{link_hash}"),
             })
         })
         .collect::<Vec<_>>();
 
-    Ok(result)
+    // println!("{servers:?}");
+
+    Ok(servers)
 }
 
 async fn load_server_sources(
@@ -222,8 +189,8 @@ mod test {
     #[tokio::test]
     async fn should_load_source() {
         let res = extract(&SourceParams {
-            id: 0,
-            imdb_id: Some("tt18259086".into()),
+            id: 549509,
+            imdb_id: None, //Some("tt18259086".into()),
             ep: None,
             // ep: Some(Episode { s: 1, e: 3 }),
         })

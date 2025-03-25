@@ -53,6 +53,7 @@ pub fn create_client_builder() -> reqwest::ClientBuilder {
         .connect_timeout(Duration::from_secs(5))
         .read_timeout(Duration::from_secs(30))
         .user_agent(get_user_agent())
+        .danger_accept_invalid_certs(true)
         .cookie_store(true)
 }
 
