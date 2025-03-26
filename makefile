@@ -27,14 +27,14 @@ help: makefile
 # rustup target add aarch64-apple-ios x86_64-apple-ios
 # rustup target add aarch64-apple-darwin x86_64-apple-darwin
 # rustup target add i686-linux-android
-rustup target add x86_64-linux-android
+# rustup target add x86_64-linux-android
 # @if [ $$(uname) == "Darwin" ] ; then cargo install cargo-lipo ; fi
 # cargo install cbindgen
 
 ## android-init: Install missing dependencies.
 .PHONY: android-init
 android-init:
-	rustup target add aarch64-linux-android armv7-linux-androideabi 
+	rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
 ## :
 
