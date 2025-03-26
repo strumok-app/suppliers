@@ -26,7 +26,8 @@ help: makefile
 
 # rustup target add aarch64-apple-ios x86_64-apple-ios
 # rustup target add aarch64-apple-darwin x86_64-apple-darwin
-# rustup target add i686-linux-android x86_64-linux-android
+# rustup target add i686-linux-android
+rustup target add x86_64-linux-android
 # @if [ $$(uname) == "Darwin" ] ; then cargo install cargo-lipo ; fi
 # cargo install cbindgen
 
@@ -72,7 +73,8 @@ all: android linux
 # 	@echo "[DONE] $@"
 
 ## android: Compile the android targets (arm64, armv7 and i686)
-android: android-init target/aarch64-linux-android/release target/armv7-linux-androideabi/release #target/i686-linux-android/release target/x86_64-linux-android/release
+android: android-init target/aarch64-linux-android/release target/armv7-linux-androideabi/release target/x86_64-linux-android/release
+ #target/i686-linux-android/release target/x86_64-linux-android/release
 
 ## linux: Compile Linux
 linux: target/x86_64-unknown-linux-gnu/release
@@ -95,11 +97,11 @@ target/armv7-linux-androideabi/release: $(SOURCES) ndk-home
 # 		cargo  build --target i686-linux-android --release
 # 	@echo "[DONE] $@"
 
-# target/x86_64-linux-android/release: $(SOURCES) ndk-home
-# 	CC_x86_64_linux_android=$(ANDROID_X86_64_LINKER) \
-# 	CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$(ANDROID_X86_64_LINKER) \
-# 		cargo build --target x86_64-linux-android --release
-# 	@echo "[DONE] $@"
+target/x86_64-linux-android/release: $(SOURCES) ndk-home
+	CC_x86_64_linux_android=$(ANDROID_X86_64_LINKER) \
+	CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$(ANDROID_X86_64_LINKER) \
+		cargo build --target x86_64-linux-android --release
+	@echo "[DONE] $@"
 
 target/x86_64-unknown-linux-gnu/release: 
 	cargo  build --target x86_64-unknown-linux-gnu --release
