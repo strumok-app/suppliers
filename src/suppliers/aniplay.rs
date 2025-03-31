@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    vec,
+    str, vec,
 };
 
 use anyhow::anyhow;
@@ -16,6 +16,8 @@ use crate::{
 use super::ContentSupplier;
 
 const URL: &str = "https://aniplaynow.live";
+const SERVERS_NEXT_ACTION_ID: &str = "7f07777b5f74e3edb312e0b718a560f9d3ad21aeba";
+const SOURCES_NEXT_ACTION_ID: &str = "7f11490e43dca1ed90fcb5b90bac1e5714a3e11232";
 
 #[derive(Default)]
 pub struct AniplayContentSupplier;
@@ -72,7 +74,6 @@ impl ContentSupplier for AniplayContentSupplier {
             #[serde(default)]
             img: String,
         }
-
         #[derive(Deserialize, Debug)]
         struct AniplayServer {
             #[serde(default)]
@@ -81,13 +82,9 @@ impl ContentSupplier for AniplayContentSupplier {
             provider_id: String,
         }
 
-        let servers: Vec<AniplayServer> = nextjs::server_action(
-            url.as_str(),
-            "f3422af67c84852f5e63d50e1f51718f1c0225c4",
-            1,
-            &json!([id, true,]),
-        )
-        .await?;
+        let servers: Vec<AniplayServer> =
+            nextjs::server_action(url.as_str(), SERVERS_NEXT_ACTION_ID, 1, &json!([id, true,]))
+                .await?;
 
         let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
 
@@ -191,7 +188,7 @@ async fn load_server_by_type(
 
     let res: ServerRes = nextjs::server_action(
         &url,
-        "5dbcd21c7c276c4d15f8de29d9ef27aef5ea4a5e",
+        SOURCES_NEXT_ACTION_ID,
         1,
         &json!([id, provider, ep_id, ep_number, r#type,]),
     )
@@ -235,7 +232,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn should_media_items() {
+    async fn should_load_media_items() {
         let res = AniplayContentSupplier
             .load_media_items("151807".into(), vec![], vec![])
             // .load_media_items("170942".into(), vec![])
@@ -245,7 +242,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn should_load_media_items() {
+    async fn should_load_media_items_sources() {
         let res = AniplayContentSupplier
             .load_media_item_sources(
                 "151807".into(),
