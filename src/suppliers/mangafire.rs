@@ -1,5 +1,8 @@
 use core::str;
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::OnceLock,
+};
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
@@ -278,7 +281,7 @@ async fn load_volume(
 
     Ok(ContentMediaItemSource::Manga {
         description: lang.to_owned(),
-        headers: None,
+        headers: Some(HashMap::from([("Referer".to_owned(), URL.to_owned())])),
         page_numbers: pages.len() as u32,
         pages: Some(pages),
         params: vec![],
