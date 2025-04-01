@@ -11,7 +11,7 @@ use serde::Deserialize;
 use super::html::DOMProcessor;
 use crate::models::ContentMediaItem;
 
-pub fn search_request(url: &str, query: &String) -> RequestBuilder {
+pub fn search_request(url: &str, query: &str) -> RequestBuilder {
     let client = super::create_client();
 
     client.post(format!("{url}/index.php")).form(&[
