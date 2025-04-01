@@ -47,7 +47,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 
         let filtered_results = result
             .into_iter()
-            .filter(|ci| !ci.title.starts_with("news") && !ci.title.starts_with("franchise"))
+            .filter(|ci| !ci.id.starts_with("news") && !ci.id.starts_with("franchise"))
             .collect();
 
         Ok(filtered_results)
