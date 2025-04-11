@@ -44,6 +44,8 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/embed/movie?{id}"),
     };
 
+    println!("{link}");
+
     let client = utils::create_client();
     let servers = load_servers(&client, &link).await?;
 
