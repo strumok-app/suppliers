@@ -14,7 +14,7 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    utils::{self, html},
+    utils::{self, html::{self, DOMProcessor}},
 };
 
 use super::ContentSupplier;
@@ -298,10 +298,11 @@ fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(extract_id)
+            .map_optional(extract_id)
             .in_scope("a.poster")
+            .flatten()
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         title: html::text_value(".info > a"),
         secondary_title: html::default_value(),
         image: html::attr_value(".poster img", "src"),
@@ -321,41 +322,45 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
             .map(|s| html::strip_html(&s))
             .in_scope("#synopsis .modal-content")
             .unwrap_or_default()
-            .into(),
-        additional_info: html::flatten(vec![
+            .boxed(),
+        additional_info: html::merge(vec![
             html::TextValue::new()
                 .map(|s| vec![s])
                 .in_scope(".info > h6")
                 .unwrap_or_default()
-                .into(),
+                .boxed(),
             html::items_processor(
                 ".manga-detail .min-info span",
                 html::TextValue::new()
                     .all_nodes()
                     .map(|s| html::sanitize_text(&s))
-                    .into(),
+                    .boxed(),
             ),
             html::items_processor(
                 ".manga-detail .sidebar .meta div",
                 html::TextValue::new()
                     .all_nodes()
                     .map(|s| html::sanitize_text(&s))
-                    .into(),
+                    .boxed(),
             ),
         ]),
         similar: html::items_processor(
             ".container .sidebar .side-manga .body .unit",
             html::ContentInfoProcessor {
-                id: html::AttrValue::new("href").map(extract_id).into(),
+                id: html::AttrValue::new("href")
+                    .map_optional(extract_id)
+                    .unwrap_or_default()
+                    .boxed(),
                 title: html::text_value(".info h6"),
                 secondary_title: html::default_value(),
                 image: html::AttrValue::new("src")
-                    .map(|l| l.replace("@100", ""))
+                    .map_optional(|l| l.replace("@100", ""))
                     .in_scope(".poster img")
+                    .flatten()
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
             }
-            .into(),
+            .boxed(),
         ),
         params: html::default_value(),
     })

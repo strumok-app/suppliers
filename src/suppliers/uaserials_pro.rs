@@ -6,6 +6,7 @@ use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
+use crate::utils::html::DOMProcessor;
 use crate::utils::{self, datalife, html, playerjs};
 
 const URL: &str = "https://uaserials.pro";
@@ -97,10 +98,10 @@ impl ContentSupplier for UASerialsProContentSupplier {
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .in_scope("a.short-img")
             .map_optional(|id| datalife::extract_id_from_url(URL, id))
-            .flatten()
-            .into(),
+            .in_scope_flatten("a.short-img")
+            .unwrap_or_default()
+            .boxed(),
         title: html::text_value("div.th-title"),
         secondary_title: html::optional_text_value("div.th-title-oname"),
         image: html::self_hosted_image(URL, "a.short-img img", "data-src"),
@@ -129,16 +130,16 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 description: html::text_value(".ftext.full-text"),
                 additional_info: html::items_processor(
                     "ul.short-list > li:not(.mylists-mobile)",
-                    html::TextValue::new().all_nodes().into(),
+                    html::TextValue::new().all_nodes().boxed(),
                 ),
                 similar: html::default_value(),
                 params: html::AttrValue::new("data-src")
-                    .map(|s| vec![s])
-                    .in_scope("#content > .video_box > iframe")
+                    .map_optional(|s| vec![s])
+                    .in_scope_flatten("#content > .video_box > iframe")
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }

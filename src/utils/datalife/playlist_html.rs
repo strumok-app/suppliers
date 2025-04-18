@@ -1,4 +1,4 @@
-use crate::utils::{extract_digits, html::{self, DOMProcessor}};
+use crate::utils::{extract_digits, html::{self, DOMProcessor, ItrDOMProcessor}};
 
 #[derive(Debug)]
 pub struct AjaxPlaylist {
@@ -33,12 +33,12 @@ impl AjaxPlaylistProcessor {
                 Box::new(AjaxPlaylisVideoProcessor::new()),
             )
             .filter(|v| !v.id.is_empty())
-            .into(),
+            .boxed(),
             lables: html::ItemsProcessor::new(
                 ".playlists-lists > .playlists-items li",
                 Box::new(AjaxPlaylistLabelProcessor::new()),
             )
-            .into(),
+            .boxed(),
         }
     }
 }
@@ -60,8 +60,8 @@ struct AjaxPlaylistLabelProcessor {
 impl AjaxPlaylistLabelProcessor {
     pub fn new() -> Self {
         Self {
-            id: html::AttrValue::new("data-id").into(),
-            label: html::TextValue::new().into(),
+            id: html::AttrValue::new("data-id").unwrap_or_default().boxed(),
+            label: html::TextValue::new().boxed(),
         }
     }
 }
@@ -84,9 +84,9 @@ struct AjaxPlaylisVideoProcessor {
 impl AjaxPlaylisVideoProcessor {
     fn new() -> Self {
         Self {
-            id: html::AttrValue::new("data-id").into(),
-            name: html::TextValue::new().into(),
-            file: html::AttrValue::new("data-file").into(),
+            id: html::AttrValue::new("data-id").unwrap_or_default().boxed(),
+            name: html::TextValue::new().boxed(),
+            file: html::AttrValue::new("data-file").unwrap_or_default().boxed(),
         }
     }
 }

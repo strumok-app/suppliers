@@ -7,7 +7,7 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    utils::{html, playerjs},
+    utils::{html::{self, DOMProcessor}, playerjs},
 };
 
 use crate::utils::{self, datalife};
@@ -95,8 +95,9 @@ impl ContentSupplier for AnimeUAContentSupplier {
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(|s| datalife::extract_id_from_url(URL, s))
-            .into(),
+            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+            .unwrap_or_default()
+            .boxed(),
         title: html::text_value(".poster__desc > .poster__title"),
         secondary_title: html::default_value(),
         image: html::self_hosted_image(URL, ".poster__img img", "data-src"),
@@ -125,13 +126,13 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 ),
                 image: html::self_hosted_image(URL, ".pmovie__poster > img", "data-src"),
                 description: html::text_value(".page__text"),
-                additional_info: html::flatten(vec![
+                additional_info: html::merge(vec![
                     html::join_processors(vec![
                         html::TextValue::new()
                             .all_nodes()
                             .in_scope(".page__subcol-main .pmovie__subrating--site")
                             .unwrap_or_default()
-                            .into(),
+                            .boxed(),
                         html::text_value(".page__subcol-main > .pmovie__year"),
                         html::text_value(".page__subcol-main > .pmovie__genres"),
                     ]),
@@ -140,7 +141,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         html::TextValue::new()
                             .all_nodes()
                             .map(|s| html::sanitize_text(&s))
-                            .into(),
+                            .boxed(),
                     ),
                 ]),
                 similar: html::items_processor(
@@ -148,12 +149,12 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     content_info_processor(),
                 ),
                 params: html::AttrValue::new("data-src")
-                    .map(|s| vec![s])
-                    .in_scope(".pmovie__player .video-inside iframe")
+                    .in_scope_flatten(".pmovie__player .video-inside iframe")
+                    .map_optional(|s| vec![s])
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }

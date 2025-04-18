@@ -209,17 +209,17 @@ async fn try_extract_iframe_options(
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(extract_id_from_url)
-            .in_scope(".item > a")
+            .map_optional(extract_id_from_url)
+            .in_scope_flatten(".item > a")
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         title: html::text_value(".item__data > a .name"),
         secondary_title: html::ItemsProcessor::new(
             ".item__data .info__item",
-            html::TextValue::new().into(),
+            html::TextValue::new().boxed(),
         )
         .map(|infos| Some(infos.join(",")))
-        .into(),
+        .boxed(),
         image: html::self_hosted_image(URL, ".item > a > .img-wrap > img", "src"),
     }
     .into()
@@ -256,7 +256,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 original_title: html::optional_text_value(".header--title .original"),
                 image: html::self_hosted_image(URL, ".poster img", "src"),
                 description: html::text_value(".player__info .player__description .text"),
-                additional_info: html::FlattenProcessor::default()
+                additional_info: html::MergeProcessor::default()
                     .add_processor(html::items_processor(
                         ".movie-data .movie-data-item",
                         html::JoinProcessors::new(vec![
@@ -265,14 +265,14 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                                 .all_nodes()
                                 .in_scope(".value")
                                 .unwrap_or_default()
-                                .into(),
+                                .boxed(),
                         ])
                         .map(|v| v.join(" "))
-                        .into(),
+                        .boxed(),
                     ))
                     .add_processor(html::items_processor(
                         ".movie__genres__container .selection__badge",
-                        html::TextValue::new().into(),
+                        html::TextValue::new().boxed(),
                     ))
                     .map(|v| {
                         v.into_iter()
@@ -280,11 +280,11 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                             .filter(|s| !s.is_empty())
                             .collect::<Vec<_>>()
                     })
-                    .into(),
+                    .boxed(),
                 similar: html::default_value(),
                 params: html::default_value(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }

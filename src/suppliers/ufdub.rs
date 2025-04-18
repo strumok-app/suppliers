@@ -5,7 +5,7 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    utils::{self, datalife, html},
+    utils::{self, datalife, html::{self, DOMProcessor}},
 };
 
 use super::ContentSupplier;
@@ -127,17 +127,17 @@ impl ContentSupplier for UFDubContentSupplier {
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(|s| datalife::extract_id_from_url(URL, s))
-            .in_scope(".short-text > .short-t")
+            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+            .in_scope_flatten(".short-text > .short-t")
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         title: html::text_value(".short-text > .short-t"),
         secondary_title: html::ItemsProcessor::new(
             ".short-text > .short-c > a",
-            html::TextValue::new().into(),
+            html::TextValue::new().boxed(),
         )
         .map(|v| Some(v.join(",")))
-        .into(),
+        .boxed(),
         image: html::self_hosted_image(URL, ".short-i img", "src"),
     }
     .into()
@@ -162,11 +162,11 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     .map(|s| s.trim().to_owned())
                     .in_scope("article .full-title > h1")
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
                 original_title: html::TextValue::new()
                     .map(|s| s.trim().to_owned())
                     .in_scope("article > .full-title > h1 > .short-t-or")
-                    .into(),
+                    .boxed(),
                 image: html::self_hosted_image(
                     URL,
                     "article > .full-desc > .full-text > .full-poster img",
@@ -174,39 +174,40 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 ),
                 description: html::ItemsProcessor::new(
                     "article > .full-desc > .full-text p",
-                    html::TextValue::new().into(),
+                    html::TextValue::new().boxed(),
                 )
                 .map(|v| html::sanitize_text(&v.join("")))
-                .into(),
-                additional_info: html::flatten(vec![
+                .boxed(),
+                additional_info: html::merge(vec![
                     html::items_processor(
                         "article > .full-desc > .full-info .fi-col-item",
-                        html::TextValue::new().all_nodes().into(),
+                        html::TextValue::new().all_nodes().boxed(),
                     ),
                     html::items_processor(
                         "article > .full-desc > .full-text > .full-poster .voices",
-                        html::TextValue::new().all_nodes().into(),
+                        html::TextValue::new().all_nodes().boxed(),
                     ),
                 ]),
                 similar: html::items_processor(
                     "article > .rels .rel",
                     html::ContentInfoProcessor {
                         id: html::AttrValue::new("href")
-                            .map(|s| datalife::extract_id_from_url(URL, s))
-                            .into(),
+                            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+                            .unwrap_or_default()
+                            .boxed(),
                         title: html::attr_value("img", "alt"),
                         secondary_title: html::default_value(),
                         image: html::self_hosted_image(URL, "img", "src"),
                     }
-                    .into(),
+                    .boxed(),
                 ),
                 params: html::AttrValue::new("value")
-                    .map(|s| vec![s])
-                    .in_scope("article input")
+                    .map_optional(|s| vec![s])
+                    .in_scope_flatten("article input")
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }

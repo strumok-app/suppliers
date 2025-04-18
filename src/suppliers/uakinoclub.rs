@@ -9,6 +9,7 @@ use super::ContentSupplier;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
+use crate::utils::html::{DOMProcessor, ItrDOMProcessor};
 use crate::utils::{self, datalife, html, playerjs};
 
 const URL: &str = "https://uakino.me";
@@ -139,15 +140,15 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .in_scope(".movie-title")
+            .in_scope_flatten(".movie-title")
             .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .flatten()
-            .into(),
+            .unwrap_or_default()
+            .boxed(),
         title: html::TextValue::new()
             .map(|s| html::sanitize_text(&s))
             .in_scope(".movie-title")
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         secondary_title: html::optional_text_value(".full-quality"),
         image: html::self_hosted_image(URL, ".movie-img > img", "src"),
     }
@@ -177,35 +178,36 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     .map(|s| html::sanitize_text(&s))
                     .in_scope("div[itemprop=description]")
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
                 additional_info: html::ItemsProcessor::new(
                     ".film-info > *",
                     html::JoinProcessors::default()
                         .add_processor(html::text_value(".fi-label"))
                         .add_processor(html::text_value(".fi-desc"))
                         .map(|v| v.join(" ").trim().to_owned())
-                        .into(),
+                        .boxed(),
                 )
                 .filter(|s| !s.starts_with("Доступно"))
-                .into(),
+                .boxed(),
                 similar: html::items_processor(
                     ".related-items > .related-item > a",
                     html::ContentInfoProcessor {
                         id: html::AttrValue::new("href")
-                            .map(|s| datalife::extract_id_from_url(URL, s))
-                            .into(),
+                            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+                            .unwrap_or_default()
+                            .boxed(),
                         title: html::text_value(".full-movie-title"),
                         secondary_title: html::default_value(),
                         image: html::self_hosted_image(URL, "img", "src"),
                     }
-                    .into(),
+                    .boxed(),
                 ),
                 params: html::JoinProcessors::default()
                     .add_processor(html::attr_value(".visible iframe", "src"))
                     .filter(|s| !s.is_empty())
-                    .into(),
+                    .boxed(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }

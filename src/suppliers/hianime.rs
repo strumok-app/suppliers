@@ -14,7 +14,7 @@ use crate::models::{
 };
 
 use crate::utils;
-use crate::utils::html;
+use crate::utils::html::{self, DOMProcessor};
 
 use super::ContentSupplier;
 
@@ -295,7 +295,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     .map(|s| html::sanitize_text(&s))
                     .in_scope(format!("{ASIDE_SEL} .anisc-detail .film-name").as_str())
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
                 original_title: html::default_value(),
                 image: html::attr_value(format!("{ASIDE_SEL} .anisc-poster img").as_str(), "src"),
                 description: html::TextValue::new()
@@ -303,13 +303,13 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     .map(|s| html::sanitize_text(&s))
                     .in_scope(format!("{ASIDE_SEL} .anisc-detail .film-description").as_str())
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
                 additional_info: html::items_processor(
                     format!("{ASIDE_SEL} .anisc-info-wrap .anisc-info .item:not(.w-hide)").as_str(),
                     html::TextValue::new()
                         .all_nodes()
                         .map(|s| html::sanitize_text(&s))
-                        .into(),
+                        .boxed(),
                 ),
                 similar: html::items_processor(
                     "#main-sidebar .block_area-content ul.ulclear li",
@@ -317,7 +317,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 ),
                 params: html::default_value(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }
@@ -325,16 +325,17 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(extract_id_from_url)
+            .map_optional(extract_id_from_url)
             .in_scope(".film-detail .film-name a")
+            .flatten()
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         title: html::TextValue::new()
             .all_nodes()
             .map(|s| html::sanitize_text(&s))
             .in_scope(".film-detail .film-name")
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         secondary_title: html::default_value(),
         image: html::attr_value(".film-poster > img", "data-src"),
     }

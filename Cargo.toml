@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "1.4.10"
+version = "1.5.0"
 edition = "2021"
 
 [profile.release]
@@ -36,7 +36,7 @@ features = ["rt-multi-thread", "macros"]
 
 [dependencies]
 url = "2.5.4"
-flutter_rust_bridge = "=2.8.0"
+flutter_rust_bridge = "=2.9.0"
 anyhow = "1.0.95"
 enum_dispatch = "0.3.13"
 strum = { version = "0.27.1", features = ["strum_macros"] }
@@ -48,7 +48,7 @@ regex = "1.11.1"
 chrono = "0.4.39"
 futures = "0.3.31"
 indexmap = "2.7.0"
-cached = { version = "0.54.0", features = [
+cached = { version = "0.55.1", features = [
   "async",
   "async_tokio_rt_multi_thread",
 ] }

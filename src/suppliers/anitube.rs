@@ -146,10 +146,10 @@ fn extract_params(id: &str, html: &str) -> Option<Vec<String>> {
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map(|s| datalife::extract_id_from_url(URL, s))
-            .in_scope(".story_c > h2 > a")
+            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+            .in_scope_flatten(".story_c > h2 > a")
             .unwrap_or_default()
-            .into(),
+            .boxed(),
         title: html::text_value(".story_c > h2 > a"),
         secondary_title: html::default_value(),
         image: html::self_hosted_image(URL, ".story_c_l img", "src"),
@@ -176,7 +176,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     .map(|s| html::sanitize_text(&s))
                     .in_scope(".story_c > .rcol > h2")
                     .unwrap_or_default()
-                    .into(),
+                    .boxed(),
                 original_title: html::default_value(),
                 image: html::self_hosted_image(URL, ".story_c .story_post img", "src"),
                 description: html::text_value(
@@ -199,15 +199,15 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 })
                 .in_scope(".story_c > .rcol")
                 .unwrap_or_default()
-                .into(),
+                .boxed(),
                 similar: html::items_processor(
                     "ul.portfolio_items > li",
                     html::ContentInfoProcessor {
                         id: html::AttrValue::new("href")
-                            .map(|s| datalife::extract_id_from_url(URL, s))
-                            .in_scope(".sl_poster > a")
+                            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+                            .in_scope_flatten(".sl_poster > a")
                             .unwrap_or_default()
-                            .into(),
+                            .boxed(),
                         title: html::text_value(".text_content > a"),
                         secondary_title: html::default_value(),
                         image: html::ExtractValue::new(|el| {
@@ -218,14 +218,14 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         })
                         .in_scope(".sl_poster img")
                         .map_optional(move |src| format!("{URL}{src}"))
-                        .flatten()
-                        .into(),
+                        .unwrap_or_default()
+                        .boxed(),
                     }
-                    .into(),
+                    .boxed(),
                 ),
                 params: html::default_value(),
             }
-            .into(),
+            .boxed(),
         )
     })
 }
