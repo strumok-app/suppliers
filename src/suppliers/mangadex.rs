@@ -144,14 +144,12 @@ impl ContentSupplier for MangaDexContentSupplier {
 
                 let sources = media_item.sources.as_mut().unwrap();
 
-                let page_numbers = lookup_page_nambers(attributes);
                 let translation_lang = lookup_translation_lang(attributes);
                 let scanlation_group = lookup_scanlation_group(&item.relationships);
 
                 sources.push(ContentMediaItemSource::Manga {
                     description: format!("[{translation_lang}] {scanlation_group}"),
                     headers: None,
-                    page_numbers,
                     pages: None,
                     params: vec![id.to_owned()],
                 });
@@ -205,8 +203,6 @@ impl MangaPagesLoader for MangaDexContentSupplier {
             .await?
             .text()
             .await?;
-
-        // println!("{chapter_server_res_str}");
 
         let chapter_server_res: ChapterServerRes = serde_json::from_str(&chapter_server_res_str)?;
 
@@ -415,13 +411,6 @@ fn lookup_volume(attributes: &HashMap<String, serde_json::Value>) -> &str {
         .unwrap()
         .as_str()
         .unwrap_or("No Volume")
-}
-
-fn lookup_page_nambers(attributes: &HashMap<String, serde_json::Value>) -> u32 {
-    attributes
-        .get("pages")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0) as u32
 }
 
 fn lookup_translation_lang(attributes: &HashMap<String, serde_json::Value>) -> &str {

@@ -7,7 +7,10 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    utils::{html::{self, DOMProcessor}, playerjs},
+    utils::{
+        html::{self, DOMProcessor},
+        playerjs,
+    },
 };
 
 use crate::utils::{self, datalife};
@@ -128,11 +131,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 description: html::text_value(".page__text"),
                 additional_info: html::merge(vec![
                     html::join_processors(vec![
-                        html::TextValue::new()
-                            .all_nodes()
-                            .in_scope(".page__subcol-main .pmovie__subrating--site")
-                            .unwrap_or_default()
-                            .boxed(),
+                        html::text_value(".page__subcol-main .pmovie__subrating--site"),
                         html::text_value(".page__subcol-main > .pmovie__year"),
                         html::text_value(".page__subcol-main > .pmovie__genres"),
                     ]),

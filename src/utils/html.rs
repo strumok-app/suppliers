@@ -21,46 +21,54 @@ pub trait DOMProcessor<T>: Sync + Send {
     }
 
     fn in_scope(self, selectors: &str) -> ScopeProcessor<T>
-    where Self: Sized + 'static {
+    where
+        Self: Sized + 'static,
+    {
         ScopeProcessor::new(selectors, Box::new(self))
     }
 
     fn in_scope_flatten<Item>(self, selectors: &str) -> MapValue<Option<Option<Item>>, Option<Item>>
-    where 
+    where
         Self: Sized + 'static + DOMProcessor<Option<Item>>,
-        Item: 'static 
+        Item: 'static,
     {
         ScopeProcessor::new(selectors, Box::new(self)).flatten()
     }
 
     fn itr_scope(self, selectors: &str) -> ItemsProcessor<T>
-    where Self: Sized + 'static {
+    where
+        Self: Sized + 'static,
+    {
         ItemsProcessor::new(selectors, Box::new(self))
     }
 
     fn map_optional<Map, In, Out>(self, map: Map) -> MapValue<Option<In>, Option<Out>>
     where
         Self: Sized + 'static + DOMProcessor<Option<In>>,
-        Map: Fn(In) -> Out + 'static + Copy + Sync + Send 
+        Map: Fn(In) -> Out + 'static + Copy + Sync + Send,
     {
         MapValue::new(move |opt| opt.map(map), Box::new(self))
     }
 
     fn flatten<Item>(self) -> MapValue<Option<Option<Item>>, Option<Item>>
-    where Self: Sized + 'static + DOMProcessor<Option<Option<Item>>> {
+    where
+        Self: Sized + 'static + DOMProcessor<Option<Option<Item>>>,
+    {
         MapValue::new(move |opt| opt.flatten(), Box::new(self))
     }
 
-    fn unwrap_or_default<In>(self) -> MapValue<Option<In>, In> 
-    where 
+    fn unwrap_or_default<In>(self) -> MapValue<Option<In>, In>
+    where
         Self: Sized + 'static + DOMProcessor<Option<In>>,
-        In: Default
+        In: Default,
     {
         MapValue::new(|opt| opt.unwrap_or_default(), Box::new(self))
     }
 
     fn boxed(self) -> Box<dyn DOMProcessor<T>>
-    where Self: Sized + 'static {
+    where
+        Self: Sized + 'static,
+    {
         Box::new(self)
     }
 }
@@ -158,13 +166,14 @@ impl TextValue {
 
 pub fn text_value(selectors: &str) -> Box<dyn DOMProcessor<String>> {
     TextValue::new()
+        .all_nodes()
         .in_scope(selectors)
         .unwrap_or_default()
         .boxed()
 }
 
 pub fn optional_text_value(selectors: &str) -> Box<dyn DOMProcessor<Option<String>>> {
-    TextValue::new().in_scope(selectors).boxed()
+    TextValue::new().all_nodes().in_scope(selectors).boxed()
 }
 
 pub struct AttrValue {
@@ -204,7 +213,9 @@ impl<Out> DOMProcessor<Out> for ExtractValue<Out> {
 
 impl<Out> ExtractValue<Out> {
     pub fn new<Extract>(extract: Extract) -> ExtractValue<Out>
-    where Extract: Fn(&ElementRef) -> Out + Sync + Send + 'static {
+    where
+        Extract: Fn(&ElementRef) -> Out + Sync + Send + 'static,
+    {
         ExtractValue {
             extract: Box::new(extract),
         }
@@ -226,14 +237,15 @@ impl<In, Out> DOMProcessor<Out> for MapValue<In, Out> {
 
 impl<In, Out> MapValue<In, Out> {
     pub fn new<Map>(map: Map, sub_processor: Box<dyn DOMProcessor<In>>) -> MapValue<In, Out>
-    where Map: Fn(In) -> Out + 'static + Sync + Send {
+    where
+        Map: Fn(In) -> Out + 'static + Sync + Send,
+    {
         MapValue {
             map: Box::new(map),
             sub_processor,
         }
     }
 }
-
 
 // map vector items
 pub struct MapItem<In, Out> {
@@ -252,11 +264,13 @@ impl<In, Out> DOMProcessor<Vec<Out>> for MapItem<In, Out> {
     }
 }
 
-impl <In, Out> ItrDOMProcessor<Out> for MapItem<In, Out> {}
+impl<In, Out> ItrDOMProcessor<Out> for MapItem<In, Out> {}
 
 impl<In, Out> MapItem<In, Out> {
     pub fn new<Map>(map: Map, sub_processor: Box<dyn ItrDOMProcessor<In>>) -> MapItem<In, Out>
-    where Map: Fn(In) -> Out + 'static + Sync + Send {
+    where
+        Map: Fn(In) -> Out + 'static + Sync + Send,
+    {
         MapItem {
             map: Box::new(map),
             sub_processor,
@@ -278,7 +292,7 @@ impl<Item> DOMProcessor<Vec<Item>> for ItemsProcessor<Item> {
     }
 }
 
-impl <Item> ItrDOMProcessor<Item> for ItemsProcessor<Item> {}
+impl<Item> ItrDOMProcessor<Item> for ItemsProcessor<Item> {}
 
 impl<Item> ItemsProcessor<Item> {
     pub fn new(scope: &str, item_processor: Box<dyn DOMProcessor<Item>>) -> ItemsProcessor<Item> {
@@ -313,7 +327,7 @@ impl<Item> DOMProcessor<Vec<Item>> for JoinProcessors<Item> {
     }
 }
 
-impl <Item> ItrDOMProcessor<Item> for JoinProcessors<Item> {}
+impl<Item> ItrDOMProcessor<Item> for JoinProcessors<Item> {}
 
 impl<Item> Default for JoinProcessors<Item> {
     fn default() -> Self {
@@ -339,7 +353,6 @@ pub fn join_processors<Item>(
 ) -> Box<JoinProcessors<Item>> {
     JoinProcessors::new(item_processors).into()
 }
-
 
 // join list of processors of items
 pub struct MergeProcessor<Item> {
@@ -377,7 +390,7 @@ impl<Item> MergeProcessor<Item> {
     }
 }
 
-impl <Item> ItrDOMProcessor<Item> for MergeProcessor<Item> {}
+impl<Item> ItrDOMProcessor<Item> for MergeProcessor<Item> {}
 
 pub fn merge<Item>(
     items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,
@@ -416,7 +429,7 @@ impl<Item> FilterProcessor<Item> {
     }
 }
 
-impl <Item> ItrDOMProcessor<Item> for FilterProcessor<Item> {}
+impl<Item> ItrDOMProcessor<Item> for FilterProcessor<Item> {}
 
 // scope
 

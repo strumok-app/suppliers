@@ -62,12 +62,16 @@ pub async fn load_ajax_playlist(
         response: String,
     }
 
-    let res: AjaxPlaylistResponse = playlist_req
+    let res_text = playlist_req
         .header("X-Requested-With", "XMLHttpRequest")
         .send()
         .await?
-        .json()
+        .text()
         .await?;
+
+    // println!("{res_text:#?}");
+
+    let res: AjaxPlaylistResponse = serde_json::from_str(&res_text)?;
 
     let html_fragment = scraper::Html::parse_fragment(&res.response);
     let root = &html_fragment.root_element();

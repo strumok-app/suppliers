@@ -16,8 +16,8 @@ use crate::{
 use super::ContentSupplier;
 
 const URL: &str = "https://aniplaynow.live";
-const SERVERS_NEXT_ACTION_ID: &str = "7f328d44382d74f2942c42d0bc9915b2d510628a02";
-const SOURCES_NEXT_ACTION_ID: &str = "7f702090c0d779331a0b55e1ee0cfea85ff4cb963a";
+const SERVERS_NEXT_ACTION_ID: &str = "7f1704775b57ff066fd6966596ea217e51b66e3d1c";
+const SOURCES_NEXT_ACTION_ID: &str = "7ff1ccbdc8a401729246ca9dcb12ffd2e4982f6358";
 
 #[derive(Default)]
 pub struct AniplayContentSupplier;

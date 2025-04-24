@@ -14,7 +14,10 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    utils::{self, html::{self, DOMProcessor}},
+    utils::{
+        self,
+        html::{self, DOMProcessor},
+    },
 };
 
 use super::ContentSupplier;
@@ -282,7 +285,6 @@ async fn load_volume(
     Ok(ContentMediaItemSource::Manga {
         description: lang.to_owned(),
         headers: Some(HashMap::from([("Referer".to_owned(), URL.to_owned())])),
-        page_numbers: pages.len() as u32,
         pages: Some(pages),
         params: vec![],
     })

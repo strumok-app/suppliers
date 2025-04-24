@@ -106,6 +106,8 @@ pub trait MangaPagesLoader {
 pub enum AllMangaPagesLoaders {
     #[strum(serialize = "MangaDex")]
     MangaDexContentSupplier,
+    #[strum(serialize = "MangaInUa")]
+    MangaInUaContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {

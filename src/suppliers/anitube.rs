@@ -79,7 +79,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         let mut maybe_details = content_details_processor().process(&root);
 
         if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.params = extract_params(&id, &html).unwrap_or_default()
+            details.params = extract_params(&html).unwrap_or_default()
         }
 
         Ok(maybe_details)
@@ -87,18 +87,26 @@ impl ContentSupplier for AniTubeContentSupplier {
 
     async fn load_media_items(
         &self,
-        _id: String,
+        id: String,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        if params.len() != 2 {
-            return Err(anyhow!("news_id and user hash expected"));
+        if params.len() != 1 {
+            return Err(anyhow!("user hash expected"));
         }
+
+        let news_id = id
+            .split_once("-")
+            .map(|(l, _)| l)
+            .ok_or_else(|| anyhow!("unable to extract news_id"))?;
 
         let playlist_req = utils::create_client()
             .get(format!("{URL}/engine/ajax/playlists.php"))
-            .query(&[("xfield", "playlist")])
-            .query(&[("news_id", &params[0]), ("user_hash", &params[1])])
+            .query(&[
+                ("xfield", "playlist"),
+                ("news_id", news_id),
+                ("user_hash", &params[0]),
+            ])
             .header("Referer", URL);
 
         datalife::load_ajax_playlist(playlist_req).await
@@ -129,18 +137,17 @@ impl ContentSupplier for AniTubeContentSupplier {
     }
 }
 
-fn extract_params(id: &str, html: &str) -> Option<Vec<String>> {
+fn extract_params(html: &str) -> Option<Vec<String>> {
     static DLE_HASH_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
     let dle_hash_re = DLE_HASH_REGEXP
         .get_or_init(|| Regex::new(r#"dle_login_hash\s+=\s+'(?<hash>[a-z0-9]+)'"#).unwrap());
 
-    let (news_id, _) = id.split_once("-")?;
     let hash = dle_hash_re
         .captures(html)
         .and_then(|c| c.name("hash"))
         .map(|m| m.as_str())?;
 
-    Some(vec![news_id.into(), hash.into()])
+    Some(vec![hash.into()])
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
@@ -259,7 +266,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AniTubeContentSupplier
-            .get_content_details("3419-dokor-kamin".into(), vec![])
+            .get_content_details("31-zapisnik-smert".into(), vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -269,12 +276,9 @@ mod tests {
     async fn should_load_media_items() {
         let res = AniTubeContentSupplier
             .load_media_items(
-                "7633-dr-stone-4".into(),
+                "31-zapisnik-smert".into(),
                 vec![],
-                vec![
-                    "3419".into(),
-                    "fa06e9031e506c6f56099b6500b0613e50a60656".into(),
-                ],
+                vec!["867ca5be02de10b799c164d7b7c31e6eece1bb10".into()],
             )
             .await
             .unwrap();
@@ -285,19 +289,13 @@ mod tests {
     async fn should_load_media_items_source() {
         let res = AniTubeContentSupplier
             .load_media_item_sources(
-                "7633-dr-stone-4".into(),
+                "31-zapisnik-smert".into(),
                 vec![],
                 vec![
-                    "ОЗВУЧУВАННЯ DZUSKI ПЛЕЄР ASHDI".into(),
-                    "https://ashdi.vip/vod/43190".into(),
-                    "ОЗВУЧУВАННЯ DZUSKI ПЛЕЄР TRG".into(),
-                    "https://tortuga.tw/vod/10654".into(),
-                    // "ОЗВУЧУВАННЯ Togarashi ПЛЕЄР MOON".into(),
-                    // "https://moonanime.art/iframe/qcsyutjdkhtucmzxdmmw".into(),
-                    // "ОЗВУЧУВАННЯ Togarashi ПЛЕЄР МОНСТР ".into(),
-                    // "https://mmonstro.site/embed/649292".into(),
-                    "СУБТИТРИ СУБТИТРИ ПЛЕЄР МОНСТР ".into(),
-                    "https://mmonstro.site/embed/704444/".into(),
+                    "ОЗВУЧУВАННЯ QTV ПЛЕЄР ASHDI".to_string(),
+                    "https://ashdi.vip/vod/36200".to_string(),
+                    "ОЗВУЧУВАННЯ QTV ПЛЕЄР TRG".to_string(),
+                    "https://tortuga.tw/vod/41470".to_string(),
                 ],
             )
             .await
