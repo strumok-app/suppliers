@@ -18,8 +18,8 @@ use crate::utils::html::{self, DOMProcessor};
 
 use super::ContentSupplier;
 
-const URL: &str = "https://hianime.to";
-const SEARCH_URL: &str = "https://hianime.to/search";
+const URL: &str = "https://hianimez.to";
+const SEARCH_URL: &str = "https://hianimez.to/search";
 // static HIANIME_API: &str = env!("HIANIME_API");
 
 #[derive(Default)]
@@ -42,11 +42,11 @@ impl ContentSupplier for HianimeContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
                 .get(SEARCH_URL)
-                .query(&[("keyword", query)]),
+                .query(&[("keyword", query), ("page", page.to_string())]),
             content_channel_items_processor(),
         )
         .await
@@ -393,7 +393,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = HianimeContentSupplier
-            .search("Dr Stone".into())
+            .search("Dr Stone".into(), 0)
             .await
             .unwrap();
         println!("{res:#?}");

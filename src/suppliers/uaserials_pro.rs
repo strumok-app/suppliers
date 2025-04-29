@@ -16,10 +16,7 @@ pub struct UASerialsProContentSupplier;
 
 impl ContentSupplier for UASerialsProContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map()
-            .keys()
-            .map(|&s| s.into())
-            .collect()
+        get_channels_map().keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -49,9 +46,9 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
-            datalife::search_request(URL, &query),
+            datalife::search_request(URL, &query).query(&[("search_start", page.to_string())]),
             content_info_items_processor(),
         )
         .await
@@ -171,7 +168,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UASerialsProContentSupplier
-            .search("Термінатор".into())
+            .search("Зоряний шлях".into(), 2)
             .await
             .unwrap();
         println!("{res:#?}");

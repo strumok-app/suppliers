@@ -44,11 +44,11 @@ impl ContentSupplier for MangaFireContentSupplier {
         vec!["en".into(), "ja".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
                 .get(format!("{URL}/filter"))
-                .query(&[("keyword", query)]),
+                .query(&[("keyword", query), ("page", page.to_string())]),
             content_info_items_processor(),
         )
         .await
@@ -390,7 +390,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = MangaFireContentSupplier.search("onepunch".into()).await;
+        let res = MangaFireContentSupplier.search("one".into(), 2).await;
         println!("{res:#?}")
     }
 

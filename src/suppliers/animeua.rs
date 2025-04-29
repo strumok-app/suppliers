@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, Ok};
 use indexmap::IndexMap;
 use std::sync::OnceLock;
 
@@ -39,7 +39,11 @@ impl ContentSupplier for AnimeUAContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        if page > 1 {
+            return Ok(vec![]);
+        }
+
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -186,7 +190,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = AnimeUAContentSupplier
-            .search("Доктор Стоун".into())
+            .search("Доктор Стоун".into(), 0)
             .await
             .unwrap();
         println!("{res:#?}");

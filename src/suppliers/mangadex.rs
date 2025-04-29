@@ -16,7 +16,7 @@ use super::{ContentSupplier, MangaPagesLoader};
 
 const API_URL: &str = "https://api.mangadex.org";
 const COVERS_URL: &str = "https://uploads.mangadex.org/covers";
-const CHANNEL_PAGE_SIZE: usize = 50;
+const CHANNEL_PAGE_SIZE: usize = 20;
 const CHAPTERS_LIMIT: usize = 500;
 
 #[derive(Default)]
@@ -39,7 +39,9 @@ impl ContentSupplier for MangaDexContentSupplier {
         vec!["uk".into(), "en".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let offset = (page as usize - 1) * CHANNEL_PAGE_SIZE;
+
         let res_json = utils::create_client()
             .get(format!("{API_URL}/manga"))
             .query(&[
@@ -47,7 +49,7 @@ impl ContentSupplier for MangaDexContentSupplier {
                 ("includes[]", "cover_art"),
                 ("hasAvailableChapters", "true"),
             ])
-            .query(&[("limit", CHANNEL_PAGE_SIZE)])
+            .query(&[("limit", CHANNEL_PAGE_SIZE), ("offset", offset)])
             .send()
             .await?
             .text()
@@ -63,10 +65,11 @@ impl ContentSupplier for MangaDexContentSupplier {
             None => return Err(anyhow!("Unknow channel")),
         };
 
+        let offset = (page as usize - 1) * CHANNEL_PAGE_SIZE;
         let search_res: MangaDexSearchResponse = utils::create_client()
             .get(format!("{API_URL}/manga"))
             .query(query)
-            .query(&[("offset", (page as usize) * CHANNEL_PAGE_SIZE)])
+            .query(&[("limit", CHANNEL_PAGE_SIZE), ("offset", offset)])
             .send()
             .await?
             .json()
@@ -470,7 +473,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = MangaDexContentSupplier
-            .search("Dr Stone".into())
+            .search("one".into(), 2)
             .await
             .unwrap();
         println!("{res:#?}");

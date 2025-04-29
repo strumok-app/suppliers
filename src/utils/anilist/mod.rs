@@ -11,9 +11,9 @@ use crate::{
 
 const URL: &str = "https://graphql.anilist.co";
 
-pub async fn search_anime(query: &str) -> anyhow::Result<Vec<ContentInfo>> {
+pub async fn search_anime(query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
     let gql = include_str!("./queries/search_anime.graphql");
-    let variables = json!({"search": query, "page": 1, "per_page": 20,});
+    let variables = json!({"search": query, "page": page, "per_page": 20,});
 
     let body = json!({"query": gql, "variables": variables,});
 
@@ -124,7 +124,7 @@ mod test {
 
     #[tokio::test]
     async fn should_search() {
-        let res = search_anime("frieren").await;
+        let res = search_anime("frieren", 1).await;
         println!("{res:#?}");
     }
 

@@ -5,12 +5,15 @@ use crate::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
-    utils::{self, datalife, html::{self, DOMProcessor}},
+    utils::{
+        self, datalife,
+        html::{self, DOMProcessor},
+    },
 };
 
 use super::ContentSupplier;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Ok};
 use indexmap::IndexMap;
 use regex::Regex;
 
@@ -36,7 +39,11 @@ impl ContentSupplier for UFDubContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        if page > 1 {
+            return Ok(vec![]);
+        }
+
         utils::scrap_page(
             datalife::search_request(URL, &query),
             content_info_items_processor(),
@@ -242,7 +249,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UFDubContentSupplier
-            .search("Засновник темного шляху".into())
+            .search("Засновник темного шляху".into(), 0)
             .await
             .unwrap();
         println!("{res:#?}");

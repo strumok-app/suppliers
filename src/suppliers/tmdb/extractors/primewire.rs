@@ -136,6 +136,7 @@ async fn load_server_sources(
             return None;
         }
     };
+
     let res = match server.name.as_str() {
         "dood.watch" => doodstream::extract(location, &display_name).await,
         "streamwish.to" | "filelions.to" => {

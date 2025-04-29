@@ -7,7 +7,7 @@ use crate::{
     },
     utils::{self},
 };
-use anyhow::anyhow;
+use anyhow::{anyhow, Ok};
 use extractors::{run_extractors, Episode, SourceParams};
 use indexmap::IndexMap;
 use reqwest::header;
@@ -45,7 +45,11 @@ impl ContentSupplier for TMDBContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        if page > 0 {
+            return Ok(vec![]);
+        }
+
         let res: TMDBSearchResponse = utils::create_json_client()
             .get(format!("{URL}/search/multi"))
             .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
@@ -421,7 +425,7 @@ mod test {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = TMDBContentSupplier.search("venom".into()).await;
+        let res = TMDBContentSupplier.search("venom".into(), 0).await;
         println!("{res:#?}")
     }
 

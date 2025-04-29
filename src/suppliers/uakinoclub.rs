@@ -39,9 +39,9 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let result = utils::scrap_page(
-            datalife::search_request(URL, &query),
+            datalife::search_request(URL, &query).query(&[("from_page", page.to_string())]),
             content_info_items_processor(),
         )
         .await?;
@@ -240,7 +240,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UAKinoClubContentSupplier
-            .search("Термінатор".into())
+            .search("Термінатор".into(), 1)
             .await
             .unwrap();
         println!("{res:#?}");

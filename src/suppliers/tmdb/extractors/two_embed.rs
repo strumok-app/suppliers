@@ -40,6 +40,8 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
+    println!("{res:#?}");
+
     static STREAM_WISH_ID_RE: OnceLock<Regex> = OnceLock::new();
     let maybe_id = STREAM_WISH_ID_RE
         .get_or_init(|| Regex::new(r"swish\?id=(?<id>[\w\d]+)").unwrap())

@@ -39,8 +39,8 @@ impl ContentSupplier for AniplayContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String) -> anyhow::Result<Vec<ContentInfo>> {
-        anilist::search_anime(&query).await
+    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        anilist::search_anime(&query, page).await
     }
 
     async fn load_channel(&self, _channel: String, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {

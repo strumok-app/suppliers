@@ -9,29 +9,37 @@ use crate::{
     },
 };
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn get_channels(supplier: String) -> anyhow::Result<Vec<String>> {
     let sup = get_supplier(&supplier)?;
     Ok(AllContentSuppliers::get_channels(&sup))
 }
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn get_default_channels(supplier: String) -> anyhow::Result<Vec<String>> {
     let sup = get_supplier(&supplier)?;
     Ok(AllContentSuppliers::get_default_channels(&sup))
 }
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn get_supported_types(supplier: String) -> anyhow::Result<Vec<ContentType>> {
     let sup = get_supplier(&supplier)?;
     Ok(AllContentSuppliers::get_supported_types(&sup))
 }
 
+#[flutter_rust_bridge::frb(sync)]
 pub fn get_supported_languages(supplier: String) -> anyhow::Result<Vec<String>> {
     let sup = get_supplier(&supplier)?;
     Ok(AllContentSuppliers::get_supported_languages(&sup))
 }
 
-pub async fn search(supplier: String, query: String) -> anyhow::Result<Vec<ContentInfo>> {
+pub async fn search(
+    supplier: String,
+    query: String, 
+    page: u16,
+) -> anyhow::Result<Vec<ContentInfo>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::search(&sup, query).await
+    AllContentSuppliers::search(&sup, query, page).await
 }
 
 pub async fn load_channel(
@@ -88,7 +96,6 @@ pub fn avalaible_suppliers() -> Vec<String> {
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
-    env_logger::try_init().unwrap_or_default();
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();
 }

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Ok};
+use regex::Regex;
 use scraper::Selector;
 use std::sync::OnceLock;
 
@@ -40,9 +41,13 @@ pub async fn extract(
 
     let upacked_script = packerjs::unpack(packer_script).map_err(|err| anyhow!(err))?;
 
-    //println!("{upacked_script}");
+    // println!("{upacked_script}");
 
-    let file = utils::extract_file_property(&upacked_script)
+    static FILE_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
+    let file = FILE_PROPERTY_RE
+        .get_or_init(|| Regex::new(r#""hls2":\s?['"](?<file>[^"]+)['"]"#).unwrap())
+        .captures(&upacked_script)
+        .and_then(|m| Some(m.name("file")?.as_str()))
         .ok_or_else(|| anyhow!("[streamwish] file property not found"))?;
 
     Ok(vec![ContentMediaItemSource::Video {
