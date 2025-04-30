@@ -4,14 +4,19 @@ pub mod crypto;
 // pub mod crypto_js;
 pub mod anilist;
 pub mod datalife;
+mod doh;
 pub mod html;
 pub mod jwp_player;
 pub mod nextjs;
 pub mod playerjs;
 pub mod unpack;
 
-use std::{sync::OnceLock, time::Duration};
+use std::{
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
+use doh::DoHResolver;
 use regex::Regex;
 use reqwest::{
     header::{self, HeaderMap},
@@ -55,6 +60,7 @@ pub fn create_client_builder() -> reqwest::ClientBuilder {
         .user_agent(get_user_agent())
         .danger_accept_invalid_certs(true)
         .cookie_store(true)
+        .dns_resolver(Arc::new(DoHResolver::default()))
 }
 
 pub fn get_default_headers() -> HeaderMap {

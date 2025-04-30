@@ -8,6 +8,8 @@ use crate::{
     utils::{self, unpack::packerjs},
 };
 
+pub const PLAYER_URL: &str = "https://uqloads.xyz";
+
 pub async fn extract(
     url: &str,
     referer: &str,
