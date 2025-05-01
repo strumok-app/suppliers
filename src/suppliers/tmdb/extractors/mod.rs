@@ -15,10 +15,10 @@ type BoxExtractor = for<'a> fn(
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
 const EXTRACTORS: [(&str, BoxExtractor); 4] = [
-    ("two_embed", two_embed::extract_boxed),
     ("embed_su", embed_su::extract_boxed),
     ("primewire", primewire::extract_boxed),
     ("embed_su_subs", embed_su_subs::extract_boxed),
+    ("two_embed", two_embed::extract_boxed),
 ];
 
 pub async fn run_extractors(
