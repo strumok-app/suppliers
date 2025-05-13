@@ -1,23 +1,25 @@
 use std::{
     collections::{BTreeMap, HashMap},
-    str, vec,
+    str,
+    sync::OnceLock,
+    vec,
 };
 
 use anyhow::anyhow;
+use cached::proc_macro::cached;
 use log::warn;
+use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
     models::{ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType},
-    utils::{anilist, jwp_player::Source, nextjs},
+    utils::{anilist, create_client, jwp_player::Source, nextjs},
 };
 
 use super::ContentSupplier;
 
 const URL: &str = "https://aniplaynow.live";
-const SERVERS_NEXT_ACTION_ID: &str = "7f965ff19ca58fbad3efbf74125a419a92abe784ab";
-const SOURCES_NEXT_ACTION_ID: &str = "7f50a8ca3b4c8348d34c6410f89ca2d4edc30da540";
 
 #[derive(Default)]
 pub struct AniplayContentSupplier;
@@ -82,9 +84,9 @@ impl ContentSupplier for AniplayContentSupplier {
             provider_id: String,
         }
 
+        let ids = extract_actions_ids().await?;
         let servers: Vec<AniplayServer> =
-            nextjs::server_action(url.as_str(), SERVERS_NEXT_ACTION_ID, 1, &json!([id, true,]))
-                .await?;
+            nextjs::server_action(url.as_str(), &ids.episodes, 1, &json!([id, true,])).await?;
 
         let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
 
@@ -186,9 +188,10 @@ async fn load_server_by_type(
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let url = format!("{URL}/anime/watch/{id}?host={provider}&ep={ep_number}&type={type}");
 
+    let ids = extract_actions_ids().await?;
     let res: ServerRes = nextjs::server_action(
         &url,
-        SOURCES_NEXT_ACTION_ID,
+        &ids.sources,
         1,
         &json!([id, provider, ep_id, ep_number, r#type,]),
     )
@@ -220,6 +223,61 @@ async fn load_server_by_type(
     Ok(sources)
 }
 
+#[derive(Debug, Default, Clone)]
+struct NextJSActionsIds {
+    pub episodes: String,
+    pub sources: String,
+}
+
+#[cached(result = true, time = 3600)]
+async fn extract_actions_ids() -> anyhow::Result<NextJSActionsIds> {
+    let anime_page_url = format!("{URL}/anime/watch/16498");
+
+    let client = create_client();
+
+    let page_html = client.get(anime_page_url).send().await?.text().await?;
+
+    let start_idx = page_html
+        .find("/_next/static/chunks/app/(user)/(media)/")
+        .ok_or_else(|| anyhow!("unable to locate js chank url in html"))?;
+
+    let end_idx = page_html[start_idx..]
+        .find(".js")
+        .ok_or_else(|| anyhow!("unable to locate js chank url in html"))?
+        + start_idx;
+
+    let js_path = &page_html[start_idx..end_idx];
+
+    let js = client
+        .get(format!("{URL}/{js_path}.js"))
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    // println!("{js}");
+
+    static ACTION_ID_RE: OnceLock<Regex> = OnceLock::new();
+    let action_id_re = ACTION_ID_RE.get_or_init(|| Regex::new(
+        r#"\(0,\w+\.createServerReference\)\("([a-f0-9]+)",\w+\.callServer,void 0,\w+\.findSourceMapURL,"(getSources|getEpisodes)"\)"#).unwrap()
+    );
+
+    let mut res = NextJSActionsIds::default();
+
+    for c in action_id_re.captures_iter(&js) {
+        let action_id = c.get(1).unwrap().as_str();
+        let action = c.get(2).unwrap().as_str();
+
+        match action {
+            "getSources" => res.sources = action_id.to_owned(),
+            "getEpisodes" => res.episodes = action_id.to_owned(),
+            _ => {}
+        }
+    }
+
+    Ok(res)
+}
+
 #[derive(Deserialize, Debug)]
 struct ServerRes {
     headers: Option<HashMap<String, String>>,
@@ -230,6 +288,13 @@ struct ServerRes {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[tokio::test]
+    async fn extract_actions_ids() {
+        let res = super::extract_actions_ids().await;
+
+        println!("{res:#?}");
+    }
 
     #[tokio::test]
     async fn should_load_media_items() {
