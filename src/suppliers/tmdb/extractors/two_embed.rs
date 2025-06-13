@@ -63,14 +63,14 @@ async fn try_extract_player4u(res: &str) -> Option<Vec<ContentMediaItemSource>> 
     static PLAYER4U_ID_RE: OnceLock<Regex> = OnceLock::new();
     let maybe_id = PLAYER4U_ID_RE
         .get_or_init(|| Regex::new(r"'(?<id>.*?player4u.*?)'").unwrap())
-        .captures(&res)
+        .captures(res)
         .and_then(|m| m.name("id"))
         .map(|m| m.as_str());
 
     let id = match maybe_id {
         Some(id) => id,
         None => {
-            info!("[two_embed] No stream wish id found");
+            info!("[two_embed] No player4u id found");
             return None;
         }
     };
@@ -78,7 +78,7 @@ async fn try_extract_player4u(res: &str) -> Option<Vec<ContentMediaItemSource>> 
     match player4u::extract(id, REF_URL, "Two Embed").await {
         Ok(items) => Some(items),
         Err(e) => {
-            warn!("[two_embed] streamwish failed: {e:#?}");
+            warn!("[two_embed] player4u failed: {e:#?}");
             None
         }
     }
@@ -88,7 +88,7 @@ async fn try_extract_streamwish(res: &str) -> Option<Vec<ContentMediaItemSource>
     static STREAM_WISH_ID_RE: OnceLock<Regex> = OnceLock::new();
     let maybe_id = STREAM_WISH_ID_RE
         .get_or_init(|| Regex::new(r"swish\?id=(?<id>[\w\d]+)").unwrap())
-        .captures(&res)
+        .captures(res)
         .and_then(|m| m.name("id"))
         .map(|m| m.as_str());
 

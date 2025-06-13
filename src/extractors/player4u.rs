@@ -20,7 +20,7 @@ pub async fn extract(
 
     let res = client
         .get(url)
-        .header("Refere", referer)
+        .header("Referer", referer)
         .send()
         .await?
         .text()

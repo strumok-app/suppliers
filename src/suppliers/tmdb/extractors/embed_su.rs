@@ -13,7 +13,7 @@ use crate::{models::ContentMediaItemSource, utils};
 
 use super::SourceParams;
 
-pub const URL: &str = "https://embed.su";
+pub const URL: &str = "https://embed.su/";
 
 #[derive(Deserialize, Debug)]
 struct Server {
@@ -27,7 +27,6 @@ pub fn extract_boxed<'a>(
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
-
 pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let tmdb_id = params.id;
     let url = match &params.ep {
@@ -39,7 +38,15 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/embed/movie/{tmdb_id}"),
     };
 
-    let html = utils::create_client().get(url).send().await?.text().await?;
+    let html = utils::create_client()
+        .get(url)
+        .header("Referer", URL)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    println!("{html:#?}");
 
     static B64_CODE_RE: OnceLock<Regex> = OnceLock::new();
     let b64code = B64_CODE_RE
