@@ -47,6 +47,8 @@ pub async fn extract(
             .text()
             .await?;
 
+        println!("{links_res:#?}");
+
         let links: Vec<String> = serde_json::from_str(&links_res)?;
 
         links.into_iter().enumerate().for_each(|(idx, link)| {
