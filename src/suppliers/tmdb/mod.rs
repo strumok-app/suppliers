@@ -46,7 +46,7 @@ impl ContentSupplier for TMDBContentSupplier {
     }
 
     async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        if page > 0 {
+        if page > 1 {
             return Ok(vec![]);
         }
 
@@ -425,7 +425,7 @@ mod test {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = TMDBContentSupplier.search("venom".into(), 0).await;
+        let res = TMDBContentSupplier.search("venom".into(), 1).await;
         println!("{res:#?}")
     }
 
