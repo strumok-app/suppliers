@@ -1,7 +1,7 @@
-mod embed_su;
-mod embed_su_subs;
+mod autoembed;
 mod primewire;
 mod two_embed;
+mod xprime;
 
 use futures::future::BoxFuture;
 use log::warn;
@@ -15,9 +15,9 @@ type BoxExtractor = for<'a> fn(
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
 const EXTRACTORS: [(&str, BoxExtractor); 4] = [
-    ("embed_su", embed_su::extract_boxed),
+    ("xprime", xprime::extract_boxed),
+    ("autoembed", autoembed::extract_boxed),
     ("primewire", primewire::extract_boxed),
-    ("embed_su_subs", embed_su_subs::extract_boxed),
     ("two_embed", two_embed::extract_boxed),
 ];
 
