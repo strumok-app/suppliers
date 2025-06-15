@@ -57,14 +57,19 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         headers: None,
     }];
 
-    for sub in server_res.subtitles {
-        let name = sub.label;
-        sources.push(ContentMediaItemSource::Subtitle {
-            link: sub.file,
-            description: format!("[autoembed] {name}"),
-            headers: None,
+    server_res
+        .subtitles
+        .into_iter()
+        .enumerate()
+        .for_each(|(i, sub)| {
+            let name = sub.label;
+            let num = i + 1;
+            sources.push(ContentMediaItemSource::Subtitle {
+                link: sub.file,
+                description: format!("[autoembed] {num}. {name}"),
+                headers: None,
+            });
         });
-    }
 
     Ok(sources)
 }
