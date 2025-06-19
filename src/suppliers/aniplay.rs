@@ -1,20 +1,13 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    str,
-    sync::OnceLock,
-    vec,
-};
+use std::collections::{BTreeMap, HashMap};
 
 use anyhow::anyhow;
-use cached::proc_macro::cached;
 use log::warn;
-use regex::Regex;
+use reqwest::Client;
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::{
     models::{ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType},
-    utils::{anilist, create_client, jwp_player::Source, nextjs},
+    utils::{anilist, create_json_client, jwp_player::Source},
 };
 
 use super::ContentSupplier;
@@ -63,8 +56,6 @@ impl ContentSupplier for AniplayContentSupplier {
         _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        let url = format!("{URL}/anime/info/{id}");
-
         #[derive(Deserialize, Debug)]
         struct AniplayEpisode {
             id: String,
@@ -76,21 +67,41 @@ impl ContentSupplier for AniplayContentSupplier {
             #[serde(default)]
             img: String,
         }
+
         #[derive(Deserialize, Debug)]
         struct AniplayServer {
             #[serde(default)]
             episodes: Vec<AniplayEpisode>,
-            #[serde(alias = "providerId")]
+            #[serde(rename = "providerId")]
             provider_id: String,
         }
 
-        let ids = extract_actions_ids().await?;
-        let servers: Vec<AniplayServer> =
-            nextjs::server_action(url.as_str(), &ids.episodes, 1, &json!([id, true,])).await?;
+        #[derive(Deserialize, Debug)]
+        struct ApiplayEpisodesResponse {
+            #[serde(rename = "episodes")]
+            servers: Vec<AniplayServer>,
+        }
+
+        let res_str = create_json_client()
+            .get(format!("{URL}/api/anime/episodes"))
+            .query(&[
+                ("id", id.as_str()),
+                ("releasing", "false"),
+                ("refresh", "false"),
+            ])
+            .header("Referer", format!("{URL}/anime/info/{id}"))
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        // println!("{res_str:#?}");
+
+        let res: ApiplayEpisodesResponse = serde_json::from_str(&res_str)?;
 
         let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
 
-        for server in servers {
+        for server in res.servers {
             let provider = server.provider_id;
             for episode in server.episodes {
                 let media_item = sorted_media_items.entry(episode.number).or_insert_with(|| {
@@ -140,18 +151,22 @@ impl ContentSupplier for AniplayContentSupplier {
 
         let mut results = vec![];
 
+        let client = create_json_client();
+
         for params in server_params.chunks(3) {
             if langs.contains(&"en".to_string()) && params[2] == "1" {
-                let mut sources =
-                    load_server_media_item_sources(&id, params[0], params[1], ep_number, "dub")
-                        .await;
+                let mut sources = load_server_media_item_sources(
+                    &client, &id, params[0], params[1], ep_number, "dub",
+                )
+                .await;
 
                 results.append(&mut sources);
             }
             if langs.contains(&"ja".to_string()) {
-                let mut sources =
-                    load_server_media_item_sources(&id, params[0], params[1], ep_number, "sub")
-                        .await;
+                let mut sources = load_server_media_item_sources(
+                    &client, &id, params[0], params[1], ep_number, "sub",
+                )
+                .await;
 
                 results.append(&mut sources);
             }
@@ -162,13 +177,14 @@ impl ContentSupplier for AniplayContentSupplier {
 }
 
 async fn load_server_media_item_sources(
+    client: &Client,
     id: &str,
     provider: &str,
     ep_id: &str,
     ep_number: &str,
     r#type: &str,
 ) -> Vec<ContentMediaItemSource> {
-    let res = load_server_by_type(id, provider, ep_id, ep_number, r#type).await;
+    let res = load_server_by_type(client, id, provider, ep_id, ep_number, r#type).await;
 
     match res {
         Ok(sources) => sources,
@@ -180,22 +196,37 @@ async fn load_server_media_item_sources(
 }
 
 async fn load_server_by_type(
+    client: &Client,
     id: &str,
     provider: &str,
     ep_id: &str,
     ep_number: &str,
     r#type: &str,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let url = format!("{URL}/anime/watch/{id}?host={provider}&ep={ep_number}&type={type}");
+    #[derive(Deserialize, Debug)]
+    struct ServerRes {
+        headers: Option<HashMap<String, String>>,
+        #[serde(default)]
+        sources: Vec<Source>,
+    }
 
-    let ids = extract_actions_ids().await?;
-    let res: ServerRes = nextjs::server_action(
-        &url,
-        &ids.sources,
-        1,
-        &json!([id, provider, ep_id, ep_number, r#type,]),
-    )
-    .await?;
+    let res_str = client
+        .get(format!("{URL}/api/anime/sources"))
+        .query(&[
+            ("id", id),
+            ("provider", provider),
+            ("epId", ep_id),
+            ("epNum", ep_number),
+            ("subType", r#type),
+            ("cache", "true"),
+        ])
+        .header("Referer", format!("{URL}/anime/watch/{id}"))
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    let res: ServerRes = serde_json::from_str(&res_str)?;
 
     let prefix = format!("[{type}] {provider}");
 
@@ -223,78 +254,9 @@ async fn load_server_by_type(
     Ok(sources)
 }
 
-#[derive(Debug, Default, Clone)]
-struct NextJSActionsIds {
-    pub episodes: String,
-    pub sources: String,
-}
-
-#[cached(result = true, time = 3600)]
-async fn extract_actions_ids() -> anyhow::Result<NextJSActionsIds> {
-    let anime_page_url = format!("{URL}/anime/watch/16498");
-
-    let client = create_client();
-
-    let page_html = client.get(anime_page_url).send().await?.text().await?;
-
-    let start_idx = page_html
-        .find("/_next/static/chunks/app/(user)/(media)/")
-        .ok_or_else(|| anyhow!("unable to locate js chank url in html"))?;
-
-    let end_idx = page_html[start_idx..]
-        .find(".js")
-        .ok_or_else(|| anyhow!("unable to locate js chank url in html"))?
-        + start_idx;
-
-    let js_path = &page_html[start_idx..end_idx];
-
-    let js = client
-        .get(format!("{URL}/{js_path}.js"))
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    // println!("{js}");
-
-    static ACTION_ID_RE: OnceLock<Regex> = OnceLock::new();
-    let action_id_re = ACTION_ID_RE.get_or_init(|| Regex::new(
-        r#"\(0,\w+\.createServerReference\)\("([a-f0-9]+)",\w+\.callServer,void 0,\w+\.findSourceMapURL,"(getSources|getEpisodes)"\)"#).unwrap()
-    );
-
-    let mut res = NextJSActionsIds::default();
-
-    for c in action_id_re.captures_iter(&js) {
-        let action_id = c.get(1).unwrap().as_str();
-        let action = c.get(2).unwrap().as_str();
-
-        match action {
-            "getSources" => res.sources = action_id.to_owned(),
-            "getEpisodes" => res.episodes = action_id.to_owned(),
-            _ => {}
-        }
-    }
-
-    Ok(res)
-}
-
-#[derive(Deserialize, Debug)]
-struct ServerRes {
-    headers: Option<HashMap<String, String>>,
-    #[serde(default)]
-    sources: Vec<Source>,
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[tokio::test]
-    async fn extract_actions_ids() {
-        let res = super::extract_actions_ids().await;
-
-        println!("{res:#?}");
-    }
 
     #[tokio::test]
     async fn should_load_media_items() {
