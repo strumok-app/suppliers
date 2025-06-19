@@ -27,11 +27,11 @@ features = [
   "gzip",
   "json",
 ]
-version = "0.12.15"
+version = "0.12.20"
 default-features = false
 
 [dependencies.tokio]
-version = "1"
+version = "1.45.1"
 features = ["rt-multi-thread", "macros"]
 
 [dependencies]
@@ -48,10 +48,6 @@ regex = "1.11.1"
 chrono = "0.4.39"
 futures = "0.3.31"
 indexmap = "2.7.0"
-cached = { version = "0.55.1", features = [
-  "async",
-  "async_tokio_rt_multi_thread",
-] }
 log = "0.4.27"
 env_logger = "0.11.8"
 test-log = "0.2.17"
