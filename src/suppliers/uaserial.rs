@@ -17,8 +17,8 @@ use crate::{
 
 use super::ContentSupplier;
 
-const URL: &str = "https://uaserial.tv";
-const SEARCH_URL: &str = "https://uaserial.tv/search";
+const URL: &str = "https://uaserial.top";
+const SEARCH_URL: &str = "https://uaserial.top/search";
 
 #[derive(Default)]
 pub struct UAserialContentSupplier;
