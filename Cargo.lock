@@ -2323,7 +2323,7 @@ dependencies = [
 
 [[package]]
 name = "strumok_suppliers"
-version = "2.1.2"
+version = "3.0.0"
 dependencies = [
  "aes",
  "anyhow",

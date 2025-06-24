@@ -213,7 +213,7 @@ async fn try_extract_iframe_options(
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map_optional(extract_id_from_url)
+            .map_optional(|s| extract_id_from_url(&s))
             .in_scope_flatten(".item > a")
             .unwrap_or_default()
             .boxed(),
@@ -306,11 +306,16 @@ fn get_channels_map() -> &'static IndexMap<&'static str, String> {
     })
 }
 
-fn extract_id_from_url(mut id: String) -> String {
-    if !id.is_empty() {
-        id.remove(0);
+fn extract_id_from_url(id: &str) -> String {
+    if let Some(end) = id.strip_prefix("/") {
+        return end.to_string();
     }
-    id
+
+    if let Some(end) = id.strip_prefix(URL) {
+        return end.to_string();
+    }
+
+    id.to_string()
 }
 
 #[cfg(test)]
@@ -356,7 +361,7 @@ mod tests {
     async fn should_load_media_item_sources() {
         let res = UAserialContentSupplier
             .load_media_item_sources(
-                "blue-exorcist/season-1".into(),
+                "charmed/season-8".into(),
                 vec![],
                 vec!["/embed/blue-exorcist/season-1/episode-1".into()],
             )

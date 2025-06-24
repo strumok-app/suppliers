@@ -125,10 +125,21 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn should_load_tv_show() {
+    async fn should_load_tv_show_imdb() {
         let res = extract(&SourceParams {
             id: 60735,
             imdb_id: Some("tt3107288".to_string()),
+            ep: Some(Episode { e: 1, s: 1 }),
+        })
+        .await;
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_load_tv_show() {
+        let res = extract(&SourceParams {
+            id: 655,
+            imdb_id: None,
             ep: Some(Episode { e: 1, s: 1 }),
         })
         .await;

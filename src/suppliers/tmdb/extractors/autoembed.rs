@@ -2,7 +2,10 @@ use anyhow::Ok;
 use futures::future::BoxFuture;
 use serde::Deserialize;
 
-use crate::{models::ContentMediaItemSource, utils::create_json_client};
+use crate::{
+    models::ContentMediaItemSource,
+    utils::{create_json_client, lang},
+};
 
 use super::SourceParams;
 
@@ -11,12 +14,15 @@ const URL: &str = "https://autoembed.cc";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
-    _langs: &'a [String],
+    langs: &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
-    Box::pin(extract(params))
+    Box::pin(extract(params, langs))
 }
 
-pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+pub async fn extract(
+    params: &SourceParams,
+    langs: &[String],
+) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let id = params.id;
 
     let link = match &params.ep {
@@ -41,15 +47,17 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         subtitles: Vec<ServerResSubtitle>,
     }
 
-    let server_res: ServerRes = create_json_client()
+    let server_res_str = create_json_client()
         .get(link)
         .header("Referer", URL)
         .send()
         .await?
-        .json()
+        .text()
         .await?;
 
-    // println!("{server_res:#?}");
+    // println!("{server_res_str:#?}");
+
+    let server_res: ServerRes = serde_json::from_str(&server_res_str)?;
 
     let mut sources = vec![ContentMediaItemSource::Video {
         link: server_res.video_source,
@@ -64,11 +72,14 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .for_each(|(i, sub)| {
             let name = sub.label;
             let num = i + 1;
-            sources.push(ContentMediaItemSource::Subtitle {
-                link: sub.file,
-                description: format!("[autoembed] {num}. {name}"),
-                headers: None,
-            });
+
+            if lang::is_allowed(langs, &name) {
+                sources.push(ContentMediaItemSource::Subtitle {
+                    link: sub.file,
+                    description: format!("[autoembed] {num}. {name}"),
+                    headers: None,
+                });
+            }
         });
 
     Ok(sources)
@@ -82,11 +93,14 @@ mod tests {
 
     #[tokio::test]
     async fn should_extract_tv() {
-        let res = extract(&SourceParams {
-            id: 655,
-            imdb_id: None,
-            ep: Some(Episode { e: 1, s: 1 }),
-        })
+        let res = extract(
+            &SourceParams {
+                id: 655,
+                imdb_id: None,
+                ep: Some(Episode { e: 1, s: 1 }),
+            },
+            &["en".to_owned()],
+        )
         .await;
 
         println!("{res:#?}")

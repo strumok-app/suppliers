@@ -7,6 +7,7 @@ pub mod datalife;
 mod doh;
 pub mod html;
 pub mod jwp_player;
+pub mod lang;
 pub mod nextjs;
 pub mod playerjs;
 pub mod unpack;

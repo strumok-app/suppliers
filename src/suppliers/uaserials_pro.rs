@@ -9,7 +9,7 @@ use crate::models::{
 use crate::utils::html::DOMProcessor;
 use crate::utils::{self, datalife, html, playerjs};
 
-const URL: &str = "https://uaserials.pro";
+const URL: &str = "https://uaserials.film";
 
 #[derive(Default)]
 pub struct UASerialsProContentSupplier;
