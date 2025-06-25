@@ -11,7 +11,7 @@ use crate::models::{
 use crate::utils::html::{DOMProcessor, ItrDOMProcessor};
 use crate::utils::{self, datalife, html, playerjs};
 
-const URL: &str = "https://uafilm.pro";
+const URL: &str = "https://uafilm.vip";
 
 #[derive(Default)]
 pub struct UAFilmsContentSupplier;
