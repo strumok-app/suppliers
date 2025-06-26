@@ -29,29 +29,35 @@ pub fn get_user_agent<'a>() -> &'a str {
     "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0"
 }
 
-pub fn create_client() -> reqwest::Client {
-    let builder = create_client_builder();
+pub fn create_client() -> &'static reqwest::Client {
+    static LAZZY_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    LAZZY_CLIENT.get_or_init(|| {
+        let builder = create_client_builder();
 
-    let mut headers = get_default_headers();
-    headers.insert(
-        header::ACCEPT,
-        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-            .parse()
-            .unwrap(),
-    );
+        let mut headers = get_default_headers();
+        headers.insert(
+            header::ACCEPT,
+            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+                .parse()
+                .unwrap(),
+        );
 
-    builder.default_headers(headers).build().unwrap()
+        builder.default_headers(headers).build().unwrap()
+    })
 }
 
-pub fn create_json_client() -> reqwest::Client {
-    let builder = create_client_builder();
+pub fn create_json_client() -> &'static reqwest::Client {
+    static LAZZY_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    LAZZY_CLIENT.get_or_init(|| {
+        let builder = create_client_builder();
 
-    let mut headers = get_default_headers();
-    headers.insert(header::ACCEPT, "application/json".parse().unwrap());
-    headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
-    headers.insert("X-Requested-With", "XMLHttpRequest".parse().unwrap());
+        let mut headers = get_default_headers();
+        headers.insert(header::ACCEPT, "application/json".parse().unwrap());
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert("X-Requested-With", "XMLHttpRequest".parse().unwrap());
 
-    builder.default_headers(headers).build().unwrap()
+        builder.default_headers(headers).build().unwrap()
+    })
 }
 
 pub fn create_client_builder() -> reqwest::ClientBuilder {

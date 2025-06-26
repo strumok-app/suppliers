@@ -47,7 +47,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     // println!("{link}");
 
     let client = utils::create_client();
-    let servers = load_servers(&client, &link).await?;
+    let servers = load_servers(client, &link).await?;
 
     // println!("{servers:#?}");
 

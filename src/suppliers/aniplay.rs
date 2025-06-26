@@ -156,7 +156,7 @@ impl ContentSupplier for AniplayContentSupplier {
         for params in server_params.chunks(3) {
             if langs.contains(&"en".to_string()) && params[2] == "1" {
                 let mut sources = load_server_media_item_sources(
-                    &client, &id, params[0], params[1], ep_number, "dub",
+                    client, &id, params[0], params[1], ep_number, "dub",
                 )
                 .await;
 
@@ -164,7 +164,7 @@ impl ContentSupplier for AniplayContentSupplier {
             }
             if langs.contains(&"ja".to_string()) {
                 let mut sources = load_server_media_item_sources(
-                    &client, &id, params[0], params[1], ep_number, "sub",
+                    client, &id, params[0], params[1], ep_number, "sub",
                 )
                 .await;
 

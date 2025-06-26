@@ -105,7 +105,7 @@ impl ContentSupplier for MangaFireContentSupplier {
         let mut media_items: BTreeMap<Key, ContentMediaItem> = BTreeMap::new();
 
         for lang in langs {
-            let volumes = match load_volumes(&client, actual_id, &lang).await {
+            let volumes = match load_volumes(client, actual_id, &lang).await {
                 Ok(items) => items,
                 Err(err) => {
                     error!("[mangafire] fail to fetch chaptes for {lang} and {id}: {err}");
@@ -150,7 +150,7 @@ impl ContentSupplier for MangaFireContentSupplier {
             let lang = &chunk[0];
             let id = &chunk[1];
 
-            match load_volume(&client, lang, id).await {
+            match load_volume(client, lang, id).await {
                 Ok(source) => sources.push(source),
                 Err(err) => {
                     println!("[mangafire] fail to load source for lang {lang} id: {id}: {err}")
