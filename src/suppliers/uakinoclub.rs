@@ -12,7 +12,7 @@ use crate::models::{
 use crate::utils::html::{DOMProcessor, ItrDOMProcessor};
 use crate::utils::{self, datalife, html, playerjs};
 
-const URL: &str = "https://uakino.me";
+const URL: &str = "https://uakino.best";
 
 #[derive(Default)]
 pub struct UAKinoClubContentSupplier;
