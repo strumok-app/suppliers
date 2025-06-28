@@ -249,7 +249,7 @@ async fn load_server_sources(
     };
 
     let res = match server.title.as_str() {
-        "HD-1" | "HD-2" => megacloud::extract(&link, URL, &prefix).await,
+        "HD-1" | "HD-2" | "HD-3" => megacloud::extract(&link, URL, &prefix).await,
         _ => return vec![],
     };
 
