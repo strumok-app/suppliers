@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
-pub mod crypto;
-// pub mod crypto_js;
 pub mod anilist;
+pub mod crypto;
+pub mod crypto_js;
 pub mod datalife;
 mod doh;
 pub mod html;

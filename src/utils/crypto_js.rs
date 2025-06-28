@@ -3,8 +3,23 @@ use md5::{Digest, Md5};
 
 use super::crypto;
 
+pub fn decrypt_aes_no_salt(password: &[u8], text: &[u8]) -> anyhow::Result<String> {
+    let salt = &text[8..16];
+    let ct = &text[16..];
+
+    // let pwd_size = password.len();
+    // let salt_size = salt.len();
+    // let ct_size = ct.len();
+    //
+    // println!("pwd: {pwd_size}, salt: {salt_size}, ct_size: {ct_size}");
+
+    decrypt_aes(password, salt, ct)
+}
+
 pub fn decrypt_aes(password: &[u8], salt: &[u8], ct: &[u8]) -> anyhow::Result<String> {
     let (key, iv) = derive_key_and_iv(password, salt);
+
+    // println!("key: {key:?}, iv: {iv:?}");
 
     let pt = crypto::decrypt_aes(&key, &iv, ct)?;
 

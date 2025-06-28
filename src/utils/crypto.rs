@@ -5,7 +5,6 @@ use cipher::{
     block_padding, generic_array::GenericArray, BlockDecrypt, BlockDecryptMut, BlockEncryptMut,
     KeyInit, KeyIvInit,
 };
-use sha1::{Digest, Sha1};
 
 type AesCbcDec = cbc::Decryptor<aes::Aes256>;
 type AesCbcEnc = cbc::Encryptor<aes::Aes256>;
@@ -53,11 +52,11 @@ pub fn decrypt_base64_blowfish_ebc(key: &[u8], ct_base64: &[u8]) -> anyhow::Resu
     Ok(pt)
 }
 
-pub fn sha1_hex(t: &str) -> String {
-    let mut hasher = Sha1::new();
-
-    hasher.update(t);
-    let result = hasher.finalize();
-
-    hex::encode(&result[..])
-}
+// pub fn sha1_hex(t: &str) -> String {
+//     let mut hasher = Sha1::new();
+//
+//     hasher.update(t);
+//     let result = hasher.finalize();
+//
+//     hex::encode(&result[..])
+// }
