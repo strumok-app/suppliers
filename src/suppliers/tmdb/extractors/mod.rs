@@ -16,9 +16,9 @@ type BoxExtractor = for<'a> fn(
     &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 6] = [
+const EXTRACTORS: [(&str, BoxExtractor); 5] = [
     ("xprime", xprime::extract_boxed),
-    ("autoembed", autoembed::extract_boxed),
+    // ("autoembed", autoembed::extract_boxed),
     ("madplay", madplay::extract_boxed),
     ("primewire", primewire::extract_boxed),
     ("two_embed", two_embed::extract_boxed),

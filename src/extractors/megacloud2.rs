@@ -38,7 +38,7 @@ pub async fn extract(
         .text()
         .await?;
 
-    // println!("{sources_res_str}");
+    println!("{sources_res_str}");
 
     #[derive(Debug, Deserialize)]
     struct EnctypredSource {
@@ -83,8 +83,17 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_load_by_link() {
+    async fn should_episode1_load_by_link() {
         let link = "https://megacloud.blog/embed-2/v2/e-1/sMAztEG3Egnz?k=1&autoPlay=1&oa=0&asi=1";
+        let sources = extract(link, "https://hianime.to", "Megacloud")
+            .await
+            .unwrap();
+        println!("{sources:#?}")
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn should_episode2_load_by_link() {
+        let link = "https://megacloud.blog/embed-2/v2/e-1/bTxOgLYjOz0s?k=1&autoPlay=1&oa=0&asi=1";
         let sources = extract(link, "https://hianime.to", "Megacloud")
             .await
             .unwrap();
