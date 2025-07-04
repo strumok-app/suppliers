@@ -69,7 +69,7 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
 
             Some(Item {
                 url: format!("{player_url}/e/{id}"),
-                title: format!("[{prefix}] {title}"),
+                title: format!("{prefix} {title}"),
             })
         })
         .collect();
