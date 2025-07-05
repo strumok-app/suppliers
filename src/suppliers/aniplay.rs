@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 
 use anyhow::anyhow;
+use base64::{prelude::BASE64_STANDARD, Engine};
 use log::warn;
 use reqwest::Client;
 use serde::Deserialize;
 
 use crate::{
     models::{ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType},
-    utils::{anilist, create_json_client, jwp_player::Source},
+    utils::{anilist, create_json_client, crypto_js::decrypt_aes_no_salt},
 };
 
 use super::ContentSupplier;
@@ -59,7 +60,7 @@ impl ContentSupplier for AniplayContentSupplier {
         #[derive(Deserialize, Debug)]
         struct AniplayEpisode {
             id: String,
-            number: u32,
+            number: f32,
             #[serde(alias = "hasDub")]
             has_dub: bool,
             #[serde(default)]
@@ -99,12 +100,14 @@ impl ContentSupplier for AniplayContentSupplier {
 
         let res: ApiplayEpisodesResponse = serde_json::from_str(&res_str)?;
 
-        let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
+        let mut sorted_media_items: BTreeMap<i32, ContentMediaItem> = BTreeMap::new();
 
         for server in res.servers {
             let provider = server.provider_id;
             for episode in server.episodes {
-                let media_item = sorted_media_items.entry(episode.number).or_insert_with(|| {
+                let key = (episode.number * 100.0) as i32; // fucking rust f32 is not orderer!
+                                                           // Its insame stupidity!
+                let media_item = sorted_media_items.entry(key).or_insert_with(|| {
                     let num = episode.number;
                     let title = episode.title;
                     ContentMediaItem {
@@ -204,10 +207,23 @@ async fn load_server_by_type(
     r#type: &str,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     #[derive(Deserialize, Debug)]
+    struct ServerSubtitle {
+        url: String,
+        lang: String,
+    }
+
+    #[derive(Deserialize, Debug)]
+    struct ServerSource {
+        url: String,
+    }
+
+    #[derive(Deserialize, Debug)]
     struct ServerRes {
         headers: Option<HashMap<String, String>>,
         #[serde(default)]
-        sources: Vec<Source>,
+        sources: Vec<ServerSource>,
+        #[serde(default)]
+        subtitles: Vec<ServerSubtitle>,
     }
 
     let res_str = client
@@ -226,30 +242,41 @@ async fn load_server_by_type(
         .text()
         .await?;
 
-    let res: ServerRes = serde_json::from_str(&res_str)?;
+    // println!("{res_str}");
+
+    let res_b64 = BASE64_STANDARD.decode(&res_str)?;
+    let res_dec_str = decrypt_aes_no_salt(&[], &res_b64)?;
+
+    // println!("res_dec_str: {res_dec_str}");
+
+    let res: ServerRes = serde_json::from_str(&res_dec_str)?;
 
     let prefix = format!("[{type}] {provider}");
 
-    let sources: Vec<_> = res
-        .sources
-        .iter()
-        .enumerate()
-        .map(|(idx, source)| {
-            let num = idx + 1;
-            let mut description = format!("{prefix} {num}.");
+    let mut sources: Vec<ContentMediaItemSource> = vec![];
 
-            if let Some(label) = &source.label {
-                description.push(' ');
-                description.push_str(label);
-            }
+    res.sources.iter().enumerate().for_each(|(idx, source)| {
+        let num = idx + 1;
+        let description = format!("{prefix} {num}.");
 
-            ContentMediaItemSource::Video {
-                link: String::from(&source.file),
-                headers: res.headers.clone(),
-                description,
-            }
-        })
-        .collect();
+        sources.push(ContentMediaItemSource::Video {
+            link: String::from(&source.url),
+            headers: res.headers.clone(),
+            description,
+        });
+    });
+
+    res.subtitles.iter().enumerate().for_each(|(idx, sub)| {
+        let num = idx + 1;
+        let language = &sub.lang;
+        let description = format!("{prefix} {num} {language}.");
+
+        sources.push(ContentMediaItemSource::Subtitle {
+            link: String::from(&sub.url),
+            headers: None,
+            description,
+        });
+    });
 
     Ok(sources)
 }
@@ -268,7 +295,7 @@ mod test {
         println!("{res:#?}");
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_load_media_items_sources() {
         let res = AniplayContentSupplier
             .load_media_item_sources(
