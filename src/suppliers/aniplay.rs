@@ -288,7 +288,7 @@ mod test {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = AniplayContentSupplier
-            .load_media_items("151807".into(), vec![], vec![])
+            .load_media_items("177709".into(), vec![], vec![])
             // .load_media_items("170942".into(), vec![])
             .await;
 
@@ -302,17 +302,29 @@ mod test {
                 "151807".into(),
                 vec!["ja".to_owned(), "en".to_owned()],
                 vec![
-                    "12".to_owned(),
-                    "maze".to_owned(),
-                    "solo-leveling-310/epi-12-80446".to_owned(),
-                    "1".to_owned(),
-                    "yuki".to_owned(),
-                    "solo-leveling-18718?ep=123078".to_owned(),
-                    "1".to_owned(),
-                    "pahe".to_owned(),
-                    "62289-5421".to_owned(),
-                    "1".to_owned(),
-                ],
+                    "1",
+                    "maze",
+                    "/sakamoto-days-171/epi-1-1810/",
+                    "1",
+                    "pahe",
+                    "67736-5857",
+                    "1",
+                    "yuki",
+                    "sakamoto-days-19431?ep=131796",
+                    "1",
+                    "akane",
+                    "sakamoto-days-19431?ep=131796",
+                    "1",
+                    "owl",
+                    "sakamoto-days-2$episode-227706&episode-227713",
+                    "1",
+                    "koto",
+                    "131796",
+                    "1",
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect(),
             )
             .await;
 
