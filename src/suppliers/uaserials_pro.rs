@@ -36,8 +36,8 @@ impl ContentSupplier for UASerialsProContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -46,9 +46,9 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
-            datalife::search_request(URL, &query).query(&[("search_start", page.to_string())]),
+            datalife::search_request(URL, query).query(&[("search_start", page.to_string())]),
             content_info_items_processor(),
         )
         .await
@@ -56,10 +56,10 @@ impl ContentSupplier for UASerialsProContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
-        let url = datalife::format_id_from_url(URL, &id);
+        let url = datalife::format_id_from_url(URL, id);
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -70,7 +70,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
 
     async fn load_media_items(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -84,7 +84,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -159,7 +159,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = UASerialsProContentSupplier
-            .load_channel("Серіали".into(), 2)
+            .load_channel("Серіали", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -168,7 +168,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UASerialsProContentSupplier
-            .search("Зоряний шлях".into(), 2)
+            .search("Зоряний шлях", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -177,7 +177,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UASerialsProContentSupplier
-            .get_content_details("8831-gotel-kokayin".into(), vec![])
+            .get_content_details("8831-gotel-kokayin", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -187,7 +187,7 @@ mod tests {
     async fn should_load_media_items() {
         let res = UASerialsProContentSupplier
             .load_media_items(
-                "8831-gotel-kokayin".into(),
+                "8831-gotel-kokayin",
                 vec![],
                 vec!["https://hdvbua.pro/embed/9123".into()],
             )

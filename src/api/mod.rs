@@ -35,11 +35,11 @@ pub fn get_supported_languages(supplier: String) -> anyhow::Result<Vec<String>> 
 
 pub async fn search(
     supplier: String,
-    query: String, 
+    query: String,
     page: u16,
 ) -> anyhow::Result<Vec<ContentInfo>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::search(&sup, query, page).await
+    AllContentSuppliers::search(&sup, &query, page).await
 }
 
 pub async fn load_channel(
@@ -48,7 +48,7 @@ pub async fn load_channel(
     page: u16,
 ) -> anyhow::Result<Vec<ContentInfo>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_channel(&sup, channel, page).await
+    AllContentSuppliers::load_channel(&sup, &channel, page).await
 }
 
 pub async fn get_content_details(
@@ -57,7 +57,7 @@ pub async fn get_content_details(
     langs: Vec<String>,
 ) -> anyhow::Result<Option<ContentDetails>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::get_content_details(&sup, id, langs).await
+    AllContentSuppliers::get_content_details(&sup, &id, langs).await
 }
 
 pub async fn load_media_items(
@@ -67,7 +67,7 @@ pub async fn load_media_items(
     params: Vec<String>,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_media_items(&sup, id, langs, params).await
+    AllContentSuppliers::load_media_items(&sup, &id, langs, params).await
 }
 
 pub async fn load_media_item_sources(
@@ -77,7 +77,7 @@ pub async fn load_media_item_sources(
     params: Vec<String>,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_media_item_sources(&sup, id, langs, params).await
+    AllContentSuppliers::load_media_item_sources(&sup, &id, langs, params).await
 }
 
 pub async fn load_manga_pages(
@@ -86,7 +86,7 @@ pub async fn load_manga_pages(
     params: Vec<String>,
 ) -> anyhow::Result<Vec<String>> {
     let loader = AllMangaPagesLoaders::from_str(&supplier).map_err(|err| anyhow!(err))?;
-    AllMangaPagesLoaders::load_pages(&loader, id, params).await
+    AllMangaPagesLoaders::load_pages(&loader, &id, params).await
 }
 
 #[flutter_rust_bridge::frb(sync)] // Synchronous mode for simplicity of the demo

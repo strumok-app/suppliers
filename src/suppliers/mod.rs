@@ -3,6 +3,7 @@
 mod animeua;
 // mod aniplay;
 mod anitube;
+mod anixl;
 mod hianime;
 mod mangadex;
 mod mangafire;
@@ -43,22 +44,22 @@ pub trait ContentSupplier {
     fn get_default_channels(&self) -> Vec<String>;
     fn get_supported_types(&self) -> Vec<ContentType>;
     fn get_supported_languages(&self) -> Vec<String>;
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>>;
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>>;
     async fn load_media_item_sources(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>>;
@@ -98,7 +99,7 @@ pub enum AllContentSuppliers {
 
 #[enum_dispatch]
 pub trait MangaPagesLoader {
-    async fn load_pages(&self, id: String, params: Vec<String>) -> anyhow::Result<Vec<String>>;
+    async fn load_pages(&self, id: &str, params: Vec<String>) -> anyhow::Result<Vec<String>>;
 }
 
 #[enum_dispatch(MangaPagesLoader)]

@@ -48,7 +48,7 @@ pub fn extract_id_from_url(url: &str, mut id: String) -> String {
     id.drain((url.len() + 1)..(id.len() - 5)).collect()
 }
 
-pub fn format_id_from_url(url: &str, id: &String) -> String {
+pub fn format_id_from_url(url: &str, id: &str) -> String {
     format!("{url}/{id}.html")
 }
 

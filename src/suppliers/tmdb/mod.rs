@@ -45,7 +45,7 @@ impl ContentSupplier for TMDBContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         if page > 1 {
             return Ok(vec![]);
         }
@@ -54,7 +54,7 @@ impl ContentSupplier for TMDBContentSupplier {
             .get(format!("{URL}/search/multi"))
             .header(header::AUTHORIZATION, format!("Bearer {SECRET}"))
             .header(header::ACCEPT, "application/json")
-            .query(&[("query", query.as_str()), ("langauge", "en-US")])
+            .query(&[("query", query), ("langauge", "en-US")])
             .send()
             .await?
             .json()
@@ -70,8 +70,8 @@ impl ContentSupplier for TMDBContentSupplier {
             .collect())
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let (fallback_media_type, path) = match get_channels_map().get(&channel) {
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let (fallback_media_type, path) = match get_channels_map().get(channel) {
             Some(params) => params,
             None => return Err(anyhow!("Unknow channel")),
         };
@@ -95,7 +95,7 @@ impl ContentSupplier for TMDBContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let res: TMDBDetailsResponse = utils::create_json_client()
@@ -116,7 +116,7 @@ impl ContentSupplier for TMDBContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -129,7 +129,7 @@ impl ContentSupplier for TMDBContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {

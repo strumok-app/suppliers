@@ -39,9 +39,9 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let result = utils::scrap_page(
-            datalife::search_request(URL, &query).query(&[("from_page", page.to_string())]),
+            datalife::search_request(URL, query).query(&[("from_page", page.to_string())]),
             content_info_items_processor(),
         )
         .await?;
@@ -54,8 +54,8 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         Ok(filtered_results)
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -66,10 +66,10 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
-        let url = datalife::format_id_from_url(URL, &id);
+        let url = datalife::format_id_from_url(URL, id);
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -80,7 +80,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -97,7 +97,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
                 None => return Err(anyhow!("No news id found")),
             };
 
-            let referer = datalife::format_id_from_url(URL, &id);
+            let referer = datalife::format_id_from_url(URL, id);
             let playlist_req = utils::create_client()
                 .get(format!("{URL}/engine/ajax/playlists.php"))
                 .query(&[
@@ -116,7 +116,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         mut params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -231,7 +231,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = UAKinoClubContentSupplier
-            .load_channel("Новинки".into(), 2)
+            .load_channel("Новинки", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -240,7 +240,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UAKinoClubContentSupplier
-            .search("Термінатор".into(), 1)
+            .search("Термінатор", 1)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -249,10 +249,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UAKinoClubContentSupplier
-            .get_content_details(
-                "filmy/genre_comedy/24898-zhyv-sobi-policeiskyi".into(),
-                vec![],
-            )
+            .get_content_details("filmy/genre_comedy/24898-zhyv-sobi-policeiskyi", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -262,7 +259,7 @@ mod tests {
     async fn should_load_media_items() {
         let res = UAKinoClubContentSupplier
             .load_media_items(
-                "filmy/genre_comedy/24898-zhyv-sobi-policeiskyi".into(),
+                "filmy/genre_comedy/24898-zhyv-sobi-policeiskyi",
                 vec![],
                 vec!["https://ashdi.vip/vod/151972".into()],
             )
@@ -275,7 +272,7 @@ mod tests {
     async fn should_load_media_items_for_dle_playlist() {
         let res = UAKinoClubContentSupplier
             .load_media_items(
-                "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon".into(),
+                "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon",
                 vec![],
                 vec![],
             )
@@ -288,7 +285,7 @@ mod tests {
     async fn should_load_media_items_source() {
         let res = UAKinoClubContentSupplier
             .load_media_item_sources(
-                "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon".into(),
+                "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon",
                 vec![],
                 vec![
                     "ТакТребаПродакшн (1-2)".into(),

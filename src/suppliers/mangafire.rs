@@ -44,18 +44,18 @@ impl ContentSupplier for MangaFireContentSupplier {
         vec!["en".into(), "ja".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
                 .get(format!("{URL}/filter"))
-                .query(&[("keyword", query), ("page", page.to_string())]),
+                .query(&[("keyword", query.to_string()), ("page", page.to_string())]),
             content_info_items_processor(),
         )
         .await
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = match get_channels_map().get(channel.as_str()) {
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = match get_channels_map().get(channel) {
             Some(url) => format!("{url}?={page}"),
             None => return Err(anyhow!("unknown channel")),
         };
@@ -69,7 +69,7 @@ impl ContentSupplier for MangaFireContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/manga/{id}");
@@ -92,7 +92,7 @@ impl ContentSupplier for MangaFireContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -135,7 +135,7 @@ impl ContentSupplier for MangaFireContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -390,22 +390,20 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = MangaFireContentSupplier.search("one".into(), 2).await;
+        let res = MangaFireContentSupplier.search("one", 2).await;
         println!("{res:#?}")
     }
 
     #[tokio::test]
     async fn should_load_channel() {
-        let res = MangaFireContentSupplier
-            .load_channel("Updated".into(), 2)
-            .await;
+        let res = MangaFireContentSupplier.load_channel("Updated", 2).await;
         println!("{res:#?}")
     }
 
     #[tokio::test]
     async fn should_get_content_details() {
         let res = MangaFireContentSupplier
-            .get_content_details("one-punch-mann.oo4".into(), vec!["en".into()])
+            .get_content_details("one-punch-mann.oo4", vec!["en".into()])
             .await;
         println!("{res:#?}");
     }
@@ -413,11 +411,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = MangaFireContentSupplier
-            .load_media_items(
-                "one-punch-mann.oo4".into(),
-                vec!["en".into(), "ja".into()],
-                vec![],
-            )
+            .load_media_items("one-punch-mann.oo4", vec!["en".into(), "ja".into()], vec![])
             .await;
         println!("{res:#?}")
     }
@@ -426,7 +420,7 @@ mod tests {
     async fn should_load_media_item_sources() {
         let res = MangaFireContentSupplier
             .load_media_item_sources(
-                "one-punch-mann.oo4".into(),
+                "one-punch-mann.oo4",
                 vec![],
                 vec!["en".into(), "633".into(), "ja".into(), "126226".into()],
             )

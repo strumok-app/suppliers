@@ -39,13 +39,13 @@ impl ContentSupplier for MangaDexContentSupplier {
         vec!["uk".into(), "en".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let offset = (page as usize - 1) * CHANNEL_PAGE_SIZE;
 
         let res_json = utils::create_client()
             .get(format!("{API_URL}/manga"))
             .query(&[
-                ("title", query.as_str()),
+                ("title", query),
                 ("includes[]", "cover_art"),
                 ("hasAvailableChapters", "true"),
             ])
@@ -59,8 +59,8 @@ impl ContentSupplier for MangaDexContentSupplier {
         Ok(search_res.into())
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let query = match get_channels_map().get(channel.as_str()) {
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let query = match get_channels_map().get(channel) {
             Some(query) => query,
             None => return Err(anyhow!("Unknow channel")),
         };
@@ -80,7 +80,7 @@ impl ContentSupplier for MangaDexContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let res: MangaDexSingeItemResponse = utils::create_client()
@@ -96,7 +96,7 @@ impl ContentSupplier for MangaDexContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -171,7 +171,7 @@ impl ContentSupplier for MangaDexContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -180,7 +180,7 @@ impl ContentSupplier for MangaDexContentSupplier {
 }
 
 impl MangaPagesLoader for MangaDexContentSupplier {
-    async fn load_pages(&self, _id: String, params: Vec<String>) -> anyhow::Result<Vec<String>> {
+    async fn load_pages(&self, _id: &str, params: Vec<String>) -> anyhow::Result<Vec<String>> {
         if params.is_empty() {
             return Err(anyhow!("Chapter id expected"));
         }
@@ -464,7 +464,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = MangaDexContentSupplier
-            .load_channel("Popular Titles".into(), 2)
+            .load_channel("Popular Titles", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -472,17 +472,14 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = MangaDexContentSupplier
-            .search("one".into(), 2)
-            .await
-            .unwrap();
+        let res = MangaDexContentSupplier.search("one", 2).await.unwrap();
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_get_content_details() {
         let res = MangaDexContentSupplier
-            .get_content_details("cfc3d743-bd89-48e2-991f-63e680cc4edf".into(), vec![])
+            .get_content_details("cfc3d743-bd89-48e2-991f-63e680cc4edf", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -491,11 +488,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = MangaDexContentSupplier
-            .load_media_items(
-                "c1e284bc-0436-42fe-b571-fa35a94279ce".into(),
-                vec![],
-                vec![],
-            )
+            .load_media_items("c1e284bc-0436-42fe-b571-fa35a94279ce", vec![], vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -505,7 +498,7 @@ mod tests {
     async fn should_load_pages() {
         let res = MangaDexContentSupplier
             .load_pages(
-                "c1e284bc-0436-42fe-b571-fa35a94279ce".into(),
+                "c1e284bc-0436-42fe-b571-fa35a94279ce",
                 vec!["1fe13d15-982f-402b-8120-91f717f886b8".into()],
             )
             .await

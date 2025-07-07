@@ -45,7 +45,7 @@ impl ContentSupplier for UAserialContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         if page > 1 {
             return Ok(vec![]);
         }
@@ -57,8 +57,8 @@ impl ContentSupplier for UAserialContentSupplier {
         utils::scrap_page(request_builder, search_items_processor()).await
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = match get_channels_map().get(channel.as_str()) {
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = match get_channels_map().get(channel) {
             Some(url) => format!("{url}{page}"),
             None => return Err(anyhow!("unknown channel")),
         };
@@ -72,7 +72,7 @@ impl ContentSupplier for UAserialContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}");
@@ -96,7 +96,7 @@ impl ContentSupplier for UAserialContentSupplier {
 
     async fn load_media_items(
         &self,
-        _id: String,
+        _id: &str,
         _params: Vec<String>,
         _langs: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -105,7 +105,7 @@ impl ContentSupplier for UAserialContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -324,7 +324,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = UAserialContentSupplier
-            .load_channel("Серіали".into(), 2)
+            .load_channel("Серіали", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -333,7 +333,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UAserialContentSupplier
-            .search("Термінатор".into(), 0)
+            .search("Термінатор", 0)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -342,7 +342,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details_for_movie() {
         let res = UAserialContentSupplier
-            .get_content_details("movie-the-terminator".into(), vec![])
+            .get_content_details("movie-the-terminator", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -351,7 +351,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details_for_tv_show() {
         let res = UAserialContentSupplier
-            .get_content_details("universal-basic-guys/season-1".into(), vec![])
+            .get_content_details("universal-basic-guys/season-1", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -361,7 +361,7 @@ mod tests {
     async fn should_load_media_item_sources() {
         let res = UAserialContentSupplier
             .load_media_item_sources(
-                "charmed/season-8".into(),
+                "charmed/season-8",
                 vec![],
                 vec!["/embed/blue-exorcist/season-1/episode-1".into()],
             )

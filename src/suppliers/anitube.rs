@@ -41,16 +41,16 @@ impl ContentSupplier for AniTubeContentSupplier {
         vec!["uk".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
-            datalife::search_request(URL, &query).query(&[("search_start", page.to_string())]),
+            datalife::search_request(URL, query).query(&[("search_start", page.to_string())]),
             content_info_items_processor(),
         )
         .await
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -61,10 +61,10 @@ impl ContentSupplier for AniTubeContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
-        let url = datalife::format_id_from_url(URL, &id);
+        let url = datalife::format_id_from_url(URL, id);
 
         let html = utils::create_client()
             .get(&url)
@@ -87,7 +87,7 @@ impl ContentSupplier for AniTubeContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -114,7 +114,7 @@ impl ContentSupplier for AniTubeContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        _id: String,
+        _id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -248,7 +248,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = AniTubeContentSupplier
-            .load_channel("Новинки".into(), 2)
+            .load_channel("Новинки", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -256,17 +256,14 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = AniTubeContentSupplier
-            .search("ball".into(), 2)
-            .await
-            .unwrap();
+        let res = AniTubeContentSupplier.search("ball", 2).await.unwrap();
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AniTubeContentSupplier
-            .get_content_details("31-zapisnik-smert".into(), vec![])
+            .get_content_details("31-zapisnik-smert", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -276,7 +273,7 @@ mod tests {
     async fn should_load_media_items() {
         let res = AniTubeContentSupplier
             .load_media_items(
-                "31-zapisnik-smert".into(),
+                "31-zapisnik-smert",
                 vec![],
                 vec!["867ca5be02de10b799c164d7b7c31e6eece1bb10".into()],
             )
@@ -289,7 +286,7 @@ mod tests {
     async fn should_load_media_items_source() {
         let res = AniTubeContentSupplier
             .load_media_item_sources(
-                "31-zapisnik-smert".into(),
+                "31-zapisnik-smert",
                 vec![],
                 vec![
                     "ОЗВУЧУВАННЯ QTV ПЛЕЄР ASHDI".to_string(),

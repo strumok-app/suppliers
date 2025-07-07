@@ -42,18 +42,18 @@ impl ContentSupplier for HianimeContentSupplier {
         vec!["en".into()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
                 .get(SEARCH_URL)
-                .query(&[("keyword", query), ("page", page.to_string())]),
+                .query(&[("keyword", query.to_string()), ("page", page.to_string())]),
             content_channel_items_processor(),
         )
         .await
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = match get_channels_map().get(channel.as_str()) {
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = match get_channels_map().get(channel) {
             Some(url) => format!("{url}={page}"),
             None => return Err(anyhow!("unknown channel")),
         };
@@ -67,7 +67,7 @@ impl ContentSupplier for HianimeContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         utils::scrap_page(
@@ -79,7 +79,7 @@ impl ContentSupplier for HianimeContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -131,7 +131,7 @@ impl ContentSupplier for HianimeContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        id: String,
+        id: &str,
         langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -140,12 +140,12 @@ impl ContentSupplier for HianimeContentSupplier {
         }
 
         let episode_id = &params[0];
-        let servers = extract_servers(&id, episode_id, langs).await?;
+        let servers = extract_servers(id, episode_id, langs).await?;
 
         let mut sources = vec![];
 
         for server in servers {
-            let mut server_sources = load_server_sources(&id, episode_id, &server).await;
+            let mut server_sources = load_server_sources(id, episode_id, &server).await;
             sources.append(&mut server_sources);
         }
 
@@ -384,7 +384,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = HianimeContentSupplier
-            .load_channel("Most Popular".into(), 2)
+            .load_channel("Most Popular", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -392,17 +392,14 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = HianimeContentSupplier
-            .search("Dr Stone".into(), 0)
-            .await
-            .unwrap();
+        let res = HianimeContentSupplier.search("Dr Stone", 0).await.unwrap();
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = HianimeContentSupplier
-            .get_content_details("dr-stone-ryuusui-18114".into(), vec![])
+            .get_content_details("dr-stone-ryuusui-18114", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -411,7 +408,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = HianimeContentSupplier
-            .load_media_items("dr-stone-ryuusui-18114".into(), vec![], vec![])
+            .load_media_items("dr-stone-ryuusui-18114", vec![], vec![])
             .await
             .unwrap();
         println!("{res:#?}");
@@ -421,7 +418,7 @@ mod tests {
     async fn should_load_media_item_sources() {
         let res = HianimeContentSupplier
             .load_media_item_sources(
-                "dr-stone-ryuusui-18114".into(),
+                "dr-stone-ryuusui-18114",
                 vec!["en".to_owned(), "ja".to_owned()],
                 vec!["92705".into()],
             )

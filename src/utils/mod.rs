@@ -54,7 +54,8 @@ pub fn create_json_client() -> &'static reqwest::Client {
         let mut headers = get_default_headers();
         headers.insert(header::ACCEPT, "application/json".parse().unwrap());
         headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
-        headers.insert("X-Requested-With", "XMLHttpRequest".parse().unwrap());
+        // todo remove this
+        // headers.insert("X-Requested-With", "XMLHttpRequest".parse().unwrap());
 
         builder.default_headers(headers).build().unwrap()
     })

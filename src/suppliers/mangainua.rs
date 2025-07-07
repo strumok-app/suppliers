@@ -40,20 +40,20 @@ impl ContentSupplier for MangaInUaContentSupplier {
         vec!["uk".to_string()]
     }
 
-    async fn search(&self, query: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         if page > 1 {
             return Ok(vec![]);
         }
 
         utils::scrap_page(
-            datalife::search_request(URL, &query),
+            datalife::search_request(URL, query),
             content_info_items_processor(),
         )
         .await
     }
 
-    async fn load_channel(&self, channel: String, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), &channel, page)?;
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -64,10 +64,10 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
     async fn get_content_details(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
-        let url = datalife::format_id_from_url(URL, &id);
+        let url = datalife::format_id_from_url(URL, id);
 
         let html = utils::create_client()
             .get(&url)
@@ -82,7 +82,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
         let mut maybe_details = content_details_processor().process(&root);
 
         if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.params = extract_params(&id, &html)?;
+            details.params = extract_params(id, &html)?;
         }
 
         Ok(maybe_details)
@@ -90,7 +90,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
     async fn load_media_items(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
@@ -157,7 +157,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        id: String,
+        id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
@@ -232,7 +232,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
 }
 
 impl MangaPagesLoader for MangaInUaContentSupplier {
-    async fn load_pages(&self, _id: String, params: Vec<String>) -> anyhow::Result<Vec<String>> {
+    async fn load_pages(&self, _id: &str, params: Vec<String>) -> anyhow::Result<Vec<String>> {
         if params.len() < 4 {
             return Err(anyhow!("invalid params number"));
         }
@@ -388,24 +388,20 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let result = MangaInUaContentSupplier
-            .search("solo leveling".to_string(), 0)
-            .await;
+        let result = MangaInUaContentSupplier.search("solo leveling", 0).await;
         println!("{result:#?}")
     }
 
     #[tokio::test]
     async fn should_load_channel() {
-        let result = MangaInUaContentSupplier
-            .load_channel("Новинки".to_string(), 1)
-            .await;
+        let result = MangaInUaContentSupplier.load_channel("Новинки", 1).await;
         println!("{result:#?}")
     }
 
     #[tokio::test]
     async fn should_get_content_details() {
         let result = MangaInUaContentSupplier
-            .get_content_details("mangas/boyovik/14196-hunter-x-hunter".to_string(), vec![])
+            .get_content_details("mangas/boyovik/14196-hunter-x-hunter", vec![])
             .await;
         println!("{result:#?}")
     }
@@ -414,7 +410,7 @@ mod tests {
     async fn should_load_media_items() {
         let result = MangaInUaContentSupplier
             .load_media_items(
-                "mangas/boyovik/14196-hunter-x-hunter".to_string(),
+                "mangas/boyovik/14196-hunter-x-hunter",
                 vec![],
                 vec!["772f84a2554710856146eb1863c483d705b01412".to_string()],
             )
@@ -426,7 +422,7 @@ mod tests {
     async fn should_load_media_item_sources() {
         let result = MangaInUaContentSupplier
             .load_media_item_sources(
-                "mangas/boyovik/14196-hunter-x-hunter".to_string(),
+                "mangas/boyovik/14196-hunter-x-hunter",
                 vec![],
                 vec![
                     "772f84a2554710856146eb1863c483d705b01412".to_string(),
@@ -441,7 +437,7 @@ mod tests {
     async fn should_load_pages() {
         let result = MangaInUaContentSupplier
             .load_pages(
-                "mangas/boyovik/14196-hunter-x-hunter".to_string(),
+                "mangas/boyovik/14196-hunter-x-hunter",
                 vec![
                     "14275".to_string(),
                     "772f84a2554710856146eb1863c483d705b01412".to_string(),
