@@ -24,7 +24,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
         .text()
         .await?;
 
-    println!("{iframe_res}");
+    // println!("{iframe_res}");
 
     let maybe_md5_pass = MP5_PASS_RE
         .get_or_init(|| Regex::new(r"/pass_md5/(?<pass>[^']*)").unwrap())

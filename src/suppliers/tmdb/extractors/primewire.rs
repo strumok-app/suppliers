@@ -7,7 +7,7 @@ use regex::Regex;
 use reqwest::{header, redirect, Client};
 
 use crate::{
-    extractors::{doodstream, mixdrop, streamwish},
+    extractors::{mixdrop, streamwish},
     models::ContentMediaItemSource,
     utils::{self, crypto},
 };
@@ -44,7 +44,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/embed/movie?{id}"),
     };
 
-    println!("{link}");
+    // println!("{link}");
 
     let client = utils::create_client();
     let servers = load_servers(client, &link).await?;
@@ -138,7 +138,7 @@ async fn load_server_sources(
     };
 
     let res = match server.name.as_str() {
-        "dood.watch" => doodstream::extract(location, &display_name).await,
+        // "dood.watch" => doodstream::extract(location, &display_name).await,
         "streamwish.to" | "filelions.to" => {
             streamwish::extract(location, server_link, &display_name).await
         }
