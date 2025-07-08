@@ -481,20 +481,6 @@ pub fn default_value() -> Box<DefaultValue> {
     Box::new(DefaultValue::new())
 }
 
-pub fn sanitize_text(text: &str) -> String {
-    static SANITIZE_TEXT_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
-    let re = SANITIZE_TEXT_REGEXP.get_or_init(|| Regex::new(r#"[\n\t\s]+"#).unwrap());
-
-    re.replace_all(text, " ").into_owned().trim().into()
-}
-
-pub fn strip_html(text: &str) -> String {
-    static STRIP_HTML_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
-    let re = STRIP_HTML_REGEXP.get_or_init(|| Regex::new(r#"<[^>]*>"#).unwrap());
-
-    re.replace_all(text, "").into_owned().trim().into()
-}
-
 pub fn self_hosted_image(
     url: &'static str,
     selectors: &str,

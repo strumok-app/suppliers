@@ -321,7 +321,7 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
         image: html::attr_value(".manga-detail .container .main-inner .poster img", "src"),
         description: html::TextValue::new()
             .all_nodes()
-            .map(|s| html::strip_html(&s))
+            .map(|s| utils::text::strip_html(&s))
             .in_scope("#synopsis .modal-content")
             .unwrap_or_default()
             .boxed(),
@@ -335,14 +335,14 @@ fn content_details_processor() -> &'static html::ContentDetailsProcessor {
                 ".manga-detail .min-info span",
                 html::TextValue::new()
                     .all_nodes()
-                    .map(|s| html::sanitize_text(&s))
+                    .map(|s| utils::text::sanitize_text(&s))
                     .boxed(),
             ),
             html::items_processor(
                 ".manga-detail .sidebar .meta div",
                 html::TextValue::new()
                     .all_nodes()
-                    .map(|s| html::sanitize_text(&s))
+                    .map(|s| utils::text::sanitize_text(&s))
                     .boxed(),
             ),
         ]),

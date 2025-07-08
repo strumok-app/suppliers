@@ -196,7 +196,7 @@ async fn extract_servers(
             let data_id = el.attr("data-id")?;
             let title = el
                 .text()
-                .map(html::sanitize_text)
+                .map(utils::text::sanitize_text)
                 .collect::<Vec<_>>()
                 .join("");
 
@@ -213,13 +213,13 @@ async fn extract_servers(
             let data_id = el.attr("data-id")?;
             let title = el
                 .text()
-                .map(html::sanitize_text)
+                .map(utils::text::sanitize_text)
                 .collect::<Vec<_>>()
                 .join("");
 
             Some(HianimeServer {
                 id: data_id.to_owned(),
-                title: html::sanitize_text(&title),
+                title: utils::text::sanitize_text(&title),
                 dub: false,
             })
         }));
@@ -292,7 +292,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 media_type: MediaType::Video,
                 title: html::TextValue::new()
                     .all_nodes()
-                    .map(|s| html::sanitize_text(&s))
+                    .map(|s| utils::text::sanitize_text(&s))
                     .in_scope(format!("{ASIDE_SEL} .anisc-detail .film-name").as_str())
                     .unwrap_or_default()
                     .boxed(),
@@ -300,7 +300,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 image: html::attr_value(format!("{ASIDE_SEL} .anisc-poster img").as_str(), "src"),
                 description: html::TextValue::new()
                     .all_nodes()
-                    .map(|s| html::sanitize_text(&s))
+                    .map(|s| utils::text::sanitize_text(&s))
                     .in_scope(format!("{ASIDE_SEL} .anisc-detail .film-description").as_str())
                     .unwrap_or_default()
                     .boxed(),
@@ -308,7 +308,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     format!("{ASIDE_SEL} .anisc-info-wrap .anisc-info .item:not(.w-hide)").as_str(),
                     html::TextValue::new()
                         .all_nodes()
-                        .map(|s| html::sanitize_text(&s))
+                        .map(|s| utils::text::sanitize_text(&s))
                         .boxed(),
                 ),
                 similar: html::items_processor(
@@ -332,7 +332,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .boxed(),
         title: html::TextValue::new()
             .all_nodes()
-            .map(|s| html::sanitize_text(&s))
+            .map(|s| utils::text::sanitize_text(&s))
             .in_scope(".film-detail .film-name")
             .unwrap_or_default()
             .boxed(),

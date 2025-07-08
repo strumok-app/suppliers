@@ -180,7 +180,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
                 title: html::TextValue::new()
-                    .map(|s| html::sanitize_text(&s))
+                    .map(|s| utils::text::sanitize_text(&s))
                     .in_scope(".story_c > .rcol > h2")
                     .unwrap_or_default()
                     .boxed(),
@@ -194,7 +194,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         .text()
                         .collect::<String>()
                         .split("\n")
-                        .map(html::sanitize_text)
+                        .map(utils::text::sanitize_text)
                         .filter(|s| !s.is_empty() && !s.starts_with("."))
                         .collect();
 

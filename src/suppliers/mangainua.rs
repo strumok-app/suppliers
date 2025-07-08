@@ -353,7 +353,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     ])
                     .map(|strs| {
                         strs.into_iter()
-                            .map(|s| html::sanitize_text(&s))
+                            .map(|s| utils::text::sanitize_text(&s))
                             .filter(|s| !s.is_empty())
                             .collect::<Vec<_>>()
                             .join(" ")

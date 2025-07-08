@@ -1,0 +1,29 @@
+query ($id: String!, $page: Int!){
+  get_animesEpisodesList(select:  {
+    ani_id: $id,
+    page: $page
+    size: 100
+  }) {
+    items {
+      data {
+        ep_id
+        ep_title
+        sourcesNode_list {
+          data {
+            src_server
+            src_name
+            src_type
+            souPath
+            track {
+              trackPath
+              label
+            }
+          }
+        }
+      }
+    }
+    paging {
+      pages
+    }
+  }
+}

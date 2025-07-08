@@ -18,6 +18,7 @@ mod ufdub;
 use animeua::AnimeUAContentSupplier;
 // use aniplay::AniplayContentSupplier;
 use anitube::AniTubeContentSupplier;
+use anixl::AniXLContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
@@ -75,6 +76,8 @@ pub enum AllContentSuppliers {
     HianimeContentSupplier,
     // #[strum(serialize = "Aniplay")]
     // AniplayContentSupplier,
+    #[strum(serialize = "Anixl")]
+    AniXLContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]

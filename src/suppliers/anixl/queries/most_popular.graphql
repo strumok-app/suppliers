@@ -1,7 +1,6 @@
-query ($query: String!, $page: Int = 1) {
+query ($page: Int = 1) {
   result: get_searchAnime(
     select:  {
-       word: $query
        page: $page
        size: 10
        sortby: "field_score"

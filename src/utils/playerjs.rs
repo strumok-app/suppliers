@@ -7,8 +7,6 @@ use serde::Deserialize;
 
 use crate::models::{ContentMediaItem, ContentMediaItemSource};
 
-use super::extract_digits;
-
 #[derive(Deserialize, Debug)]
 pub struct PlayerJSFile {
     title: String,
@@ -246,5 +244,5 @@ fn populate_subtitle(sources: &mut Vec<ContentMediaItemSource>, url: &str, defau
 }
 
 fn default_season_episode_id(season: &str, episode: &str) -> u32 {
-    extract_digits(season) * 10000 + extract_digits(episode)
+    super::text::extract_digits(season) * 10000 + super::text::extract_digits(episode)
 }

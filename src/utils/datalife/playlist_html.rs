@@ -1,4 +1,7 @@
-use crate::utils::{extract_digits, html::{self, DOMProcessor, ItrDOMProcessor}};
+use crate::utils::{
+    html::{self, DOMProcessor, ItrDOMProcessor},
+    text::extract_digits,
+};
 
 #[derive(Debug)]
 pub struct AjaxPlaylist {
@@ -86,7 +89,9 @@ impl AjaxPlaylisVideoProcessor {
         Self {
             id: html::AttrValue::new("data-id").unwrap_or_default().boxed(),
             name: html::TextValue::new().boxed(),
-            file: html::AttrValue::new("data-file").unwrap_or_default().boxed(),
+            file: html::AttrValue::new("data-file")
+                .unwrap_or_default()
+                .boxed(),
         }
     }
 }

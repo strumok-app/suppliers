@@ -143,7 +143,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         ".page__subcol-side2 li",
                         html::TextValue::new()
                             .all_nodes()
-                            .map(|s| html::sanitize_text(&s))
+                            .map(|s| utils::text::sanitize_text(&s))
                             .boxed(),
                     ),
                 ]),

@@ -134,7 +134,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 image: html::self_hosted_image(URL, ".m-img>img", "src"),
                 description: html::TextValue::new()
                     .in_scope(".m-desc")
-                    .map_optional(|s| html::sanitize_text(&s))
+                    .map_optional(|s| utils::text::sanitize_text(&s))
                     .unwrap_or_default()
                     .boxed(),
                 additional_info: html::merge(vec![

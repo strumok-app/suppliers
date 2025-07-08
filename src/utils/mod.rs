@@ -10,6 +10,7 @@ pub mod jwp_player;
 pub mod lang;
 pub mod nextjs;
 pub mod playerjs;
+pub mod text;
 pub mod unpack;
 
 use std::{
@@ -18,7 +19,6 @@ use std::{
 };
 
 use doh::DoHResolver;
-use regex::Regex;
 use reqwest::{
     header::{self, HeaderMap},
     ClientBuilder,
@@ -54,8 +54,6 @@ pub fn create_json_client() -> &'static reqwest::Client {
         let mut headers = get_default_headers();
         headers.insert(header::ACCEPT, "application/json".parse().unwrap());
         headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
-        // todo remove this
-        // headers.insert("X-Requested-With", "XMLHttpRequest".parse().unwrap());
 
         builder.default_headers(headers).build().unwrap()
     })
@@ -100,32 +98,4 @@ pub async fn scrap_page<T>(
     let root = document.root_element();
 
     Ok(processor.process(&root))
-}
-
-pub fn extract_digits(text: &str) -> u32 {
-    let mut acc: u32 = 0;
-
-    for ch in text.chars() {
-        if let Some(digit) = ch.to_digit(10) {
-            acc = acc * 10 + digit;
-        }
-    }
-
-    acc
-}
-
-pub fn extract_file_property(script: &str) -> Option<&str> {
-    static FILE_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
-    FILE_PROPERTY_RE
-        .get_or_init(|| Regex::new(r#"file:\s?['"](?<file>[^"]+)['"]"#).unwrap())
-        .captures(script)
-        .and_then(|m| Some(m.name("file")?.as_str()))
-}
-
-pub fn to_full_url(url: &str) -> String {
-    if url.starts_with("//") {
-        format!("https:{url}")
-    } else {
-        url.into()
-    }
 }

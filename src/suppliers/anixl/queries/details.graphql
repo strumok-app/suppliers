@@ -1,0 +1,15 @@
+query ($id: String!) {
+  get_animesNode(id: $id) {
+    data {
+      info_title
+      info_filmdesc
+      urlCoverOri
+      score_avg
+      info_meta_dateAiredBegin
+      info_meta_dateAiredEnd
+      info_meta_genre
+      info_meta_status
+      info_meta_year
+    }
+  }
+}

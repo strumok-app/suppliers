@@ -145,7 +145,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .unwrap_or_default()
             .boxed(),
         title: html::TextValue::new()
-            .map(|s| html::sanitize_text(&s))
+            .map(|s| utils::text::sanitize_text(&s))
             .in_scope(".movie-title")
             .unwrap_or_default()
             .boxed(),
@@ -175,7 +175,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 original_title: html::optional_text_value(".origintitle"),
                 image: html::self_hosted_image(URL, ".film-poster img", "src"),
                 description: html::TextValue::new()
-                    .map(|s| html::sanitize_text(&s))
+                    .map(|s| utils::text::sanitize_text(&s))
                     .in_scope("div[itemprop=description]")
                     .unwrap_or_default()
                     .boxed(),

@@ -183,7 +183,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     "article > .full-desc > .full-text p",
                     html::TextValue::new().boxed(),
                 )
-                .map(|v| html::sanitize_text(&v.join("")))
+                .map(|v| utils::text::sanitize_text(&v.join("")))
                 .boxed(),
                 additional_info: html::merge(vec![
                     html::items_processor(

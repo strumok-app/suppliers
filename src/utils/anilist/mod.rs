@@ -81,7 +81,7 @@ pub async fn get_anime(id: &str) -> anyhow::Result<Option<ContentDetails>> {
             title: title.english.or(title.romaji).unwrap_or_default(),
             original_title: title.native,
             image: media.cover_image.extra_large,
-            description: utils::html::strip_html(&media.description),
+            description: utils::text::strip_html(&media.description),
             additional_info,
             similar: vec![],
             media_items: None,
