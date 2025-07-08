@@ -219,7 +219,7 @@ fn details_anime_node_to_content_details(node: models::DetailsAnimeNode) -> Cont
     ContentDetails {
         title: data.info_title,
         original_title: None,
-        image: data.url_cover,
+        image: format!("{SITE_URL}{}", data.url_cover),
         description: utils::text::sanitize_text(&data.info_filmdesc),
         media_type: MediaType::Video,
         additional_info: vec![
