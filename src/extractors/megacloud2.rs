@@ -23,11 +23,11 @@ pub async fn extract(
         .and_then(|(_, r)| r.split_once("?").map(|(l, _)| l).or(Some(r)))
         .unwrap();
 
-    // println!("{id}");
+    
 
     let key = get_key().await?;
 
-    // println!("{key}");
+    
 
     let sources_res_str = utils::create_client()
         .get(format!(
@@ -48,7 +48,7 @@ pub async fn extract(
 
     let sources_res: EnctypredSource = serde_json::from_str(&sources_res_str)?;
 
-    // println!("{sources_res:#?}");
+    
 
     // decrypt_aes(key, iv, ct);
     let b64_decodes = BASE64_STANDARD.decode(sources_res.sources.as_bytes())?;

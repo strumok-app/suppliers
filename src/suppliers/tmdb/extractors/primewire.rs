@@ -44,12 +44,12 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/embed/movie?{id}"),
     };
 
-    // println!("{link}");
+    
 
     let client = utils::create_client();
     let servers = load_servers(client, &link).await?;
 
-    // println!("{servers:#?}");
+    
 
     let no_redirect_client = utils::create_client_builder()
         .default_headers(utils::get_default_headers())
@@ -75,7 +75,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
 async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow::Error> {
     let html = client.get(link).send().await?.text().await?;
 
-    // println!("{html}");
+    
 
     static KEY_RE: OnceLock<Regex> = OnceLock::new();
     static SERVERS_RE: OnceLock<Regex> = OnceLock::new();
@@ -89,7 +89,7 @@ async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow
 
     let links_hashes = decrypt_links(key)?;
 
-    // println!("{links_hashes:?}");
+    
 
     let servers = SERVERS_RE
         .get_or_init(|| Regex::new(r##""#([0-9]+)\s+\-\s+([a-zA-Z0-9\.]+)"##).unwrap())
@@ -107,7 +107,7 @@ async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow
         })
         .collect::<Vec<_>>();
 
-    // println!("{servers:?}");
+    
 
     Ok(servers)
 }
@@ -127,7 +127,7 @@ async fn load_server_sources(
         _ => None,
     };
 
-    // println!("{maybe_location:#?}");
+    
 
     let location = match maybe_location {
         Some(l) => l.to_str().unwrap(),

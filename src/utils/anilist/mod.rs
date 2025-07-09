@@ -17,7 +17,7 @@ pub async fn search_anime(query: &str, page: u16) -> anyhow::Result<Vec<ContentI
 
     let body = json!({"query": gql, "variables": variables,});
 
-    // println!("{body:#?}");
+    
 
     let result: SearchResponse = utils::create_json_client()
         .post(URL)
@@ -27,7 +27,7 @@ pub async fn search_anime(query: &str, page: u16) -> anyhow::Result<Vec<ContentI
         .json()
         .await?;
 
-    // println!("{result:#?}");
+    
 
     let content_info: Vec<_> = result
         .data
@@ -46,7 +46,7 @@ pub async fn get_anime(id: &str) -> anyhow::Result<Option<ContentDetails>> {
 
     let body = json!({"query": gql, "variables": variables,});
 
-    // println!("{body:#?}");
+    
 
     let result: GetAnimeResponse = utils::create_json_client()
         .post(URL)
@@ -56,7 +56,7 @@ pub async fn get_anime(id: &str) -> anyhow::Result<Option<ContentDetails>> {
         .json()
         .await?;
 
-    // println!("{result:#?}");
+    
 
     let details = result.data.and_then(|data| data.media).map(|media| {
         let title = media.title;

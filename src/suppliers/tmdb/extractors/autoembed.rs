@@ -55,7 +55,7 @@ pub async fn extract(
         .text()
         .await?;
 
-    // println!("{server_res_str:#?}");
+    
 
     let server_res: ServerRes = serde_json::from_str(&server_res_str)?;
 

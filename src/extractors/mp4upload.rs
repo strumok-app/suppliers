@@ -17,7 +17,7 @@ pub async fn extract(
         .text()
         .await?;
 
-    //println!("{html}");
+    
 
     static SRC_REGEXP: OnceLock<Regex> = OnceLock::new();
     let file = SRC_REGEXP

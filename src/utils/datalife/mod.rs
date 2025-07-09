@@ -69,7 +69,7 @@ pub async fn load_ajax_playlist(
         .text()
         .await?;
 
-    // println!("{res_text:#?}");
+    
 
     let res: AjaxPlaylistResponse = serde_json::from_str(&res_text)?;
 

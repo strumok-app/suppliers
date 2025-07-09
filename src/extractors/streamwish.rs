@@ -25,7 +25,7 @@ pub async fn extract(
         .text()
         .await?;
 
-    // println!("{html:#?}");
+    
 
     let document = scraper::Html::parse_document(&html);
     let packer_script = document
@@ -43,7 +43,7 @@ pub async fn extract(
 
     let upacked_script = packerjs::unpack(packer_script).map_err(|err| anyhow!(err))?;
 
-    // println!("{upacked_script}");
+    
 
     static FILE_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
     let file = FILE_PROPERTY_RE

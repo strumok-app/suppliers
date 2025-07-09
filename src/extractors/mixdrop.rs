@@ -37,7 +37,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
 
     let upacked_script = packerjs::unpack(packer_script).map_err(|err| anyhow!(err))?;
 
-    // println!("{upacked_script:#?}");
+    
 
     static FILE_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
     let mut file = FILE_PROPERTY_RE

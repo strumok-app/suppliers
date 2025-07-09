@@ -259,7 +259,7 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
             .text()
             .await?;
 
-        // println!("{pages_list:#?}");
+        
 
         let fragment = scraper::Html::parse_fragment(&pages_list);
 

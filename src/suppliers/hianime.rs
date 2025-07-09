@@ -19,8 +19,6 @@ use crate::utils::html::{self, DOMProcessor};
 use super::ContentSupplier;
 
 const URL: &str = "https://hianimez.to";
-const SEARCH_URL: &str = "https://hianimez.to/search";
-// static HIANIME_API: &str = env!("HIANIME_API");
 
 #[derive(Default)]
 pub struct HianimeContentSupplier;
@@ -45,7 +43,7 @@ impl ContentSupplier for HianimeContentSupplier {
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             utils::create_client()
-                .get(SEARCH_URL)
+                .get(format!("{URL}/search"))
                 .query(&[("keyword", query.to_string()), ("page", page.to_string())]),
             content_channel_items_processor(),
         )
@@ -253,7 +251,7 @@ async fn load_server_sources(
         _ => return vec![],
     };
 
-    // println!("{server:#?}: {res:#?}");
+    
     match res {
         Ok(sources) => sources,
         Err(err) => {

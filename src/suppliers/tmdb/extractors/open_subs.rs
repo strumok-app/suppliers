@@ -37,7 +37,7 @@ pub async fn extract(
         None => format!("{base_url}/subtitles/movie/{imdb_id}.json"),
     };
 
-    // println!("{link:#?}");
+    
 
     let res_str = utils::create_client_builder()
         .build()?
@@ -47,7 +47,7 @@ pub async fn extract(
         .text()
         .await?;
 
-    // println!("{res_str:#?}");
+    
 
     #[derive(Debug, Deserialize)]
     struct SubtitleRes {

@@ -25,8 +25,7 @@ use reqwest::{
 };
 
 pub fn get_user_agent<'a>() -> &'a str {
-    // todo: rotate user agent
-    "Mozilla/5.0 (X11; Linux x86_64; rv:133.0) Gecko/20100101 Firefox/133.0"
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
 }
 
 pub fn create_client() -> &'static reqwest::Client {
@@ -91,8 +90,6 @@ pub async fn scrap_page<T>(
     processor: &dyn html::DOMProcessor<T>,
 ) -> Result<T, anyhow::Error> {
     let html = request_builder.send().await?.text().await?;
-
-    // println!("{html:#?}");
 
     let document = scraper::Html::parse_document(&html);
     let root = document.root_element();

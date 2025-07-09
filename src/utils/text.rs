@@ -43,3 +43,15 @@ pub fn strip_html(text: &str) -> String {
 
     re.replace_all(text, "").into_owned().trim().into()
 }
+
+pub fn to_title_case(input: &str) -> String {
+    input
+        .split('_')
+        .map(|word| {
+            word.chars()
+                .nth(0)
+                .map_or(String::new(), |c| c.to_uppercase().to_string() + &word[1..])
+        })
+        .collect::<Vec<String>>()
+        .join(" ")
+}

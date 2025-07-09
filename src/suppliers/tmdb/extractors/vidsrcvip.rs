@@ -42,7 +42,7 @@ pub async fn extract(
         }
     };
 
-    // println!("{link}");
+    
 
     #[derive(Debug, Deserialize)]
     struct ServerSource {
@@ -61,11 +61,11 @@ pub async fn extract(
 
     let res_str = create_json_client().get(link).send().await?.text().await?;
 
-    // println!("{res_str}");
+    
 
     let res: ServerSources = serde_json::from_str(&res_str)?;
 
-    // println!("{res:#?}");
+    
 
     let sources = vec![
         res.source1,
@@ -112,7 +112,7 @@ fn unwrap_hls1_proxy(url_str: &str) -> Option<String> {
         }
     };
 
-    // println!("{url:#?}");
+    
 
     static MEGACDN_RE: OnceLock<Regex> = OnceLock::new();
     let megacdn_re = MEGACDN_RE.get_or_init(|| Regex::new(r"f\d+\.megacdn\.co").unwrap());

@@ -4,6 +4,7 @@ mod animeua;
 // mod aniplay;
 mod anitube;
 mod anixl;
+mod anizone;
 mod hianime;
 mod mangadex;
 mod mangafire;
@@ -16,9 +17,9 @@ mod uaserials_pro;
 mod ufdub;
 
 use animeua::AnimeUAContentSupplier;
-// use aniplay::AniplayContentSupplier;
 use anitube::AniTubeContentSupplier;
-use anixl::AniXLContentSupplier;
+use anixl::AnixlContentSupplier;
+use anizone::AnizoneContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
@@ -74,10 +75,10 @@ pub enum AllContentSuppliers {
     TMDBContentSupplier,
     #[strum(serialize = "Hianime")]
     HianimeContentSupplier,
-    // #[strum(serialize = "Aniplay")]
-    // AniplayContentSupplier,
     #[strum(serialize = "Anixl")]
-    AniXLContentSupplier,
+    AnixlContentSupplier,
+    #[strum(serialize = "Anizone")]
+    AnizoneContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]

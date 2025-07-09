@@ -44,11 +44,11 @@ pub async fn extract(
         .text()
         .await?;
 
-    // println!("{res_str}");
+    
 
     let files: Vec<ServerRes> = serde_json::from_str(&res_str)?;
 
-    // println!("{res:#?}");
+    
 
     let sources: Vec<_> = files
         .into_iter()

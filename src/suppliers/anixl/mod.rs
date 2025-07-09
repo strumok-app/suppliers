@@ -23,9 +23,9 @@ const GRAPHQL_URL: &str = "https://anixl.to/apo/";
 const MAX_PAGE: usize = 20;
 
 #[derive(Default)]
-pub struct AniXLContentSupplier;
+pub struct AnixlContentSupplier;
 
-impl ContentSupplier for AniXLContentSupplier {
+impl ContentSupplier for AnixlContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         get_channels_map().keys().map(|&s| s.into()).collect()
     }
@@ -56,11 +56,7 @@ impl ContentSupplier for AniXLContentSupplier {
             .text()
             .await?;
 
-        // println!("{result_str}");
-
         let response: SearchResponse = serde_json::from_str(&response_str)?;
-
-        // println!("{response:#?}");
 
         let results: Vec<_> = response
             .data
@@ -92,11 +88,7 @@ impl ContentSupplier for AniXLContentSupplier {
             .text()
             .await?;
 
-        // println!("{response_str}");
-
         let response: SearchResponse = serde_json::from_str(&response_str)?;
-
-        // println!("{response:#?}");
 
         let results: Vec<_> = response
             .data
@@ -126,8 +118,6 @@ impl ContentSupplier for AniXLContentSupplier {
             .await?
             .text()
             .await?;
-
-        // println!("{result_str}");
 
         let response: DetailsResponse = serde_json::from_str(&response_str)?;
 
@@ -169,8 +159,6 @@ impl ContentSupplier for AniXLContentSupplier {
                     break;
                 }
             };
-
-            // println!("{response_str}");
 
             let response: EpisodesResponse = match serde_json::from_str(&response_str) {
                 Ok(s) => s,
@@ -225,12 +213,18 @@ fn details_anime_node_to_content_details(node: models::DetailsAnimeNode) -> Cont
         additional_info: vec![
             data.score_avg.map(|s| s.to_string()),
             data.info_meta_year,
-            data.info_meta_status,
+            data.info_meta_status
+                .map(|s| utils::text::to_title_case(&s)),
             data.info_meta_date_aired_begin
                 .map(|s| format!("Date aired begin: {s}")),
             data.info_meta_date_aired_end
                 .map(|s| format!("Date aired end: {s}")),
-            data.info_meta_genre.map(|g| g.join(",")),
+            data.info_meta_genre.map(|g| {
+                g.into_iter()
+                    .map(|s| utils::text::to_title_case(&s))
+                    .collect::<Vec<String>>()
+                    .join(", ")
+            }),
         ]
         .into_iter()
         .flatten()
@@ -258,15 +252,20 @@ fn episode_to_media_item(ep: models::AnimeEpisodeNode, langs: &[String]) -> Cont
             headers: None,
         });
 
-        for track in source_data.track {
-            if lang::is_allowed(langs, &track.label) {
-                sources.push(ContentMediaItemSource::Subtitle {
-                    link: track.path,
-                    description: track.label,
-                    headers: None,
-                });
-            }
-        }
+        source_data
+            .track
+            .into_iter()
+            .enumerate()
+            .for_each(|(idx, track)| {
+                if lang::is_allowed(langs, &track.label) {
+                    let num = idx + 1;
+                    sources.push(ContentMediaItemSource::Subtitle {
+                        link: track.path,
+                        description: format!("{num}. {}", track.label),
+                        headers: None,
+                    });
+                }
+            });
     }
 
     ContentMediaItem {
@@ -297,13 +296,13 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = AniXLContentSupplier.search("Naruto", 0).await.unwrap();
+        let res = AnixlContentSupplier.search("Naruto", 0).await.unwrap();
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
     async fn should_load_most_popular_channel() {
-        let res = AniXLContentSupplier
+        let res = AnixlContentSupplier
             .load_channel("Most Popular", 2)
             .await
             .unwrap();
@@ -312,7 +311,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_latest_channel() {
-        let res = AniXLContentSupplier
+        let res = AnixlContentSupplier
             .load_channel("Latest", 2)
             .await
             .unwrap();
@@ -321,7 +320,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
-        let res = AniXLContentSupplier
+        let res = AnixlContentSupplier
             .get_content_details("15956", vec![])
             .await
             .unwrap();
@@ -330,7 +329,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_media_items() {
-        let res = AniXLContentSupplier
+        let res = AnixlContentSupplier
             .load_media_items("15956", vec![], vec![])
             .await
             .unwrap();

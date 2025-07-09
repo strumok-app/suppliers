@@ -20,7 +20,7 @@ pub async fn server_action<P: Serialize, R: DeserializeOwned>(
         .text()
         .await?;
 
-    // println!("{res}");
+    
 
     let split_pattern = format!("{res_id}:");
     let action_result = res
@@ -32,7 +32,7 @@ pub async fn server_action<P: Serialize, R: DeserializeOwned>(
         .last()
         .unwrap_or_default();
 
-    // println!("{action_result}");
+    
 
     let result: R = serde_json::from_str(action_result)?;
 

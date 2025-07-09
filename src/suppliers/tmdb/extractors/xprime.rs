@@ -44,7 +44,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .json()
         .await?;
 
-    // println!("{server_res:#?}");
+    
 
     Ok(vec![ContentMediaItemSource::Video {
         link: server_res.url,

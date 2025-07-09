@@ -96,7 +96,7 @@ impl ContentSupplier for AniplayContentSupplier {
             .text()
             .await?;
 
-        // println!("{res_str:#?}");
+        
 
         let res: ApiplayEpisodesResponse = serde_json::from_str(&res_str)?;
 
@@ -242,12 +242,12 @@ async fn load_server_by_type(
         .text()
         .await?;
 
-    // println!("{res_str}");
+    
 
     let res_b64 = BASE64_STANDARD.decode(&res_str)?;
     let res_dec_str = decrypt_aes_no_salt(&[], &res_b64)?;
 
-    // println!("res_dec_str: {res_dec_str}");
+    
 
     let res: ServerRes = serde_json::from_str(&res_dec_str)?;
 

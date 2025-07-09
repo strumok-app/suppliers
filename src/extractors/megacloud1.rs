@@ -30,7 +30,7 @@ pub async fn extract(
         .json()
         .await?;
 
-    // println!("{xrax}: {config:#?}");
+    
 
     Ok(config.to_media_item_sources(
         prefix,

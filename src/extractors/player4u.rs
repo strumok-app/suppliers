@@ -28,7 +28,7 @@ pub async fn extract(
 
     let items = lookup_items(&res, prefix);
 
-    // println!("{items:#?}");
+    
 
     let sub_extractors = items.iter().map(|item| {
         let url = &item.url;
