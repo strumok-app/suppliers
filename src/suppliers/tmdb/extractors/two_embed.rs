@@ -35,8 +35,6 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/embed/{id}"),
     };
 
-    
-
     let res = utils::create_client()
         .post(&url)
         .header("Referer", &url)
@@ -47,7 +45,6 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
-    
     if let Some(items) = try_extract_player4u(&res).await {
         return Ok(items);
     }
@@ -75,7 +72,7 @@ async fn try_extract_player4u(res: &str) -> Option<Vec<ContentMediaItemSource>> 
         }
     };
 
-    match player4u::extract(id, REF_URL, "Two Embed").await {
+    match player4u::extract(id, REF_URL, "2e").await {
         Ok(items) => Some(items),
         Err(e) => {
             warn!("[two_embed] player4u failed: {e:#?}");
@@ -99,8 +96,6 @@ async fn try_extract_streamwish(res: &str) -> Option<Vec<ContentMediaItemSource>
             return None;
         }
     };
-
-    
 
     let player_url = streamwish::PLAYER_URL;
     let stw_result = streamwish::extract(
