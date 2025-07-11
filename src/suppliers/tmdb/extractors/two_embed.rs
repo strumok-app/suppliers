@@ -75,7 +75,7 @@ async fn try_extract_player4u(res: &str) -> Option<Vec<ContentMediaItemSource>> 
         }
     };
 
-    match player4u::extract(id, REF_URL, "Two Embed").await {
+    match player4u::extract(id, REF_URL, "[2e]").await {
         Ok(items) => Some(items),
         Err(e) => {
             warn!("[two_embed] player4u failed: {e:#?}");
