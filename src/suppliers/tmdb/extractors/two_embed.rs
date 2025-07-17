@@ -35,8 +35,6 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/embed/{id}"),
     };
 
-    
-
     let res = utils::create_client()
         .post(&url)
         .header("Referer", &url)
@@ -47,7 +45,6 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
-    
     if let Some(items) = try_extract_player4u(&res).await {
         return Ok(items);
     }
@@ -100,8 +97,6 @@ async fn try_extract_streamwish(res: &str) -> Option<Vec<ContentMediaItemSource>
         }
     };
 
-    
-
     let player_url = streamwish::PLAYER_URL;
     let stw_result = streamwish::extract(
         format!("{player_url}/e/{id}").as_str(),
@@ -135,10 +130,10 @@ mod test {
         println!("{res:#?}")
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_load_tv_show() {
         let res = extract(&SourceParams {
-            id: 655,
+            id: 609681,
             imdb_id: None,
             ep: Some(Episode { e: 1, s: 1 }),
         })

@@ -44,11 +44,7 @@ pub async fn extract(
         .text()
         .await?;
 
-    
-
     let files: Vec<ServerRes> = serde_json::from_str(&res_str)?;
-
-    
 
     let sources: Vec<_> = files
         .into_iter()
@@ -72,11 +68,11 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_extract_tv() {
         let res = extract(
             &SourceParams {
-                id: 655,
+                id: 93405,
                 imdb_id: None,
                 ep: Some(Episode { e: 1, s: 1 }),
             },

@@ -15,7 +15,7 @@ use super::SourceParams;
 
 const SITE_URL: &str = "https://vidsrc.vip";
 const BACKEND_URL: &str = "https://api2.vidsrc.vip";
-const HSL1_PROXY: &str = "https://hls1.vid1.site";
+const HSL1_PROXY: &str = "https://hls2.vid1.site";
 const MEGACDN_SERVER: &str = "f12.megacdn.co";
 
 pub fn extract_boxed<'a>(
@@ -42,8 +42,6 @@ pub async fn extract(
         }
     };
 
-    
-
     #[derive(Debug, Deserialize)]
     struct ServerSource {
         url: Option<String>,
@@ -61,11 +59,7 @@ pub async fn extract(
 
     let res_str = create_json_client().get(link).send().await?.text().await?;
 
-    
-
     let res: ServerSources = serde_json::from_str(&res_str)?;
-
-    
 
     let sources = vec![
         res.source1,
@@ -92,7 +86,10 @@ pub async fn extract(
                 Some(ContentMediaItemSource::Video {
                     link: url,
                     description: format!("{num}. vidsrc ({language})"),
-                    headers: Some(HashMap::from([("Referer".to_owned(), SITE_URL.to_owned())])),
+                    headers: Some(HashMap::from([
+                        ("Referer".to_owned(), SITE_URL.to_owned()),
+                        ("Origin".to_owned(), SITE_URL.to_owned()),
+                    ])),
                 })
             } else {
                 None
@@ -111,8 +108,6 @@ fn unwrap_hls1_proxy(url_str: &str) -> Option<String> {
             return None;
         }
     };
-
-    
 
     static MEGACDN_RE: OnceLock<Regex> = OnceLock::new();
     let megacdn_re = MEGACDN_RE.get_or_init(|| Regex::new(r"f\d+\.megacdn\.co").unwrap());
