@@ -130,10 +130,10 @@ mod test {
         println!("{res:#?}")
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_load_tv_show() {
         let res = extract(&SourceParams {
-            id: 655,
+            id: 609681,
             imdb_id: None,
             ep: Some(Episode { e: 1, s: 1 }),
         })
