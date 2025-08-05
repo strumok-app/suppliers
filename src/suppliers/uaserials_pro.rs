@@ -9,7 +9,7 @@ use crate::models::{
 use crate::utils::html::DOMProcessor;
 use crate::utils::{self, datalife, html, playerjs};
 
-const URL: &str = "https://uaserials.film";
+const URL: &str = "https://uaserials.my";
 
 #[derive(Default)]
 pub struct UASerialsProContentSupplier;
@@ -60,6 +60,8 @@ impl ContentSupplier for UASerialsProContentSupplier {
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
+
+        println!("{url}");
 
         utils::scrap_page(
             utils::create_client().get(&url),
@@ -159,7 +161,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = UASerialsProContentSupplier
-            .load_channel("Серіали", 2)
+            .load_channel("Серіали", 1)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -177,7 +179,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UASerialsProContentSupplier
-            .get_content_details("8831-gotel-kokayin", vec![])
+            .get_content_details("10963-gra-v-kalmara", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
