@@ -251,7 +251,6 @@ async fn load_server_sources(
         _ => return vec![],
     };
 
-    
     match res {
         Ok(sources) => sources,
         Err(err) => {
@@ -310,7 +309,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                         .boxed(),
                 ),
                 similar: html::items_processor(
-                    "#main-sidebar .block_area-content ul.ulclear li",
+                    ".block_area_category .film_list .flw-item",
                     content_info_processor(),
                 ),
                 params: html::default_value(),
