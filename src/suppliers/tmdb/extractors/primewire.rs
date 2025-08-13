@@ -75,7 +75,7 @@ async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow
     static SERVERS_RE: OnceLock<Regex> = OnceLock::new();
 
     let key = KEY_RE
-        .get_or_init(|| Regex::new(r#"v="([-A-Za-z0-9+/=]+)""#).unwrap())
+        .get_or_init(|| Regex::new(r#"v="([-A-Za-z0-9+/=_]+)""#).unwrap())
         .captures(&html)
         .and_then(|cap| cap.get(1))
         .map(|m| m.as_str())

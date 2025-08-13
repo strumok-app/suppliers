@@ -44,22 +44,26 @@ pub async fn extract(
         .text()
         .await?;
 
-    let files: Vec<ServerRes> = serde_json::from_str(&res_str)?;
+    let file: ServerRes = serde_json::from_str(&res_str)?;
 
-    let sources: Vec<_> = files
-        .into_iter()
-        .enumerate()
-        .map(|(idx, file)| {
-            let num = idx + 1;
-            ContentMediaItemSource::Video {
-                link: file.file,
-                description: format!("{num}. madplay"),
-                headers: None,
-            }
-        })
-        .collect();
-
-    Ok(sources)
+    // let sources: Vec<_> = files
+    //     .into_iter()
+    //     .enumerate()
+    //     .map(|(idx, file)| {
+    //         let num = idx + 1;
+    //         ContentMediaItemSource::Video {
+    //             link: file.file,
+    //             description: format!("{num}. madplay"),
+    //             headers: None,
+    //         }
+    //     })
+    //     .collect();
+    //
+    Ok(vec![ContentMediaItemSource::Video {
+        link: file.file,
+        description: "Madplay".to_string(),
+        headers: None,
+    }])
 }
 
 #[cfg(test)]

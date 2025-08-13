@@ -13,9 +13,9 @@ use crate::{
 
 use super::SourceParams;
 
-const SITE_URL: &str = "https://vidsrc.vip";
-const BACKEND_URL: &str = "https://api2.vidsrc.vip";
-const HSL1_PROXY: &str = "https://hls2.vid1.site";
+const SITE_URL: &str = "https://vidrock.net/";
+const BACKEND_URL: &str = "https://vidrock.net/api";
+const HSL1_PROXY: &str = "https://hls1.vid1.site";
 const MEGACDN_SERVER: &str = "f12.megacdn.co";
 
 pub fn extract_boxed<'a>(

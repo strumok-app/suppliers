@@ -1,7 +1,7 @@
 // mod autoembed;
 mod madplay;
 mod open_subs;
-mod primewire;
+// mod primewire;
 mod two_embed;
 mod vidsrcvip;
 mod xprime;
@@ -17,12 +17,12 @@ type BoxExtractor = for<'a> fn(
     &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 6] = [
+const EXTRACTORS: [(&str, BoxExtractor); 5] = [
     ("xprime", xprime::extract_boxed),
     // ("autoembed", autoembed::extract_boxed),
     ("vidsrcvip", vidsrcvip::extract_boxed),
     ("madplay", madplay::extract_boxed),
-    ("primewire", primewire::extract_boxed),
+    // ("primewire", primewire::extract_boxed),
     ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
 ];
