@@ -13,10 +13,8 @@ use crate::{
 
 use super::SourceParams;
 
-const SITE_URL: &str = "https://vidrock.net/";
+const SITE_URL: &str = "https://vidrock.net";
 const BACKEND_URL: &str = "https://vidrock.net/api";
-const HSL1_PROXY: &str = "https://hls1.vid1.site";
-const MEGACDN_SERVER: &str = "f12.megacdn.co";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -75,17 +73,13 @@ pub async fn extract(
         .enumerate()
         .filter_map(|(idx, source)| {
             let num = idx + 1;
-            let mut url = source.url?;
+            let url = source.url?;
             let language = source.language.as_ref().map_or("unknown", |s| s.as_str());
-
-            if url.starts_with(HSL1_PROXY) {
-                url = unwrap_hls1_proxy(&url)?;
-            }
 
             if lang::is_allowed(langs, language) {
                 Some(ContentMediaItemSource::Video {
                     link: url,
-                    description: format!("{num}. vidsrc ({language})"),
+                    description: format!("{num}. vidrock ({language})"),
                     headers: Some(HashMap::from([
                         ("Referer".to_owned(), SITE_URL.to_owned()),
                         ("Origin".to_owned(), SITE_URL.to_owned()),
@@ -98,23 +92,6 @@ pub async fn extract(
         .collect();
 
     Ok(result)
-}
-
-fn unwrap_hls1_proxy(url_str: &str) -> Option<String> {
-    let url = match url::Url::parse(url_str) {
-        Ok(url) => url,
-        Err(_) => {
-            error!("[vidsrc.vip] failed to parse {HSL1_PROXY} url {url_str}");
-            return None;
-        }
-    };
-
-    static MEGACDN_RE: OnceLock<Regex> = OnceLock::new();
-    let megacdn_re = MEGACDN_RE.get_or_init(|| Regex::new(r"f\d+\.megacdn\.co").unwrap());
-
-    url.query_pairs()
-        .find(|(name, _)| name == "url")
-        .map(|(_, value)| megacdn_re.replace(&value, MEGACDN_SERVER).to_string())
 }
 
 fn calc_movie_hash(id: u32) -> String {
