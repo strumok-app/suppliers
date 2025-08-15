@@ -2,12 +2,13 @@ use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 use futures::future::BoxFuture;
-use log::{error, warn};
+use log::error;
 use regex::Regex;
-use reqwest::{header, redirect, Client};
+use reqwest::{redirect, Client};
+use serde::Deserialize;
 
 use crate::{
-    extractors::{mixdrop, streamwish},
+    extractors::{filelions, mixdrop, streamwish},
     models::ContentMediaItemSource,
     utils::{self, crypto},
 };
@@ -15,6 +16,9 @@ use crate::{
 use super::SourceParams;
 
 const URL: &str = "https://www.primewire.tf";
+
+// TODO: extract token from js?
+const TOKEN: &str = "0.xUvp3K0Cgiy-2-DV25L753hboTEWcTYMNvucA-v724qpKhgGl8AX-yZkRwonRvP7eTqWWX2p69JJuTmrm8lypEGrIMMFOibXakj8n-NfDMVX7hXE-o6jGkgtnDyEmk6eSqoTQS7Shv7iULknMI4nIdPKs1ZuuD9ncfsUrRFeQaUBL6a48WIDt75NDkUjuo_AaxxP7DHJKVXD3BOyVbzSoB5nmASe0IO75UuY99B3KAYyCqVyn0aa326OAeXv3XDa1Mapxg50WRkvRCxMwgnu56G7l7tHEqBRadF9Uy_xWNvy8pobkvO2qLd2x01fkxhsPcrDIF9e02gBaN0Efl_J1lMAIJqdC41oUsDdEhekrZj0X17GYt01DszcXmRZ0WyI9yDyswNRdICyol4HiGKqqvsvWFMW8i4weJu5-RrqlgH9wlCi08WpVF83Adbk74dRH2wWiw_-s4elP_F_qkrE-4nEkqhkjHVSt0lBB2nf_jhG_jAwwiU1RVOtrnp9hR_HoRTihjp5r09QIWvFxaRYFNWCquxcB5bNmFshiCjB2XKNxi87xC0ToRnhhrAxYyM-UOgplqlv0uc76f-w9D41C3udBetN4F-ER757JZuQ325mlprLOFQ_xSa06cP2pObc-NNs9SnRIoqRjfheq2JJOTrjKWbA3GxmQ_yyulbVfBJcAOQjBPVcMbdj8s90a64PjcYaTNtdXfnWbv20ggW-Lmovy8FPhBjNvMR1J7hS1088K5uVew7-YoNVpqpS73uE9S0f5GO-Em1B3Ai7gZlrDttCN07yrAxHrdbe2AK8xQs_igEIGYyIxoBgNfakiDsLxHn_McrHme6D3T_QS4Wy-ik5QEaH_QJE_jELUDdWjKKA4o3B-Q6n_cSlWvWvkEYh.XZyFppBH6S-d6fFp12VguQ.bb1d22d7d0411edb066282cead4f437a3eba4bc7edeb62d435ea433014fb0d63";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -24,14 +28,6 @@ pub fn extract_boxed<'a>(
 }
 
 pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    // let id = match &params.imdb_id {
-    //     Some(imdb_id) => format!("imdb={imdb_id}"),
-    //     None => {
-    //         let tmdb = params.id;
-    //         format!("tmdb={tmdb}")
-    //     }
-    // };
-
     let tmdb = params.id;
     let id = format!("tmdb={tmdb}");
 
@@ -84,17 +80,17 @@ async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow
     let links_hashes = decrypt_links(key)?;
 
     let servers = SERVERS_RE
-        .get_or_init(|| Regex::new(r##""#([0-9]+)\s+\-\s+([a-zA-Z0-9\.]+)"##).unwrap())
+        .get_or_init(|| Regex::new(r#""authority":"([a-zA-Z0-9\.]+)""#).unwrap())
         .captures_iter(&html)
         .enumerate()
         .take_while(|&(n, _)| n < links_hashes.len())
         .filter_map(|(n, cap)| {
-            let server_name = cap.get(2)?.as_str();
+            let server_name = cap.get(1)?.as_str();
             let link_hash = links_hashes.get(n)?;
 
             Some(Server {
                 name: server_name.trim().to_string(),
-                link: format!("{URL}/links/go/{link_hash}"),
+                link: format!("{URL}/links/go/{link_hash}?token={TOKEN}&embed=true"),
             })
         })
         .collect::<Vec<_>>();
@@ -107,41 +103,38 @@ async fn load_server_sources(
     server: Server,
     idx: usize,
 ) -> Option<Vec<ContentMediaItemSource>> {
+    match try_load_server_sources(client, &server, idx).await {
+        Ok(sources) => Some(sources),
+        Err(e) => {
+            error!("[primewire] fail to extract server {server:?}: {e:?}");
+            None
+        }
+    }
+}
+
+async fn try_load_server_sources(
+    client: &Client,
+    server: &Server,
+    idx: usize,
+) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let server_link = &server.link;
     let server_name = &server.name;
     let display_name = format!("{idx}. {server_name}");
 
-    let maybe_response = client.get(server_link).send().await;
-    let maybe_location = match &maybe_response {
-        Ok(resp) => resp.headers().get(header::LOCATION),
-        _ => None,
-    };
+    #[derive(Deserialize)]
+    struct ServerSourceRes {
+        link: String,
+    }
 
-    let location = match maybe_location {
-        Some(l) => l.to_str().unwrap(),
-        _ => {
-            warn!("[primewire] No location header for link: {server_link}");
-            return None;
-        }
-    };
+    let response_str = client.get(server_link).send().await?.text().await?;
+    let response: ServerSourceRes = serde_json::from_str(&response_str)?;
+    let link = response.link;
 
-    let res = match server.name.as_str() {
-        // "dood.watch" => doodstream::extract(location, &display_name).await,
-        "streamwish.to" | "filelions.to" => {
-            streamwish::extract(location, server_link, &display_name).await
-        }
-        "mixdrop.ag" => mixdrop::extract(location, &display_name).await,
-        _ => return None,
-    };
-
-    match res {
-        Ok(sources) => Some(sources),
-        Err(err) => {
-            error!(
-                "[primewire] {server_name} fail to load source link (server: {server_link}): {err}"
-            );
-            None
-        }
+    match server.name.as_str() {
+        "streamwish.to" => streamwish::extract(&link, &display_name).await,
+        "filelions.to" => filelions::extract(&link, &display_name).await,
+        "mixdrop.ag" => mixdrop::extract(&link, &display_name).await,
+        _ => Ok(vec![]),
     }
 }
 
@@ -167,6 +160,8 @@ struct Server {
 
 #[cfg(test)]
 mod test {
+    use crate::suppliers::tmdb::extractors::Episode;
+
     use super::*;
 
     #[test]
@@ -177,13 +172,14 @@ mod test {
         println!("{res:#?}")
     }
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_load_source() {
         let res = extract(&SourceParams {
-            id: 549509,
+            // id: 655,
+            id: 1399,
             imdb_id: None, //Some("tt18259086".into()),
-            ep: None,
-            // ep: Some(Episode { s: 1, e: 3 }),
+            // ep: None,
+            ep: Some(Episode { s: 1, e: 1 }),
         })
         .await;
         println!("{res:#?}")

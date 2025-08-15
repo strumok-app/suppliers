@@ -11,6 +11,8 @@ struct Item {
     title: String,
 }
 
+pub const PLAYER_URL: &str = "https://uqloads.xyz";
+
 pub async fn extract(
     url: &str,
     referer: &str,
@@ -28,13 +30,11 @@ pub async fn extract(
 
     let items = lookup_items(&res, prefix);
 
-    
-
     let sub_extractors = items.iter().map(|item| {
         let url = &item.url;
         let prefix = &item.title;
 
-        streamwish::extract(url, referer, prefix)
+        streamwish::extract(url, prefix)
     });
 
     let sources: Vec<_> = futures::future::join_all(sub_extractors)
@@ -55,7 +55,6 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
     static ID_RE: OnceLock<Regex> = OnceLock::new();
     let id_re = ID_RE.get_or_init(|| Regex::new(r"id=(?<id>[\w\d]+)").unwrap());
 
-    let player_url = streamwish::PLAYER_URL;
     let items: Vec<_> = document
         .select(&sel)
         .filter_map(|el| {
@@ -68,7 +67,7 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
                 .map(|m| m.as_str())?;
 
             Some(Item {
-                url: format!("{player_url}/e/{id}"),
+                url: format!("{PLAYER_URL}/e/{id}"),
                 title: format!("{prefix} {title}"),
             })
         })

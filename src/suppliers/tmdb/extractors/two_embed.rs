@@ -97,13 +97,9 @@ async fn try_extract_streamwish(res: &str) -> Option<Vec<ContentMediaItemSource>
         }
     };
 
-    let player_url = streamwish::PLAYER_URL;
-    let stw_result = streamwish::extract(
-        format!("{player_url}/e/{id}").as_str(),
-        REF_URL,
-        "Two Embed",
-    )
-    .await;
+    let player_url = player4u::PLAYER_URL;
+    let stw_result =
+        streamwish::extract(format!("{player_url}/e/{id}").as_str(), "Two Embed").await;
 
     match stw_result {
         Ok(items) => Some(items),

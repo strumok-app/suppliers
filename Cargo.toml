@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "3.2.7"
+version = "3.2.8"
 edition = "2021"
 
 [profile.release]
@@ -27,30 +27,30 @@ features = [
   "gzip",
   "json",
 ]
-version = "0.12.20"
+version = "0.12.23"
 default-features = false
 
 [dependencies.tokio]
-version = "1.45.1"
+version = "1.47.1"
 features = ["rt-multi-thread", "macros"]
 
 [dependencies]
 url = "2.5.4"
 flutter_rust_bridge = "=2.10.0"
-anyhow = "1.0.98"
+anyhow = "1.0.99"
 enum_dispatch = "0.3.13"
-strum = { version = "0.27.1", features = ["strum_macros"] }
-strum_macros = "0.27.1"
-serde_json = "1.0.140"
+strum = { version = "0.27.2", features = ["strum_macros"] }
+strum_macros = "0.27.2"
+serde_json = "1.0.142"
 serde = { version = "1.0", features = ["derive"] }
 scraper = "0.23.1"
 regex = "1.11.1"
-chrono = "0.4.39"
+chrono = "0.4.41"
 futures = "0.3.31"
-indexmap = "2.7.0"
+indexmap = "2.10.0"
 log = "0.4.27"
 env_logger = "0.11.8"
-test-log = "0.2.17"
+test-log = "0.2.18"
 cipher = "0.4.4"
 md-5 = "0.10.6"
 sha1 = "0.10.6"
@@ -61,4 +61,4 @@ byteorder = "1.5.0"
 blowfish = "0.9.1"
 block-modes = "0.9.1"
 cbc = { version = "0.1.2", features = ["std"] }
-hickory-resolver = "0.25.1"
+hickory-resolver = "0.25.2"

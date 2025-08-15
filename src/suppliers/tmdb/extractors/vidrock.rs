@@ -1,9 +1,7 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::collections::HashMap;
 
 use base64::{prelude::BASE64_STANDARD, Engine};
 use futures::future::BoxFuture;
-use log::error;
-use regex::Regex;
 use serde::Deserialize;
 
 use crate::{

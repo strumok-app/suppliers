@@ -9,7 +9,7 @@ use crate::{
     utils::{self, unpack::packerjs},
 };
 
-const URL: &str = "https://hgplaycdn.com/e";
+const URL: &str = "https://taylorplayer.com/v";
 
 pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let id = match url.rsplit_once("/").map(|(_, r)| r) {
@@ -43,7 +43,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
             Some(script)
         })
         .next()
-        .ok_or_else(|| anyhow!("[streamwish] no packer script found"))?;
+        .ok_or_else(|| anyhow!("[filelions] no packer script found"))?;
 
     let upacked_script = packerjs::unpack(packer_script).map_err(|err| anyhow!(err))?;
 
@@ -52,7 +52,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
         .get_or_init(|| Regex::new(r#""hls2":\s?['"](?<file>[^"]+)['"]"#).unwrap())
         .captures(&upacked_script)
         .and_then(|m| Some(m.name("file")?.as_str()))
-        .ok_or_else(|| anyhow!("[streamwish] file property not found"))?;
+        .ok_or_else(|| anyhow!("[filelions] file property not found"))?;
 
     Ok(vec![ContentMediaItemSource::Video {
         description: prefix.into(),
@@ -67,7 +67,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_extract_1() {
-        let result = extract("https://streamwish.to/e/1mranuy7w6r2", "streamwish")
+        let result = extract("https://filelions.to/v/p7n08t2i7jee", "filelions")
             .await
             .unwrap();
         println!("{result:#?}")
