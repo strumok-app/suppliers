@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use futures::future::BoxFuture;
 use serde::Deserialize;
 
@@ -77,7 +77,7 @@ pub async fn extract(
             if lang::is_allowed(langs, language) {
                 Some(ContentMediaItemSource::Video {
                     link: url,
-                    description: format!("{num}. vidrock ({language})"),
+                    description: format!("[Vidrocks] {num}. {language}"),
                     headers: Some(HashMap::from([
                         ("Referer".to_owned(), SITE_URL.to_owned()),
                         ("Origin".to_owned(), SITE_URL.to_owned()),

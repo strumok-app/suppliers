@@ -1,10 +1,10 @@
 use std::sync::OnceLock;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::future::BoxFuture;
 use log::error;
 use regex::Regex;
-use reqwest::{redirect, Client};
+use reqwest::{Client, redirect};
 use serde::Deserialize;
 
 use crate::{
@@ -79,6 +79,8 @@ async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow
 
     let links_hashes = decrypt_links(key)?;
 
+    // println!("{html}");
+
     let servers = SERVERS_RE
         .get_or_init(|| Regex::new(r#""authority":"([a-zA-Z0-9\.]+)""#).unwrap())
         .captures_iter(&html)
@@ -94,6 +96,8 @@ async fn load_servers(client: &Client, link: &str) -> Result<Vec<Server>, anyhow
             })
         })
         .collect::<Vec<_>>();
+
+    // println!("{servers:?}");
 
     Ok(servers)
 }
@@ -119,7 +123,7 @@ async fn try_load_server_sources(
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let server_link = &server.link;
     let server_name = &server.name;
-    let display_name = format!("{idx}. {server_name}");
+    let display_name = format!("[PrimeWire] {idx}. {server_name}");
 
     #[derive(Deserialize)]
     struct ServerSourceRes {

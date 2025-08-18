@@ -1,7 +1,7 @@
 [package]
 name = "strumok_suppliers"
-version = "3.2.8"
-edition = "2021"
+version = "3.3.0"
+edition = "2024"
 
 [profile.release]
 opt-level = 3
@@ -43,7 +43,7 @@ strum = { version = "0.27.2", features = ["strum_macros"] }
 strum_macros = "0.27.2"
 serde_json = "1.0.142"
 serde = { version = "1.0", features = ["derive"] }
-scraper = "0.23.1"
+scraper = "0.24.0"
 regex = "1.11.1"
 chrono = "0.4.41"
 futures = "0.3.31"
@@ -54,9 +54,11 @@ test-log = "0.2.18"
 cipher = "0.4.4"
 md-5 = "0.10.6"
 sha1 = "0.10.6"
+sha2 = "0.10.9"
 hex = "0.4.3"
 base64 = "0.22.1"
 aes = "0.8.4"
+pbkdf2 = { version = "0.12", features = ["simple"] }
 byteorder = "1.5.0"
 blowfish = "0.9.1"
 block-modes = "0.9.1"

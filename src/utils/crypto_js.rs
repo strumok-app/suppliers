@@ -7,15 +7,11 @@ pub fn decrypt_aes_no_salt(password: &[u8], text: &[u8]) -> anyhow::Result<Strin
     let salt = &text[8..16];
     let ct = &text[16..];
 
-    
-
     decrypt_aes(password, salt, ct)
 }
 
 pub fn decrypt_aes(password: &[u8], salt: &[u8], ct: &[u8]) -> anyhow::Result<String> {
     let (key, iv) = derive_key_and_iv(password, salt);
-
-    
 
     let pt = crypto::decrypt_aes(&key, &iv, ct)?;
 
