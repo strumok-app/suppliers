@@ -100,7 +100,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     struct DecryptedResponse {
         url: String,
         headers: HashMap<String, String>,
-        #[serde(alias = "hasMultiQuality")]
+        #[serde(alias = "hasMultiQuality", default)]
         has_multi_quality: bool,
         #[serde(default)]
         quality: Vec<Quality>,

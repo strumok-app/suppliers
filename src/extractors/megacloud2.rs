@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use serde::Deserialize;
 
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
 };
 
 const KEYS_URL: &str =
-    "https://raw.githubusercontent.com/itzzzme/megacloud-keys/refs/heads/main/key.txt";
+    "https://raw.githubusercontent.com/yogesh-hacker/MegacloudKeys/refs/heads/main/keys.json";
 
 const REFERER: &str = "https://megacloud.blog/";
 
@@ -23,22 +23,18 @@ pub async fn extract(
         .and_then(|(_, r)| r.split_once("?").map(|(l, _)| l).or(Some(r)))
         .unwrap();
 
-    
-
     let key = get_key().await?;
-
-    
 
     let sources_res_str = utils::create_client()
         .get(format!(
-            "https://megacloud.blog/embed-2/v2/e-1/getSources?id={id}"
+            "https://megacloud.blog/embed-2/v3/e-1/getSources?id={id}"
         ))
         .send()
         .await?
         .text()
         .await?;
 
-    println!("{sources_res_str}");
+    // println!("{sources_res_str}");
 
     #[derive(Debug, Deserialize)]
     struct EnctypredSource {
@@ -47,8 +43,6 @@ pub async fn extract(
     }
 
     let sources_res: EnctypredSource = serde_json::from_str(&sources_res_str)?;
-
-    
 
     // decrypt_aes(key, iv, ct);
     let b64_decodes = BASE64_STANDARD.decode(sources_res.sources.as_bytes())?;
@@ -68,14 +62,19 @@ pub async fn extract(
 }
 
 pub async fn get_key() -> anyhow::Result<String> {
-    let key = utils::create_client()
+    #[derive(Deserialize)]
+    struct MegacloudKeysResponse {
+        mega: String,
+    }
+
+    let res: MegacloudKeysResponse = utils::create_client()
         .get(KEYS_URL)
         .send()
         .await?
-        .text()
+        .json()
         .await?;
 
-    Ok(key)
+    Ok(res.mega)
 }
 
 #[cfg(test)]
@@ -84,16 +83,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_episode1_load_by_link() {
-        let link = "https://megacloud.blog/embed-2/v2/e-1/sMAztEG3Egnz?k=1&autoPlay=1&oa=0&asi=1";
-        let sources = extract(link, "https://hianime.to", "Megacloud")
-            .await
-            .unwrap();
-        println!("{sources:#?}")
-    }
-
-    #[test_log::test(tokio::test)]
-    async fn should_episode2_load_by_link() {
-        let link = "https://megacloud.blog/embed-2/v2/e-1/bTxOgLYjOz0s?k=1&autoPlay=1&oa=0&asi=1";
+        let link = "https://megacloud.blog/embed-2/v3/e-1/PN9QqotdYAT6?k=1";
         let sources = extract(link, "https://hianime.to", "Megacloud")
             .await
             .unwrap();

@@ -8,7 +8,7 @@ use reqwest::{Client, redirect};
 use serde::Deserialize;
 
 use crate::{
-    extractors::{filelions, mixdrop, streamwish},
+    extractors::{dood, filelions, mixdrop, streamwish},
     models::ContentMediaItemSource,
     utils::{self, crypto},
 };
@@ -135,9 +135,10 @@ async fn try_load_server_sources(
     let link = response.link;
 
     match server.name.as_str() {
-        "streamwish.to" => streamwish::extract(&link, &display_name).await,
-        "filelions.to" => filelions::extract(&link, &display_name).await,
-        "mixdrop.ag" => mixdrop::extract(&link, &display_name).await,
+        "Streamwish" => streamwish::extract(&link, &display_name).await,
+        "Filelions" => filelions::extract(&link, &display_name).await,
+        "Mixdrop" => mixdrop::extract(&link, &display_name).await,
+        "Dood" => dood::extract(&link, &display_name).await,
         _ => Ok(vec![]),
     }
 }

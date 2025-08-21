@@ -1,3 +1,4 @@
+pub mod dood;
 pub mod filelions;
 pub mod megacloud2;
 pub mod mixdrop;
