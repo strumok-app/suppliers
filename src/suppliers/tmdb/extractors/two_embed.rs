@@ -115,7 +115,7 @@ mod test {
 
     use super::*;
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_load_tv_show_imdb() {
         let res = extract(&SourceParams {
             id: 60735,

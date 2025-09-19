@@ -14,7 +14,7 @@ use crate::{
 
 use super::SourceParams;
 
-const URL: &str = "https://player.vidpro.top";
+const URL: &str = "https://demo.vidplus.to";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -34,6 +34,8 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/api/server?id={id}&sr=1"),
     };
 
+    println!("{link}");
+
     let api_client = create_json_client();
 
     #[derive(Deserialize)]
@@ -41,17 +43,22 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         data: String,
     }
 
-    let api_res: ApiResponse = api_client
+    let api_res_str = api_client
         .get(&link)
         .header("Referer", URL)
+        .header("Origin", URL)
         .send()
         .await?
-        .json()
+        .text()
         .await?;
+
+    println!("{api_res_str}");
+
+    let api_res: ApiResponse = serde_json::from_str(&api_res_str)?;
 
     let decoded_data = BASE64_STANDARD.decode(api_res.data)?;
 
-    // let test = String::from_utf8(decoded_data);
+    // let test = String::from_utf8(decoded_data.clone());
     // println!("{test:?}");
     //
     #[derive(Deserialize, Debug)]

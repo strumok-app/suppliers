@@ -241,7 +241,9 @@ async fn load_server_sources(
     let link = match load_server_source_link(id, server_id).await {
         Ok(link) => link,
         Err(err) => {
-            error!("[hianime] fail to load source link (id: {id}, server_id: {id}, episode_id: {episode_id}): {err}");
+            error!(
+                "[hianime] fail to load source link (id: {id}, server_id: {id}, episode_id: {episode_id}): {err}"
+            );
             return vec![];
         }
     };
@@ -254,7 +256,9 @@ async fn load_server_sources(
     match res {
         Ok(sources) => sources,
         Err(err) => {
-            error!("[hianime] fail to load source (id: {id}, server_id: {id}, episode_id: {episode_id}): {err}");
+            error!(
+                "[hianime] fail to load source (id: {id}, server_id: {id}, episode_id: {episode_id}): {err}"
+            );
             vec![]
         }
     }

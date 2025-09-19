@@ -11,7 +11,7 @@ struct Item {
     title: String,
 }
 
-pub const PLAYER_URL: &str = "https://uqloads.xyz";
+pub const PLAYER_URL: &str = "https://yesmovies.baby";
 
 pub async fn extract(
     url: &str,
@@ -29,6 +29,8 @@ pub async fn extract(
         .await?;
 
     let items = lookup_items(&res, prefix);
+
+    // println!("{items:?}");
 
     let sub_extractors = items.iter().map(|item| {
         let url = &item.url;
@@ -50,7 +52,7 @@ pub async fn extract(
 fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
     let document = scraper::Html::parse_document(res);
 
-    let sel = Selector::parse("li.slide-toggle a.playbtnx").unwrap();
+    let sel = Selector::parse("li > a.playbtnx").unwrap();
 
     static ID_RE: OnceLock<Regex> = OnceLock::new();
     let id_re = ID_RE.get_or_init(|| Regex::new(r"id=(?<id>[\w\d]+)").unwrap());
@@ -79,7 +81,7 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
 mod tests {
     use super::*;
 
-    #[tokio::test]
+    #[test_log::test(tokio::test)]
     async fn should_extract() {
         let res = extract(
             "https://player4u.xyz/embed?key=The Flash s01e01",

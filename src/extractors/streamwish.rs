@@ -1,5 +1,4 @@
-use anyhow::{anyhow, Ok};
-use log::warn;
+use anyhow::{Ok, anyhow};
 use regex::Regex;
 use scraper::Selector;
 use std::sync::OnceLock;
@@ -8,28 +7,22 @@ use crate::{
     models::ContentMediaItemSource,
     utils::{self, unpack::packerjs},
 };
-
-const URL: &str = "https://hgplaycdn.com/e";
+const STREAMWISH_URL: &str = "streamwish.to";
+const SUBSTITUTE_URL: &str = "yuguaab.com";
 
 pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let id = match url.rsplit_once("/").map(|(_, r)| r) {
-        Some(id) => id,
-        None => {
-            warn!("[streamwish] no id found in url {url}");
-            return Ok(vec![]);
-        }
-    };
-
-    let host_url = format!("{URL}/{id}");
-
     static SCRIPT_SELECTOR: OnceLock<Selector> = OnceLock::new();
 
+    let final_url = url.replace(STREAMWISH_URL, SUBSTITUTE_URL);
+
     let html = utils::create_client()
-        .get(host_url)
+        .get(final_url)
         .send()
         .await?
         .text()
         .await?;
+
+    // println!("{html}");
 
     let document = scraper::Html::parse_document(&html);
     let packer_script = document
@@ -68,6 +61,14 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_extract_1() {
         let result = extract("https://streamwish.to/e/1mranuy7w6r2", "streamwish")
+            .await
+            .unwrap();
+        println!("{result:#?}")
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn should_extract_2() {
+        let result = extract("https://yesmovies.baby/e/ahu6x76icl5g", "streamwish")
             .await
             .unwrap();
         println!("{result:#?}")
