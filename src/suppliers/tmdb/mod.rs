@@ -7,8 +7,8 @@ use crate::{
     },
     utils::{self},
 };
-use anyhow::{anyhow, Ok};
-use extractors::{run_extractors, Episode, SourceParams};
+use anyhow::{Ok, anyhow};
+use extractors::{Episode, SourceParams, run_extractors};
 use indexmap::IndexMap;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -107,8 +107,6 @@ impl ContentSupplier for TMDBContentSupplier {
             .json()
             .await?;
 
-        
-
         let details = build_content_details(res);
 
         Ok(Some(details))
@@ -124,7 +122,7 @@ impl ContentSupplier for TMDBContentSupplier {
             return Err(anyhow!("external_ids and season nums expected"));
         }
 
-        build_media_items(&id, params).await
+        build_media_items(id, params).await
     }
 
     async fn load_media_item_sources(
@@ -311,7 +309,7 @@ fn build_content_details(res: TMDBDetailsResponse) -> ContentDetails {
             .into_iter()
             .filter(|s| s.season_number != 0)
             .map(|s| s.season_number.to_string())
-            .last();
+            .next_back();
 
         if let Some(last_season_num) = last_season_num_maybe {
             params.push(last_season_num);
@@ -425,22 +423,20 @@ mod test {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = TMDBContentSupplier.search("venom".into(), 1).await;
+        let res = TMDBContentSupplier.search("venom", 1).await;
         println!("{res:#?}")
     }
 
     #[test_log::test(tokio::test)]
     async fn should_load_channel() {
-        let res = TMDBContentSupplier
-            .load_channel("Popular Movies".into(), 1)
-            .await;
+        let res = TMDBContentSupplier.load_channel("Popular Movies", 1).await;
         println!("{res:#?}")
     }
 
     #[test_log::test(tokio::test())]
     async fn should_get_movie_content_details() {
         let res = TMDBContentSupplier
-            .get_content_details("movie/939243".into(), vec![])
+            .get_content_details("movie/939243", vec![])
             .await;
         println!("{res:#?}");
     }
@@ -449,7 +445,7 @@ mod test {
     async fn should_should_load_movie_media_items() {
         let res = TMDBContentSupplier
             .load_media_items(
-                "movie/939243".into(),
+                "movie/939243",
                 vec![],
                 vec![r#"{"imdb_id":"tt18259086"}"#.into()],
             )
@@ -461,7 +457,7 @@ mod test {
     async fn should_should_load_movie_media_items_sources() {
         let res = TMDBContentSupplier
             .load_media_item_sources(
-                "movie/939243".into(),
+                "movie/939243",
                 vec![],
                 vec![r#"{"id": 939243, "imdb_id":"tt18259086"}"#.into()],
             )
@@ -472,7 +468,7 @@ mod test {
     #[test_log::test(tokio::test())]
     async fn should_get_tv_content_details() {
         let res = TMDBContentSupplier
-            .get_content_details("tv/253".into(), vec![])
+            .get_content_details("tv/253", vec![])
             .await;
         println!("{res:#?}");
     }
@@ -481,7 +477,7 @@ mod test {
     async fn should_should_load_tv_media_items() {
         let res = TMDBContentSupplier
             .load_media_items(
-                "tv/253".into(),
+                "tv/253",
                 vec![],
                 vec![r#"{"imdb_id":"tt0060028"}"#.into(), "3".into()],
             )
@@ -492,7 +488,7 @@ mod test {
     async fn should_load_media_tv_item_sources() {
         let res = TMDBContentSupplier
             .load_media_item_sources(
-                "tv/253".into(),
+                "tv/253",
                 vec![],
                 vec![r#"{"id": 253, "imdb_id":"tt0060028", "ep":{"e":1, "s":1}}"#.into()],
             )

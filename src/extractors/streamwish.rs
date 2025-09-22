@@ -2,7 +2,6 @@ use anyhow::{Ok, anyhow};
 use regex::Regex;
 use scraper::Selector;
 use std::sync::OnceLock;
-use url::Url;
 
 use crate::{
     models::ContentMediaItemSource,
