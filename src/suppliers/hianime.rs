@@ -8,7 +8,7 @@ use reqwest::header;
 use scraper::Selector;
 use serde::Deserialize;
 
-use crate::extractors::megacloud2 as megacloud;
+use crate::extractors::megacloud3 as megacloud;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };

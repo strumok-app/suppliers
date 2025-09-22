@@ -35,16 +35,18 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         url: String,
     }
 
-    let server_res: ServerRes = create_json_client()
+    let server_res_str = create_json_client()
         .get(link)
         .header("Referer", URL)
         .header("Origin", URL)
         .send()
         .await?
-        .json()
+        .text()
         .await?;
 
-    
+    println!("{server_res_str}");
+
+    let server_res: ServerRes = serde_json::from_str(&server_res_str)?;
 
     Ok(vec![ContentMediaItemSource::Video {
         link: server_res.url,
