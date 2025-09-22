@@ -2,18 +2,31 @@ use anyhow::{Ok, anyhow};
 use regex::Regex;
 use scraper::Selector;
 use std::sync::OnceLock;
+use url::Url;
 
 use crate::{
     models::ContentMediaItemSource,
     utils::{self, unpack::packerjs},
 };
-const STREAMWISH_URL: &str = "streamwish.to";
-const SUBSTITUTE_URL: &str = "yuguaab.com";
+const STREAMWISH_URL: &str = "https://streamwish.to";
+const SUBSTITUTE_URL: &str = "https://yuguaab.com";
 
 pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     static SCRIPT_SELECTOR: OnceLock<Selector> = OnceLock::new();
 
-    let final_url = url.replace(STREAMWISH_URL, SUBSTITUTE_URL);
+    let final_url;
+    let host;
+
+    if url.starts_with(STREAMWISH_URL) {
+        final_url = url.replace(STREAMWISH_URL, SUBSTITUTE_URL);
+        host = SUBSTITUTE_URL
+    } else {
+        final_url = url.to_owned();
+        host = url
+            .split_once("/e/")
+            .map(|(l, _)| l)
+            .ok_or_else(|| anyhow!("[streamwish] invalid url: {url}"))?;
+    }
 
     let html = utils::create_client()
         .get(final_url)
@@ -41,17 +54,31 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
     let upacked_script = packerjs::unpack(packer_script).map_err(|err| anyhow!(err))?;
 
     static FILE_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
-    let file = FILE_PROPERTY_RE
-        .get_or_init(|| Regex::new(r#""hls2":\s?['"](?<file>[^"]+)['"]"#).unwrap())
-        .captures(&upacked_script)
-        .and_then(|m| Some(m.name("file")?.as_str()))
-        .ok_or_else(|| anyhow!("[streamwish] file property not found"))?;
+    let sources: Vec<_> = FILE_PROPERTY_RE
+        .get_or_init(|| Regex::new(r#""hls(\d+)":\s?['"]([^"]+)['"]"#).unwrap())
+        .captures_iter(&upacked_script)
+        .filter_map(|m| Some((m.get(1)?.as_str(), m.get(2)?.as_str())))
+        .map(|(idx, file)| {
+            let link = if file.starts_with("/") {
+                format!("{}{}", host, file)
+            } else {
+                file.to_owned()
+            };
 
-    Ok(vec![ContentMediaItemSource::Video {
-        description: prefix.into(),
-        link: file.into(),
-        headers: None,
-    }])
+            ContentMediaItemSource::Video {
+                link,
+                description: format!("{prefix} hls{idx}."),
+                headers: None,
+            }
+        })
+        .collect();
+
+    Ok(sources)
+    // Ok(vec![ContentMediaItemSource::Video {
+    //     description: prefix.into(),
+    //     link: file.into(),
+    //     headers: None,
+    // }])
 }
 
 #[cfg(test)]
