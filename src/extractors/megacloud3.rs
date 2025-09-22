@@ -49,7 +49,7 @@ pub async fn extract(
         }
     };
 
-    println!("{key:?}");
+    // println!("{key:?}");
 
     let sources_res_str = client
         .get(format!("{URL}embed-2/v3/e-1/getSources?id={id}&_k={key}"))
