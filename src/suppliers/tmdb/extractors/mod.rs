@@ -3,7 +3,6 @@ mod primewire;
 mod two_embed;
 // mod vidprotop;
 mod vidrock;
-mod xprime;
 
 use futures::future::BoxFuture;
 use log::warn;
@@ -16,8 +15,7 @@ type BoxExtractor = for<'a> fn(
     &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 5] = [
-    ("xprime", xprime::extract_boxed),
+const EXTRACTORS: [(&str, BoxExtractor); 4] = [
     ("vidrock", vidrock::extract_boxed),
     // ("vidprotop", vidprotop::extract_boxed),
     ("primewire", primewire::extract_boxed),
