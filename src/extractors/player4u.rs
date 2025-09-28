@@ -12,7 +12,7 @@ struct Item {
 }
 
 pub const PLAYER_URL: &str = "https://yesmovies.baby";
-const MAX_TITLE_LEN: usize = 15;
+const MAX_TITLE_LEN: usize = 30;
 
 pub async fn extract(
     url: &str,
@@ -62,9 +62,9 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
         .select(&sel)
         .filter_map(|el| {
             let onclick = el.attr("onclick")?;
-            let title = el.text().collect::<Vec<_>>().join("");
-
-            let truncated = if title.len() > MAX_TITLE_LEN {
+            let mut title = el.text().collect::<Vec<_>>().join("");
+            title = utils::text::sanitize_text(&title);
+            title = if title.len() > MAX_TITLE_LEN {
                 title[0..MAX_TITLE_LEN].to_owned()
             } else {
                 title
@@ -77,7 +77,7 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
 
             Some(Item {
                 url: format!("{PLAYER_URL}/e/{id}"),
-                title: format!("{prefix}.{truncated}"),
+                title: format!("{prefix}.{title}"),
             })
         })
         .collect();
