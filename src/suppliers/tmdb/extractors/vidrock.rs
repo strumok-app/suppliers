@@ -54,6 +54,7 @@ pub async fn extract(
     }
 
     let res_str = create_json_client().get(link).send().await?.text().await?;
+    println!("{res_str}");
 
     let res: ServerSources = serde_json::from_str(&res_str)?;
 

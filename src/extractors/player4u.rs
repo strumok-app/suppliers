@@ -13,6 +13,7 @@ struct Item {
 
 pub const PLAYER_URL: &str = "https://yesmovies.baby";
 const MAX_TITLE_LEN: usize = 30;
+const MAX_ITEMS: usize = 10;
 
 pub async fn extract(
     url: &str,
@@ -33,7 +34,7 @@ pub async fn extract(
 
     // println!("{items:?}");
 
-    let sub_extractors = items.iter().map(|item| {
+    let sub_extractors = items.iter().take(MAX_ITEMS).map(|item| {
         let url = &item.url;
         let prefix = &item.title;
 

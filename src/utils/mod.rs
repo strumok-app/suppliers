@@ -5,6 +5,7 @@ pub mod crypto;
 pub mod crypto_js;
 pub mod datalife;
 mod doh;
+pub mod hls;
 pub mod html;
 pub mod jwp_player;
 pub mod lang;
@@ -20,8 +21,8 @@ use std::{
 
 use doh::DoHResolver;
 use reqwest::{
-    header::{self, HeaderMap},
     ClientBuilder,
+    header::{self, HeaderMap},
 };
 
 pub fn get_user_agent<'a>() -> &'a str {
