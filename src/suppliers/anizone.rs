@@ -8,7 +8,7 @@ use crate::{
         MediaType,
     },
     utils::{
-        self, create_client,
+        self, create_client, hls,
         html::{self, DOMProcessor},
     },
 };
@@ -111,55 +111,89 @@ impl ContentSupplier for AnizoneContentSupplier {
         }
 
         let ep_num = &params[0];
-        let url = format!("{SITE_URL}/anime/{id}/{ep_num}");
 
-        let page_content = create_client().get(url).send().await?.text().await?;
-
-        let document = scraper::Html::parse_document(&page_content);
-        let player_selector = scraper::Selector::parse("main media-player").unwrap();
-        let tracks_selector = scraper::Selector::parse("track[kind='subtitles']").unwrap();
-
+        let anime_page_res = load_anime_page(id, ep_num, langs).await?;
         let mut results: Vec<ContentMediaItemSource> = vec![];
 
-        let player_el = document
-            .select(&player_selector)
-            .next()
-            .ok_or_else(|| anyhow!("player not found for anime {} ep_num {}", id, ep_num))?;
+        println!("{}", anime_page_res.hls_src);
 
-        let source_src = player_el
-            .attr("src")
-            .ok_or_else(|| anyhow!("player src not found for anime {} ep_num {}", id, ep_num))?;
+        let hls_tracks = hls::extract_audio_groups(&anime_page_res.hls_src).await?;
 
-        results.push(ContentMediaItemSource::Video {
-            link: source_src.to_string(),
-            description: "Default".to_string(),
-            headers: None,
-        });
+        for track in hls_tracks.into_iter() {
+            results.push(ContentMediaItemSource::Video {
+                link: track.src,
+                description: track.name,
+                headers: None,
+            });
+        }
 
-        let mut subtitles: Vec<_> = player_el
-            .select(&tracks_selector)
-            .enumerate()
-            .filter_map(|(i, track_el)| {
-                let src = track_el.attr("src")?;
-                let label = track_el.attr("label")?;
-
-                if !utils::lang::is_allowed(&langs, label) {
-                    return None;
-                }
-
-                let num = i + 1;
-                Some(ContentMediaItemSource::Subtitle {
-                    link: src.to_string(),
-                    description: format!("{num}. {label}"),
-                    headers: None,
-                })
-            })
-            .collect();
-
-        results.append(&mut subtitles);
+        for sub in anime_page_res.subtitles {
+            results.push(ContentMediaItemSource::Subtitle {
+                link: sub.src,
+                description: sub.label,
+                headers: None,
+            });
+        }
 
         Ok(results)
     }
+}
+
+#[derive(Debug)]
+struct Subtitle {
+    src: String,
+    label: String,
+}
+
+#[derive(Debug)]
+struct AnimePageResult {
+    hls_src: String,
+    subtitles: Vec<Subtitle>,
+}
+
+async fn load_anime_page(
+    id: &str,
+    ep_num: &str,
+    langs: Vec<String>,
+) -> anyhow::Result<AnimePageResult> {
+    let url = format!("{SITE_URL}/anime/{id}/{ep_num}");
+
+    let page_content = create_client().get(url).send().await?.text().await?;
+
+    let document = scraper::Html::parse_document(&page_content);
+    let player_selector = scraper::Selector::parse("main media-player").unwrap();
+    let tracks_selector = scraper::Selector::parse("track[kind='subtitles']").unwrap();
+
+    let player_el = document
+        .select(&player_selector)
+        .next()
+        .ok_or_else(|| anyhow!("player not found for anime {} ep_num {}", id, ep_num))?;
+
+    let hls_src = player_el
+        .attr("src")
+        .ok_or_else(|| anyhow!("player src not found for anime {} ep_num {}", id, ep_num))?;
+
+    let subtitles: Vec<_> = player_el
+        .select(&tracks_selector)
+        .filter_map(|track_el| {
+            let src = track_el.attr("src")?;
+            let label = track_el.attr("label")?;
+
+            if !utils::lang::is_allowed(&langs, label) {
+                return None;
+            }
+
+            Some(Subtitle {
+                src: src.to_string(),
+                label: label.to_string(),
+            })
+        })
+        .collect();
+
+    Ok(AnimePageResult {
+        hls_src: hls_src.to_string(),
+        subtitles,
+    })
 }
 
 fn search_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {

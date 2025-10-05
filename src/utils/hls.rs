@@ -1,197 +1,148 @@
-use std::error::Error;
+use std::sync::OnceLock;
 
+use anyhow::Result;
+use regex::Regex;
+
+use crate::utils::create_client;
+
+/// Represents an audio group entry from an HLS m3u8 file
 #[derive(Debug, Clone)]
-pub struct HlsTrack {
+pub struct AudioGroup {
     pub name: String,
-    pub url: String,
+    pub src: String,
 }
 
-/// Checks if a link is an HLS stream and extracts tracks
-pub async fn parse_hls_stream(url: &str) -> Result<Vec<HlsTrack>, Box<dyn Error>> {
-    // Fetch the content from the URL
-    let response = reqwest::get(url).await?;
-    let content = response.text().await?;
+/// Extracts audio groups from an HLS m3u8 stream
+/// Returns a list of audio group playlists, or a single master stream if no audio groups found
+pub async fn extract_audio_groups(url: &str) -> Result<Vec<AudioGroup>> {
+    let content = create_client().get(url).send().await?.text().await?;
 
-    // Check if it's an HLS playlist (starts with #EXTM3U)
-    if !content.trim_start().starts_with("#EXTM3U") {
-        return Err("Not a valid HLS stream".into());
+    // Parse the m3u8 content for audio groups
+    let audio_groups = parse_audio_groups(&content, url)?;
+
+    // If no audio groups found, return the master stream
+    if audio_groups.is_empty() {
+        return Ok(vec![AudioGroup {
+            name: "Master Stream".to_string(),
+            src: url.to_string(),
+        }]);
     }
 
-    // Check if it's a master playlist (contains #EXT-X-STREAM-INF)
-    if content.contains("#EXT-X-STREAM-INF") {
-        // Parse master playlist
-        parse_master_playlist(&content, url)
+    Ok(audio_groups)
+}
+
+/// Parses m3u8 content to find EXT-X-MEDIA audio group tags
+fn parse_audio_groups(content: &str, base_url: &str) -> Result<Vec<AudioGroup>> {
+    let mut audio_groups = Vec::new();
+
+    // Regex to match EXT-X-MEDIA audio tags
+    // Pattern matches: #EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="group_audio",NAME="Japanese",DEFAULT=YES,LANGUAGE="ja",CHANNELS="2",URI="audio/0_ja/playlist.m3u8"
+    static AUDIO_REGEX: OnceLock<Regex> = OnceLock::new();
+    let audio_regex = AUDIO_REGEX.get_or_init(|| Regex::new(
+        r#"#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="[^"]+",NAME="(?<name>[^"]+)",DEFAULT=(YES|NO),LANGUAGE="([^"]+)",CHANNELS="[^"]+",URI="(?<uri>[^"]+)""#
+    ).unwrap());
+
+    for line in content.lines() {
+        let line = line.trim();
+
+        if let Some(captures) = audio_regex.captures(line) {
+            let name = captures.name("name").unwrap().as_str().to_string();
+
+            let uri = captures.name("uri").unwrap().as_str().to_string();
+
+            // Resolve relative URIs against the base URL
+            let resolved_uri = if uri.starts_with("http") {
+                uri
+            } else {
+                resolve_uri(base_url, &uri)
+            };
+
+            audio_groups.push(AudioGroup {
+                name,
+                src: resolved_uri,
+            });
+        }
+    }
+
+    Ok(audio_groups)
+}
+
+/// Resolves a relative URI against a base URL
+fn resolve_uri(base_url: &str, relative_path: &str) -> String {
+    if let Ok(base) = url::Url::parse(base_url)
+        && let Ok(resolved) = base.join(relative_path)
+    {
+        return resolved.to_string();
+    }
+
+    // Fallback: simple string concatenation for relative paths
+    if base_url.ends_with('/') {
+        format!("{}{}", base_url, relative_path)
+    } else if let Some(pos) = base_url.rfind('/') {
+        format!("{}/{}", &base_url[..pos], relative_path)
     } else {
-        // It's a media playlist, return as single track
-        Ok(vec![HlsTrack {
-            name: "Default".to_string(),
-            url: url.to_string(),
-        }])
+        format!("{}/{}", base_url, relative_path)
     }
-}
-
-fn parse_master_playlist(content: &str, base_url: &str) -> Result<Vec<HlsTrack>, Box<dyn Error>> {
-    let mut tracks = Vec::new();
-    let lines: Vec<&str> = content.lines().collect();
-
-    let mut i = 0;
-    while i < lines.len() {
-        let line = lines[i].trim();
-
-        if line.starts_with("#EXT-X-STREAM-INF") {
-            // Extract track information
-            let bandwidth = extract_attribute(line, "BANDWIDTH");
-            let resolution = extract_attribute(line, "RESOLUTION");
-            let name_attr = extract_attribute(line, "NAME");
-
-            // Get the next non-empty, non-comment line as the URL
-            i += 1;
-            while i < lines.len() {
-                let url_line = lines[i].trim();
-                if !url_line.is_empty() && !url_line.starts_with('#') {
-                    let track_url = resolve_url(base_url, url_line);
-
-                    // Generate a descriptive name
-                    let name = if let Some(n) = name_attr {
-                        n
-                    } else if let Some(res) = resolution {
-                        if let Some(bw) = bandwidth {
-                            format!("{} ({}kbps)", res, parse_bandwidth_kbps(&bw))
-                        } else {
-                            res
-                        }
-                    } else if let Some(bw) = bandwidth {
-                        format!("{}kbps", parse_bandwidth_kbps(&bw))
-                    } else {
-                        format!("Track {}", tracks.len() + 1)
-                    };
-
-                    tracks.push(HlsTrack {
-                        name,
-                        url: track_url,
-                    });
-                    break;
-                }
-                i += 1;
-            }
-        }
-        i += 1;
-    }
-
-    if tracks.is_empty() {
-        return Err("No tracks found in master playlist".into());
-    }
-
-    Ok(tracks)
-}
-
-fn extract_attribute(line: &str, attr: &str) -> Option<String> {
-    let search = format!("{}=", attr);
-    if let Some(start) = line.find(&search) {
-        let start = start + search.len();
-        let rest = &line[start..];
-
-        // Handle quoted values
-        if rest.starts_with('"') {
-            if let Some(end) = rest[1..].find('"') {
-                return Some(rest[1..=end].to_string());
-            }
-        } else {
-            // Handle non-quoted values (ends at comma or end of line)
-            let end = rest.find(',').unwrap_or(rest.len());
-            return Some(rest[..end].trim().to_string());
-        }
-    }
-    None
-}
-
-fn parse_bandwidth_kbps(bandwidth: &str) -> String {
-    if let Ok(bw) = bandwidth.parse::<u64>() {
-        format!("{}", bw / 1000)
-    } else {
-        bandwidth.to_string()
-    }
-}
-
-fn resolve_url(base_url: &str, relative_url: &str) -> String {
-    if relative_url.starts_with("http://") || relative_url.starts_with("https://") {
-        relative_url.to_string()
-    } else {
-        // Extract base path from URL
-        let base = if let Some(pos) = base_url.rfind('/') {
-            &base_url[..=pos]
-        } else {
-            base_url
-        };
-
-        if relative_url.starts_with('/') {
-            // Absolute path - extract protocol and domain
-            if let Some(protocol_end) = base_url.find("://") {
-                if let Some(domain_end) = base_url[protocol_end + 3..].find('/') {
-                    let domain = &base_url[..protocol_end + 3 + domain_end];
-                    return format!("{}{}", domain, relative_url);
-                }
-            }
-            format!("{}{}", base_url, relative_url)
-        } else {
-            // Relative path
-            format!("{}{}", base, relative_url)
-        }
-    }
-}
-
-// Example usage
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let url = "https://example.com/playlist.m3u8";
-
-    match parse_hls_stream(url).await {
-        Ok(tracks) => {
-            println!("Found {} track(s):", tracks.len());
-            for (i, track) in tracks.iter().enumerate() {
-                println!("{}. {} - {}", i + 1, track.name, track.url);
-            }
-        }
-        Err(e) => {
-            eprintln!("Error: {}", e);
-        }
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_extract_attribute() {
-        let line = r#"#EXT-X-STREAM-INF:BANDWIDTH=1280000,RESOLUTION=720x480,NAME="HD""#;
-        assert_eq!(
-            extract_attribute(line, "BANDWIDTH"),
-            Some("1280000".to_string())
-        );
-        assert_eq!(
-            extract_attribute(line, "RESOLUTION"),
-            Some("720x480".to_string())
-        );
-        assert_eq!(extract_attribute(line, "NAME"), Some("HD".to_string()));
+    #[tokio::test]
+    async fn test_extract_audio_groups_with_audio_tags() {
+        let m3u8_content = r#"#EXTM3U8
+#EXT-X-VERSION:3
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="group_audio",NAME="Japanese",DEFAULT=YES,LANGUAGE="ja",CHANNELS="2",URI="audio/0_ja/playlist.m3u8"
+#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="group_audio",NAME="English",DEFAULT=NO,LANGUAGE="en",CHANNELS="2",URI="audio/1_en/playlist.m3u8"
+#EXT-X-STREAM-INF:BANDWIDTH=1280000,CODECS="avc1.64001f,mp4a.40.2",RESOLUTION=640x360
+stream.m3u8"#;
+
+        let audio_groups =
+            parse_audio_groups(m3u8_content, "https://example.com/master.m3u8").unwrap();
+
+        assert_eq!(audio_groups.len(), 2);
+        assert_eq!(audio_groups[0].name, "Japanese");
+        assert_eq!(audio_groups[1].name, "English");
+    }
+
+    #[tokio::test]
+    async fn test_extract_audio_groups_no_audio_tags() {
+        let m3u8_content = r#"#EXTM3U8
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=1280000,CODECS="avc1.64001f,mp4a.40.2",RESOLUTION=640x360
+stream.m3u8"#;
+
+        let audio_groups =
+            parse_audio_groups(m3u8_content, "https://example.com/master.m3u8").unwrap();
+
+        assert_eq!(audio_groups.len(), 0);
     }
 
     #[test]
-    fn test_resolve_url() {
-        let base = "https://example.com/videos/stream.m3u8";
+    fn test_resolve_uri() {
         assert_eq!(
-            resolve_url(base, "track1.m3u8"),
-            "https://example.com/videos/track1.m3u8"
+            resolve_uri(
+                "https://example.com/master.m3u8",
+                "audio/0_ja/playlist.m3u8"
+            ),
+            "https://example.com/audio/0_ja/playlist.m3u8"
         );
+
         assert_eq!(
-            resolve_url(base, "/absolute/track1.m3u8"),
-            "https://example.com/absolute/track1.m3u8"
+            resolve_uri(
+                "https://example.com/path/master.m3u8",
+                "audio/0_ja/playlist.m3u8"
+            ),
+            "https://example.com/path/audio/0_ja/playlist.m3u8"
         );
+
         assert_eq!(
-            resolve_url(base, "https://other.com/track1.m3u8"),
-            "https://other.com/track1.m3u8"
+            resolve_uri(
+                "https://example.com/master.m3u8",
+                "https://other.com/audio.m3u8"
+            ),
+            "https://other.com/audio.m3u8"
         );
     }
 }
