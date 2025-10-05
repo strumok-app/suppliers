@@ -16,9 +16,9 @@ type BoxExtractor = for<'a> fn(
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
 const EXTRACTORS: [(&str, BoxExtractor); 4] = [
-    ("vidrock", vidrock::extract_boxed),
     // ("vidprotop", vidprotop::extract_boxed),
     ("primewire", primewire::extract_boxed),
+    ("vidrock", vidrock::extract_boxed),
     ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
 ];
