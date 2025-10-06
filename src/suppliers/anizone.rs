@@ -8,7 +8,7 @@ use crate::{
         MediaType,
     },
     utils::{
-        self, create_client, hls,
+        self, create_client,
         html::{self, DOMProcessor},
     },
 };
@@ -115,17 +115,11 @@ impl ContentSupplier for AnizoneContentSupplier {
         let anime_page_res = load_anime_page(id, ep_num, langs).await?;
         let mut results: Vec<ContentMediaItemSource> = vec![];
 
-        println!("{}", anime_page_res.hls_src);
-
-        let hls_tracks = hls::extract_audio_groups(&anime_page_res.hls_src).await?;
-
-        for track in hls_tracks.into_iter() {
-            results.push(ContentMediaItemSource::Video {
-                link: track.src,
-                description: track.name,
-                headers: None,
-            });
-        }
+        results.push(ContentMediaItemSource::Video {
+            link: anime_page_res.hls_src,
+            description: "Default".to_string(),
+            headers: None,
+        });
 
         for sub in anime_page_res.subtitles {
             results.push(ContentMediaItemSource::Subtitle {

@@ -5,7 +5,6 @@ pub mod crypto;
 pub mod crypto_js;
 pub mod datalife;
 mod doh;
-pub mod hls;
 pub mod html;
 pub mod jwp_player;
 pub mod lang;
