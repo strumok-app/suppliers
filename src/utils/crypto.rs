@@ -1,9 +1,9 @@
 use anyhow::anyhow;
-use base64::{prelude::BASE64_STANDARD, Engine};
+use base64::{Engine, prelude::BASE64_STANDARD};
 use blowfish::Blowfish;
 use cipher::{
-    block_padding, generic_array::GenericArray, BlockDecrypt, BlockDecryptMut, BlockEncryptMut,
-    KeyInit, KeyIvInit,
+    BlockDecrypt, BlockDecryptMut, BlockEncryptMut, KeyInit, KeyIvInit, block_padding,
+    generic_array::GenericArray,
 };
 
 type AesCbcDec = cbc::Decryptor<aes::Aes256>;
