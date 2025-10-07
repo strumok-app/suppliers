@@ -16,10 +16,11 @@ type BoxExtractor = for<'a> fn(
     &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 5] = [
+const EXTRACTORS: [(&str, BoxExtractor); 6] = [
     ("vidsrc_cc", vidsrc1::extract_boxed),
     ("primewire", primewire::extract_boxed),
     ("vidrock", vidrock::extract_boxed),
+    ("vidzee", vidzee::extract_boxed),
     ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
 ];

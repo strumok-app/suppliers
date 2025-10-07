@@ -188,10 +188,10 @@ fn populate_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str, src:
         populate_video_sources(sources, title, file)
     }
 
-    if let Some(subtitle) = src.subtitle.as_ref() {
-        if !subtitle.is_empty() {
-            populate_subtitle(sources, subtitle, title);
-        }
+    if let Some(subtitle) = src.subtitle.as_ref()
+        && !subtitle.is_empty()
+    {
+        populate_subtitle(sources, subtitle, title);
     }
 }
 

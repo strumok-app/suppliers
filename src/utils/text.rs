@@ -49,7 +49,7 @@ pub fn to_title_case(input: &str) -> String {
         .split('_')
         .map(|word| {
             word.chars()
-                .nth(0)
+                .next()
                 .map_or(String::new(), |c| c.to_uppercase().to_string() + &word[1..])
         })
         .collect::<Vec<String>>()

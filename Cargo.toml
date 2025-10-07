@@ -59,8 +59,9 @@ hex = "0.4.3"
 base64 = "0.22.1"
 aes = "0.8.4"
 pbkdf2 = { version = "0.12", features = ["simple"] }
-byteorder = "1.5.0"
-blowfish = "0.9.1"
+# byteorder = "1.5.0"
+# blowfish = "0.9.1"
 block-modes = "0.9.1"
 cbc = { version = "0.1.2", features = ["std"] }
+aes-gcm = "0.10.3"
 hickory-resolver = "0.25.2"
