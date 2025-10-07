@@ -3,6 +3,7 @@ mod primewire;
 mod two_embed;
 mod vidrock;
 mod vidsrc1;
+mod vidzee;
 
 use futures::future::BoxFuture;
 use log::warn;
