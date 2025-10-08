@@ -137,7 +137,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
-    println!("{source_res_str}");
+    // println!("{source_res_str}");
 
     let source_res: ApiSourceResponse = serde_json::from_str(&source_res_str)?;
 

@@ -162,6 +162,7 @@ async fn load_server(
 
     #[derive(Deserialize, Debug)]
     struct ServerRes {
+        // headers: Option<HashMap<String, String>>,
         provider: String,
         url: Vec<ServerUrl>,
     }
@@ -181,10 +182,10 @@ async fn load_server(
         res.push(ContentMediaItemSource::Video {
             link: dec_link,
             description: format!("[Vidzee] {} - {}", server_res.provider, su.lang),
-            headers: Some(HashMap::from([(
-                "Referer".to_string(),
-                PLAYER_URL.to_string(),
-            )])),
+            headers: Some(HashMap::from([
+                ("Origin".to_string(), PLAYER_URL.to_string()),
+                ("Referer".to_string(), PLAYER_URL.to_string()),
+            ])),
         });
     }
 
