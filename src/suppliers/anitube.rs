@@ -159,7 +159,7 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
             .boxed(),
         title: html::text_value(".story_c > h2 > a"),
         secondary_title: html::default_value(),
-        image: html::self_hosted_image(URL, ".story_c_l img", "src"),
+        image: html::self_hosted_image(URL, ".story_c_l img", "data-src"),
     }
     .into()
 }
@@ -224,7 +224,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                                 .to_owned()
                         })
                         .in_scope(".sl_poster img")
-                        .map_optional(move |src| format!("{URL}{src}"))
+                        .map_optional(extract_image)
                         .unwrap_or_default()
                         .boxed(),
                     }
@@ -235,6 +235,13 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             .boxed(),
         )
     })
+}
+
+fn extract_image(src: String) -> String {
+    if src.starts_with("http") {
+        return src.to_string();
+    }
+    format!("{URL}{src}")
 }
 
 fn get_channels_map() -> &'static IndexMap<&'static str, String> {

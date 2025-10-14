@@ -488,7 +488,12 @@ pub fn self_hosted_image(
 ) -> Box<dyn DOMProcessor<String>> {
     AttrValue::new(attr)
         .in_scope_flatten(selectors)
-        .map_optional(move |src| format!("{url}{src}"))
+        .map_optional(move |src| {
+            if src.starts_with("http") {
+                return src.to_string();
+            }
+            format!("{url}{src}")
+        })
         .unwrap_or_default()
         .boxed()
 }
