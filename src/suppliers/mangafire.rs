@@ -262,12 +262,8 @@ async fn load_volume(
         result: VolumeResult,
     }
 
-    let res: VolumeRes = client
-        .get(format!("{URL}/ajax/read/volume/{id}"))
-        .send()
-        .await?
-        .json()
-        .await?;
+    let url = format!("{URL}/ajax/read/volume/{id}");
+    let res: VolumeRes = client.get(url).send().await?.json().await?;
 
     if res.status != 200 {
         return Err(anyhow!(

@@ -12,7 +12,7 @@ use crate::{
 
 use super::SourceParams;
 
-const URL: &str = "https://www.primewire.tf";
+const URL: &str = "https://primesrc.me";
 
 #[derive(Debug, Deserialize)]
 struct Server {
@@ -39,22 +39,20 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         None => format!("{URL}/api/v1/s?tmdb={tmdb}&type=movie"),
     };
 
+    // println!("{link}");
+
     let client = utils::create_client();
     let servers = load_servers(client, &link).await?;
 
     // println!("{servers:?}");
 
-    let sources_futures = servers
-        .into_iter()
-        .enumerate()
-        .map(|(idx, server)| load_server_sources(client, server, idx));
-
-    let sources = futures::future::join_all(sources_futures)
-        .await
-        .into_iter()
-        .flatten()
-        .flatten()
-        .collect();
+    let mut sources: Vec<ContentMediaItemSource> = vec![];
+    for (idx, server) in servers.into_iter().enumerate() {
+        let mut maybe_server_sources = load_server_sources(client, server, idx).await;
+        if let Some(server_sources) = maybe_server_sources.as_mut() {
+            sources.append(server_sources);
+        }
+    }
 
     Ok(sources)
 }
@@ -98,59 +96,47 @@ async fn try_load_server_sources(
     let server_name = &server.name;
     let display_name = format!("[PrimeWire] {idx}. {server_name}");
 
-    #[derive(Deserialize)]
-    struct ServerSourceRes {
-        link: String,
-    }
-
-    let response_str = client
-        .get(format!("{URL}/api/v1/l?key={server_key}"))
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    let response: ServerSourceRes = serde_json::from_str(&response_str)?;
-    let link = response.link;
-
     // println!("{link}");
 
     match server.name.as_str() {
-        "Streamwish" => streamwish::extract(&link, &display_name).await,
-        "Filelions" => filelions::extract(&link, &display_name).await,
-        "Mixdrop" => mixdrop::extract(&link, &display_name).await,
-        "Dood" => dood::extract(&link, &display_name).await,
+        "Streamwish" => {
+            let link = load_server_link(client, server_key).await?;
+            streamwish::extract(&link, &display_name).await
+        }
+        "Filelions" => {
+            let link = load_server_link(client, server_key).await?;
+            filelions::extract(&link, &display_name).await
+        }
+        "Mixdrop" => {
+            let link = load_server_link(client, server_key).await?;
+            mixdrop::extract(&link, &display_name).await
+        }
+        "Dood" => {
+            let link = load_server_link(client, server_key).await?;
+            dood::extract(&link, &display_name).await
+        }
         _ => Ok(vec![]),
     }
 }
 
-// fn decrypt_links(data: &str) -> anyhow::Result<Vec<String>> {
-//     let key = &data[(data.len() - 10)..];
-//     let ct = &data[..(data.len() - 10)];
-//
-//     let pt = crypto::decrypt_base64_blowfish_ebc(key.as_bytes(), ct.as_bytes())?;
-//
-//     let res = pt
-//         .chunks(5)
-//         .map(|chunk| String::from_utf8(chunk.to_vec()).unwrap_or_default())
-//         .collect();
-//
-//     Ok(res)
-// }
+async fn load_server_link(client: &Client, server_key: &String) -> Result<String, anyhow::Error> {
+    #[derive(Deserialize)]
+    struct ServerSourceRes {
+        link: String,
+    }
+    // tokio::time::sleep(Duration::from_millis(1000)).await;
+    let url = format!("{URL}/api/v1/l?key={server_key}");
+    let response_str = client.get(url).send().await?.text().await?;
+    let response: ServerSourceRes = serde_json::from_str(&response_str)?;
+    let link = response.link;
+    Ok(link)
+}
 
 #[cfg(test)]
 mod test {
     use crate::suppliers::tmdb::extractors::Episode;
 
     use super::*;
-
-    // #[test]
-    // fn should_decrypt_links() {
-    //     let data = "MaMWRx5GOovWdKt6VBY8YNh31oXIatX5yIjDC+2YwtKaf/zaU80DgbYWvHuLlP8SF8OWmY1OpE";
-    //     let res = decrypt_links(data);
-    //
-    //     println!("{res:#?}")
-    // }
 
     #[test_log::test(tokio::test)]
     async fn should_load_source() {

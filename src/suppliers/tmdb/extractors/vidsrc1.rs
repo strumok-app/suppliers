@@ -69,7 +69,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .get("movieType")
         .ok_or_else(|| anyhow!("[vidsrc_cc] movieType varaible not found"))?;
 
-    let vrf = generate_vrf(movie_id, user_id)?;
+    let vrf = generate_vrf(movie_id, &format!("secret_{user_id}"))?;
 
     // println!("vrf: {vrf}");
 
@@ -175,7 +175,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
 //   const result = await crypto.subtle.encrypt(opt2, key_bytes, text_to_enc);
 //   return base64(String.fromCharCode(...new Uint8Array(result)));
 // }
-// await encrypt(movieId, userId);
+// await encrypt(movieId, "secret_" + userId);
 //
 fn generate_vrf(text: &str, pass: &str) -> anyhow::Result<String> {
     let key = Sha256::digest(pass.as_bytes());
