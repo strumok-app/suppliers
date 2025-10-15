@@ -1988,6 +1988,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rc4"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f1256e23efe6097f27aa82d6ca6889361c001586ae0f6917cbad072f05eb275"
+dependencies = [
+ "cipher",
+]
+
+[[package]]
 name = "redox_syscall"
 version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2453,7 +2462,7 @@ dependencies = [
 
 [[package]]
 name = "strumok_suppliers"
-version = "3.3.12"
+version = "3.3.13"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -2473,6 +2482,7 @@ dependencies = [
  "log",
  "md-5",
  "pbkdf2",
+ "rc4",
  "regex",
  "reqwest",
  "scraper",
@@ -2484,7 +2494,6 @@ dependencies = [
  "strum_macros",
  "test-log",
  "tokio",
- "url",
 ]
 
 [[package]]

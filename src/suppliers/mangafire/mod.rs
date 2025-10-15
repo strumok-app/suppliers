@@ -1,3 +1,5 @@
+mod vrf;
+
 use core::str;
 use std::{
     collections::{BTreeMap, HashMap},
@@ -45,10 +47,13 @@ impl ContentSupplier for MangaFireContentSupplier {
     }
 
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let vrf = vrf::calc(query);
         utils::scrap_page(
-            utils::create_client()
-                .get(format!("{URL}/filter"))
-                .query(&[("keyword", query.to_string()), ("page", page.to_string())]),
+            utils::create_client().get(format!("{URL}/filter")).query(&[
+                ("keyword", query.to_string()),
+                ("vrf", vrf),
+                ("page", page.to_string()),
+            ]),
             content_info_items_processor(),
         )
         .await
@@ -194,7 +199,8 @@ async fn load_volumes(
     id: &str,
     lang: &str,
 ) -> anyhow::Result<Vec<Volume>> {
-    let url = format!("{URL}/ajax/read/{id}/volume/{lang}");
+    let vrf = vrf::calc(&format!("{id}@volume@{lang}"));
+    let url = format!("{URL}/ajax/read/{id}/volume/{lang}?vrf={vrf}");
 
     #[derive(Deserialize, Debug)]
     struct ChaptersResult {
@@ -262,7 +268,8 @@ async fn load_volume(
         result: VolumeResult,
     }
 
-    let url = format!("{URL}/ajax/read/volume/{id}");
+    let vrf = vrf::calc(&format!("volume@{id}"));
+    let url = format!("{URL}/ajax/read/volume/{id}?vrf={vrf}");
     let res: VolumeRes = client.get(url).send().await?.json().await?;
 
     if res.status != 200 {
