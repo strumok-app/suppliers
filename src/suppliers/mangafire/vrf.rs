@@ -91,65 +91,65 @@ const PREFIX_KEY_P: [u8; 7] = [
 const PREFIX_KEY_W: [u8; 5] = [0x64_u8, 0x1e_u8, 0x28_u8, 0x06_u8, 0x2d_u8];
 
 // ==== schedule section =====
-type BitOp = fn(i32) -> u8;
+type BitOp = fn(u8) -> u8;
 
-fn add(n: i32, c: i32) -> u8 {
-    ((c + n) & 0xff) as u8
+fn add(n: u8, c: u8) -> u8 {
+    c.wrapping_add(n)
 }
 
-fn sub(n: i32, c: i32) -> u8 {
-    ((c - n + 256) & 0xff) as u8
+fn sub(n: u8, c: u8) -> u8 {
+    c.wrapping_sub(n)
 }
 
-fn xor(n: i32, c: i32) -> u8 {
-    ((c ^ n) & 0xff) as u8
+fn xor(n: u8, c: u8) -> u8 {
+    c ^ n
 }
 
-fn rotl(n: i32, c: i32) -> u8 {
-    (((c << n) | (c >> (8 - n))) & 0xff) as u8
+fn rotl(n: u8, c: u8) -> u8 {
+    c.rotate_left(n.into())
 }
 
-fn sub19(v: i32) -> u8 {
+fn sub19(v: u8) -> u8 {
     sub(19, v)
 }
 
-fn sub48(v: i32) -> u8 {
+fn sub48(v: u8) -> u8 {
     sub(48, v)
 }
 
-fn sub170(v: i32) -> u8 {
+fn sub170(v: u8) -> u8 {
     sub(170, v)
 }
 
-fn xor8(v: i32) -> u8 {
+fn xor8(v: u8) -> u8 {
     xor(8, v)
 }
 
-fn xor83(v: i32) -> u8 {
+fn xor83(v: u8) -> u8 {
     xor(83, v)
 }
 
-fn xor163(v: i32) -> u8 {
+fn xor163(v: u8) -> u8 {
     xor(163, v)
 }
 
-fn xor241(v: i32) -> u8 {
+fn xor241(v: u8) -> u8 {
     xor(241, v)
 }
 
-fn add82(v: i32) -> u8 {
+fn add82(v: u8) -> u8 {
     add(82, v)
 }
 
-fn add176(v: i32) -> u8 {
+fn add176(v: u8) -> u8 {
     add(176, v)
 }
 
-fn add223(v: i32) -> u8 {
+fn add223(v: u8) -> u8 {
     add(223, v)
 }
 
-fn rotl4(v: i32) -> u8 {
+fn rotl4(v: u8) -> u8 {
     rotl(4, v)
 }
 
@@ -176,21 +176,19 @@ const SCHEDULE_E: [BitOp; 10] = [
 // === schedule section ===
 
 fn transform(input: &[u8], seed: &[u8], prefix: &[u8], schedule: &[BitOp]) -> Vec<u8> {
-    let mut output = vec![];
-
     let seed_len = seed.len();
     let prefix_len = prefix.len();
     let schedule_len = schedule.len();
 
+    let mut output = Vec::with_capacity(input.len() + prefix_len);
     for (i, b) in input.iter().enumerate() {
         if i < prefix_len {
             output.push(prefix[i]);
         }
 
         let op = schedule[i % schedule_len];
-        let x = *b as i32;
-        let s = seed[i % seed_len] as i32;
-        let r = op(x ^ s);
+        let x = *b ^ seed[i % seed_len];
+        let r = op(x);
 
         output.push(r);
     }
@@ -272,8 +270,9 @@ mod tests {
     #[test]
     fn should_calc_vrf() {
         let input = "67890 The quick brown fox jumps over the lazy dog 12345";
+        let output = "ZBYeRCjYBk0tkZnKW4kTuWBYw-81e-csvu6v17UY4zchviixt67VJ_tj_1EmtDAQKmgIhARRw0Zd0bzjp-76YVgGyrsDNdbbRJ5wsw5YRfwNVgSKzMe1gwTPciDY";
         let result = calc(input);
 
-        println!("{result}");
+        assert_eq!(result, output);
     }
 }
