@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use anyhow::anyhow;
-use base64::{Engine, prelude::BASE64_STANDARD};
+use base64::{Engine, prelude::BASE64_URL_SAFE};
 use futures::future::BoxFuture;
 use log::warn;
 use reqwest::Client;
@@ -10,13 +10,15 @@ use serde::Deserialize;
 use crate::{
     models::ContentMediaItemSource,
     suppliers::tmdb::URL,
-    utils::{create_json_client, lang},
+    utils::{self, create_json_client, lang},
 };
 
 use super::SourceParams;
 
 const SITE_URL: &str = "https://vidrock.net";
 const BACKEND_URL: &str = "https://vidrock.net/api";
+
+const ENC_KEY: &str = "x7k9mPqT2rWvY8zA5bC3nF6hJ2lK4mN9";
 
 #[derive(Debug, Deserialize)]
 struct ServerSource {
@@ -35,17 +37,11 @@ pub async fn extract(
     params: &SourceParams,
     langs: &[String],
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let id = params.id;
+    let key = calc_key(params)?;
 
     let link = match &params.ep {
-        Some(ep) => {
-            let hash = calc_tv_show_hash(id, ep.s, ep.e);
-            format!("{BACKEND_URL}/tv/{hash}")
-        }
-        None => {
-            let hash = calc_movie_hash(id);
-            format!("{BACKEND_URL}/movie/{hash}")
-        }
+        Some(_) => format!("{BACKEND_URL}/tv/{key}"),
+        None => format!("{BACKEND_URL}/movie/{key}"),
     };
 
     #[derive(Debug, Deserialize)]
@@ -58,53 +54,99 @@ pub async fn extract(
     }
 
     let client = create_json_client();
-    let res_str = client.get(link).send().await?.text().await?;
-    // println!("{res_str}");
+    // println!("{link}");
+    let res_str = client
+        .get(link)
+        .header("Referer", URL)
+        .send()
+        .await?
+        .text()
+        .await?;
+    // println!"{res_str}");
 
     let res: ServerSources = serde_json::from_str(&res_str)?;
 
     let mut result: Vec<ContentMediaItemSource> = vec![];
-    if let Some(source) = res.source1 {
-        match load_vidstor_playlist(client, source).await {
-            Ok(mut vidstore) => result.append(&mut vidstore),
-            Err(e) => warn!("[vidrocks] fail to load source: {e}"),
+
+    let sources = vec![
+        res.source1,
+        res.source2,
+        res.source3,
+        res.source4,
+        res.source5,
+    ];
+
+    for (idx, source) in sources.iter().flatten().enumerate() {
+        let num = idx + 1;
+        let url = match &source.url {
+            Some(url) => url,
+            None => continue,
+        };
+
+        if url.contains("/playlist") {
+            match load_vidstor_playlist(client, source).await {
+                Ok(mut vidstore) => result.append(&mut vidstore),
+                Err(e) => warn!("[vidrocks] fail to load source: {e}"),
+            }
+            continue;
+        }
+
+        let language = source.language.as_ref().map_or("unknown", |s| s.as_str());
+
+        if lang::is_allowed(langs, language) {
+            result.push(ContentMediaItemSource::Video {
+                link: url.to_owned(),
+                description: format!("[Vidrocks] {num}. {language}"),
+                headers: Some(HashMap::from([
+                    ("Referer".to_owned(), SITE_URL.to_owned()),
+                    ("Origin".to_owned(), SITE_URL.to_owned()),
+                ])),
+            })
         }
     }
-
-    let sources = vec![res.source2, res.source3, res.source4, res.source5];
-
-    sources
-        .into_iter()
-        .flatten()
-        .enumerate()
-        .for_each(|(idx, source)| {
-            let num = idx + 2;
-            let url = match source.url {
-                Some(url) => url,
-                None => return,
-            };
-            let language = source.language.as_ref().map_or("unknown", |s| s.as_str());
-
-            if lang::is_allowed(langs, language) {
-                result.push(ContentMediaItemSource::Video {
-                    link: url,
-                    description: format!("[Vidrocks] {num}. {language}"),
-                    headers: Some(HashMap::from([
-                        ("Referer".to_owned(), SITE_URL.to_owned()),
-                        ("Origin".to_owned(), SITE_URL.to_owned()),
-                    ])),
-                })
-            }
-        });
 
     Ok(result)
 }
 
+// const Ww = "x7k9mPqT2rWvY8zA5bC3nF6hJ2lK4mN9";
+// const hash = (id, type, s, ep) => {
+//   const pt = type === "tv" ? `${id}_${s}_${ep}` : id;
+//   const key = CryptoJS.enc.Utf8.parse(Ww);
+//   const iv = CryptoJS.enc.Utf8.parse(Ww.substring(0, 16));
+//   let c = CryptoJS.AES.encrypt(pt, key, {
+//     iv: iv
+//   }).ciphertext.toString(CryptoJS.enc.Base64);
+//   c = c.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+//   return c;
+// };
+//
+fn calc_key(params: &SourceParams) -> anyhow::Result<String> {
+    let id = params.id;
+    let pt = match &params.ep {
+        Some(ep) => {
+            format!("{}_{}_{}", id, ep.s, ep.e)
+        }
+        None => id.to_string(),
+    };
+
+    let key = ENC_KEY.as_bytes();
+    let iv = &key[0..16];
+
+    let ct = utils::crypto::encrypt_aes(key, iv, pt.as_bytes())?;
+
+    let key = BASE64_URL_SAFE.encode(ct);
+
+    Ok(key)
+}
+
 async fn load_vidstor_playlist(
     client: &Client,
-    server_source: ServerSource,
+    server_source: &ServerSource,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let url = server_source.url.ok_or_else(|| anyhow!("url == null"))?;
+    let url = server_source
+        .url
+        .as_deref()
+        .ok_or_else(|| anyhow!("url == null"))?;
 
     #[derive(Deserialize, Debug)]
     struct PlaylistItem {
@@ -113,7 +155,7 @@ async fn load_vidstor_playlist(
     }
 
     let res_str = client
-        .get(&url)
+        .get(url)
         .header("Referer", URL)
         .send()
         .await?
@@ -147,31 +189,31 @@ async fn load_vidstor_playlist(
     Ok(items)
 }
 
-fn calc_movie_hash(id: u32) -> String {
-    const ENCODING: [u8; 10] = [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j'];
+// fn calc_movie_hash(id: u32) -> String {
+//     const ENCODING: [u8; 10] = [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j'];
+//
+//     let a: Vec<u8> = id
+//         .to_string()
+//         .chars()
+//         .map(|ch| -> u8 {
+//             let idx = ch.to_digit(10).unwrap() as usize;
+//             ENCODING[idx]
+//         })
+//         .rev()
+//         .collect();
+//
+//     let b = BASE64_STANDARD.encode(a);
+//
+//     BASE64_STANDARD.encode(&b)
+// }
 
-    let a: Vec<u8> = id
-        .to_string()
-        .chars()
-        .map(|ch| -> u8 {
-            let idx = ch.to_digit(10).unwrap() as usize;
-            ENCODING[idx]
-        })
-        .rev()
-        .collect();
-
-    let b = BASE64_STANDARD.encode(a);
-
-    BASE64_STANDARD.encode(&b)
-}
-
-fn calc_tv_show_hash(id: u32, s: u32, e: u32) -> String {
-    let a = format!("{id}-{s}-{e}");
-    let b: Vec<u8> = a.bytes().rev().collect();
-    let c = BASE64_STANDARD.encode(&b);
-
-    BASE64_STANDARD.encode(&c)
-}
+// fn calc_tv_show_hash(id: u32, s: u32, e: u32) -> String {
+//     let a = format!("{id}-{s}-{e}");
+//     let b: Vec<u8> = a.bytes().rev().collect();
+//     let c = BASE64_STANDARD.encode(&b);
+//
+//     BASE64_STANDARD.encode(&c)
+// }
 
 #[cfg(test)]
 mod tests {
