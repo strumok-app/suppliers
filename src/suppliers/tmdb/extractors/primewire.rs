@@ -127,6 +127,12 @@ async fn load_server_link(client: &Client, server_key: &String) -> Result<String
     // tokio::time::sleep(Duration::from_millis(1000)).await;
     let url = format!("{URL}/api/v1/l?key={server_key}");
     let response_str = client.get(url).send().await?.text().await?;
+
+    let _ = client
+        .get(format!("{URL}/spiderman?l={server_key}"))
+        .send()
+        .await;
+
     let response: ServerSourceRes = serde_json::from_str(&response_str)?;
     let link = response.link;
     Ok(link)

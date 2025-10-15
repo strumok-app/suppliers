@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Ok};
+use anyhow::{Ok, anyhow};
 use log::warn;
 use regex::Regex;
 use scraper::Selector;
@@ -9,7 +9,7 @@ use crate::{
     utils::{self, unpack::packerjs},
 };
 
-const URL: &str = "https://taylorplayer.com/v";
+const URL: &str = "https://dinisglows.com";
 
 pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let id = match url.rsplit_once("/").map(|(_, r)| r) {
@@ -20,7 +20,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
         }
     };
 
-    let host_url = format!("{URL}/{id}");
+    let host_url = format!("{URL}/v/{id}");
 
     static SCRIPT_SELECTOR: OnceLock<Selector> = OnceLock::new();
 
@@ -48,17 +48,26 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
     let upacked_script = packerjs::unpack(packer_script).map_err(|err| anyhow!(err))?;
 
     static FILE_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
-    let file = FILE_PROPERTY_RE
-        .get_or_init(|| Regex::new(r#""hls2":\s?['"](?<file>[^"]+)['"]"#).unwrap())
-        .captures(&upacked_script)
-        .and_then(|m| Some(m.name("file")?.as_str()))
-        .ok_or_else(|| anyhow!("[filelions] file property not found"))?;
+    let sources: Vec<_> = FILE_PROPERTY_RE
+        .get_or_init(|| Regex::new(r#""hls(\d+)":\s?['"]([^"]+)['"]"#).unwrap())
+        .captures_iter(&upacked_script)
+        .filter_map(|m| Some((m.get(1)?.as_str(), m.get(2)?.as_str())))
+        .map(|(idx, file)| {
+            let link = if file.starts_with("/") {
+                format!("{}{}", URL, file)
+            } else {
+                file.to_owned()
+            };
 
-    Ok(vec![ContentMediaItemSource::Video {
-        description: prefix.into(),
-        link: file.into(),
-        headers: None,
-    }])
+            ContentMediaItemSource::Video {
+                link,
+                description: format!("{prefix} hls{idx}."),
+                headers: None,
+            }
+        })
+        .collect();
+
+    Ok(sources)
 }
 
 #[cfg(test)]
