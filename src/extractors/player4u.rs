@@ -66,7 +66,7 @@ fn lookup_items(res: &str, prefix: &str) -> Vec<Item> {
             let mut title = el.text().collect::<Vec<_>>().join("");
             title = utils::text::sanitize_text(&title);
             title = if title.len() > MAX_TITLE_LEN {
-                title[0..MAX_TITLE_LEN].to_owned()
+                title.chars().take(MAX_TITLE_LEN).collect::<String>()
             } else {
                 title
             };
@@ -92,7 +92,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_extract() {
         let res = extract(
-            "https://player4u.xyz/embed?key=The Flash s01e01",
+            "https://player4u.xyz/embed?key=Star Trek: The Next Generation s07e14",
             "https://player4u.xyz",
             "prefix",
         )
