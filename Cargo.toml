@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "3.3.17"
+version = "3.3.18"
 edition = "2024"
 
 [profile.release]
@@ -35,19 +35,7 @@ version = "1.47.1"
 features = ["rt-multi-thread", "macros"]
 
 [dependencies]
-flutter_rust_bridge = "=2.10.0"
-anyhow = "1.0.99"
-enum_dispatch = "0.3.13"
-strum = { version = "0.27.2", features = ["strum_macros"] }
-strum_macros = "0.27.2"
-serde_json = "1.0.142"
-serde = { version = "1.0", features = ["derive"] }
-scraper = "0.24.0"
-regex = "1.11.1"
-chrono = "0.4.41"
-futures = "0.3.31"
-indexmap = "2.10.0"
-log = "0.4.27"
+log = { version = "0.4.28", features = ["release_max_level_info"] }
 env_logger = "0.11.8"
 test-log = "0.2.18"
 cipher = "0.4.4"
@@ -65,3 +53,15 @@ rc4 = "0.1.0"
 hex = "0.4.3"
 base64 = "0.22.1"
 hickory-resolver = "0.25.2"
+flutter_rust_bridge = "=2.10.0"
+anyhow = "1.0.99"
+enum_dispatch = "0.3.13"
+strum = { version = "0.27.2", features = ["strum_macros"] }
+strum_macros = "0.27.2"
+serde_json = "1.0.145"
+serde = { version = "1.0", features = ["derive"] }
+scraper = "0.24.0"
+regex = "1.11.2"
+chrono = "0.4.42"
+futures = "0.3.31"
+indexmap = "2.10.0"
