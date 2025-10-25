@@ -5,7 +5,7 @@ use reqwest::Client;
 use serde::Deserialize;
 
 use crate::{
-    extractors::{dood, filelions, mixdrop, streamwish},
+    extractors::{dood, mixdrop},
     models::ContentMediaItemSource,
     utils,
 };
@@ -99,14 +99,14 @@ async fn try_load_server_sources(
     // println!("{link}");
 
     match server.name.as_str() {
-        "Streamwish" => {
-            let link = load_server_link(client, server_key).await?;
-            streamwish::extract(&link, &display_name).await
-        }
-        "Filelions" => {
-            let link = load_server_link(client, server_key).await?;
-            filelions::extract(&link, &display_name).await
-        }
+        // "Streamwish" => {
+        //     let link = load_server_link(client, server_key).await?;
+        //     streamwish::extract(&link, &display_name).await
+        // }
+        // "Filelions" => {
+        //     let link = load_server_link(client, server_key).await?;
+        //     filelions::extract(&link, &display_name).await
+        // }
         "Mixdrop" => {
             let link = load_server_link(client, server_key).await?;
             mixdrop::extract(&link, &display_name).await

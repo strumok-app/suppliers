@@ -44,15 +44,6 @@ pub async fn extract(
         None => format!("{BACKEND_URL}/movie/{key}"),
     };
 
-    #[derive(Debug, Deserialize)]
-    struct ServerSources {
-        source1: Option<ServerSource>,
-        source2: Option<ServerSource>,
-        source3: Option<ServerSource>,
-        source4: Option<ServerSource>,
-        source5: Option<ServerSource>,
-    }
-
     let client = create_json_client();
     // println!("{link}");
     let res_str = client
@@ -64,20 +55,11 @@ pub async fn extract(
         .await?;
     // println!"{res_str}");
 
-    let res: ServerSources = serde_json::from_str(&res_str)?;
+    let res: HashMap<String, ServerSource> = serde_json::from_str(&res_str)?;
 
     let mut result: Vec<ContentMediaItemSource> = vec![];
 
-    let sources = vec![
-        res.source1,
-        res.source2,
-        res.source3,
-        res.source4,
-        res.source5,
-    ];
-
-    for (idx, source) in sources.iter().flatten().enumerate() {
-        let num = idx + 1;
+    for (name, source) in res.iter() {
         let url = match &source.url {
             Some(url) => url,
             None => continue,
@@ -96,7 +78,7 @@ pub async fn extract(
         if lang::is_allowed(langs, language) {
             result.push(ContentMediaItemSource::Video {
                 link: url.to_owned(),
-                description: format!("[Vidrocks] {num}. {language}"),
+                description: format!("[Vidrocks] {name}. {language}"),
                 headers: Some(HashMap::from([
                     ("Referer".to_owned(), SITE_URL.to_owned()),
                     ("Origin".to_owned(), SITE_URL.to_owned()),
