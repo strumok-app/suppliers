@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::future::BoxFuture;
 use log::error;
-use reqwest::Client;
+use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
 
 use crate::{
@@ -41,7 +41,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
 
     // println!("{link}");
 
-    let client = utils::create_client();
+    let client = utils::create_json_client();
     let servers = load_servers(client, &link).await?;
 
     // println!("{servers:?}");
