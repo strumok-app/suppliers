@@ -2,8 +2,20 @@ use aes_gcm::{Aes256Gcm, Nonce, aead::Aead};
 use anyhow::anyhow;
 use cipher::{BlockDecryptMut, BlockEncryptMut, Key, KeyInit, KeyIvInit, block_padding};
 
+type AesCbc128Dec = cbc::Decryptor<aes::Aes128>;
 type AesCbcDec = cbc::Decryptor<aes::Aes256>;
 type AesCbcEnc = cbc::Encryptor<aes::Aes256>;
+
+pub fn decrypt_aes128(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u8>> {
+    let cipher = AesCbc128Dec::new_from_slices(key, iv)
+        .map_err(|e| anyhow!("aes cbc chiper init fails: {e}"))?;
+
+    let pt = cipher
+        .decrypt_padded_vec_mut::<block_padding::Pkcs7>(ct)
+        .map_err(|e| anyhow!("aes cbc decrypt fails {e}"))?;
+
+    Ok(pt)
+}
 
 pub fn decrypt_aes(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u8>> {
     let cipher = AesCbcDec::new_from_slices(key, iv)

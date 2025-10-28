@@ -1,11 +1,11 @@
 use anyhow::Result;
 use futures::future::BoxFuture;
 use log::error;
-use reqwest::{Client, ClientBuilder};
+use reqwest::Client;
 use serde::Deserialize;
 
 use crate::{
-    extractors::{dood, mixdrop},
+    extractors::{dood, mixdrop, primevid},
     models::ContentMediaItemSource,
     utils,
 };
@@ -99,6 +99,10 @@ async fn try_load_server_sources(
     // println!("{link}");
 
     match server.name.as_str() {
+        "PrimeVid" => {
+            let link = load_server_link(client, server_key).await?;
+            primevid::extract(&link, &display_name).await
+        }
         // "Streamwish" => {
         //     let link = load_server_link(client, server_key).await?;
         //     streamwish::extract(&link, &display_name).await
@@ -124,14 +128,14 @@ async fn load_server_link(client: &Client, server_key: &String) -> Result<String
     struct ServerSourceRes {
         link: String,
     }
-    // tokio::time::sleep(Duration::from_millis(1000)).await;
+
     let url = format!("{URL}/api/v1/l?key={server_key}");
     let response_str = client.get(url).send().await?.text().await?;
 
-    let _ = client
-        .get(format!("{URL}/spiderman?l={server_key}"))
-        .send()
-        .await;
+    // let _ = client
+    //     .get(format!("{URL}/spiderman?l={server_key}"))
+    //     .send()
+    //     .await;
 
     let response: ServerSourceRes = serde_json::from_str(&response_str)?;
     let link = response.link;
@@ -148,7 +152,7 @@ mod test {
     async fn should_load_source() {
         let res = extract(&SourceParams {
             // id: 655,
-            id: 1399,
+            id: 83867,
             imdb_id: None, //Some("tt18259086".into()),
             // ep: None,
             ep: Some(Episode { s: 1, e: 1 }),

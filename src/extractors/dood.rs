@@ -5,7 +5,7 @@ use regex::Regex;
 
 use crate::{models::ContentMediaItemSource, utils};
 
-const DOOD_URL: &str = "https://dood.re";
+const DOOD_URL: &str = "https://dsvplay.com";
 const RND_STRING: &str = "d96ZdcNq9N";
 
 pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMediaItemSource>> {
