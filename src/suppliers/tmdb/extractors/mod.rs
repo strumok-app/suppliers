@@ -4,6 +4,7 @@ mod primewire;
 mod vidrock;
 mod vidsrc1;
 mod vidzee;
+mod wyzie_subs;
 
 use futures::future::BoxFuture;
 use log::warn;
@@ -16,13 +17,14 @@ type BoxExtractor = for<'a> fn(
     &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 5] = [
-    ("vidsrc_cc", vidsrc1::extract_boxed),
-    ("primewire", primewire::extract_boxed),
+const EXTRACTORS: [(&str, BoxExtractor); 6] = [
     ("vidrock", vidrock::extract_boxed),
     ("vidzee", vidzee::extract_boxed),
+    ("vidsrc_cc", vidsrc1::extract_boxed),
+    ("primewire", primewire::extract_boxed),
     // ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
+    ("wydzie", wyzie_subs::extract_boxed),
 ];
 
 pub async fn run_extractors(

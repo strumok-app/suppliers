@@ -1,4 +1,3 @@
-use anyhow::Ok;
 use futures::future::BoxFuture;
 use serde::Deserialize;
 
@@ -19,6 +18,10 @@ pub async fn extract(
     params: &SourceParams,
     langs: &[String],
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+    if langs.is_empty() {
+        return Ok(vec![]);
+    }
+
     let imdb_id = match &params.imdb_id {
         Some(v) => v,
         None => return Ok(vec![]),
@@ -37,8 +40,6 @@ pub async fn extract(
         None => format!("{base_url}/subtitles/movie/{imdb_id}.json"),
     };
 
-    
-
     let res_str = utils::create_client_builder()
         .build()?
         .get(link)
@@ -46,8 +47,6 @@ pub async fn extract(
         .await?
         .text()
         .await?;
-
-    
 
     #[derive(Debug, Deserialize)]
     struct SubtitleRes {
