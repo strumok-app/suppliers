@@ -163,7 +163,9 @@ impl ContentSupplier for AnixlContentSupplier {
             let response: EpisodesResponse = match serde_json::from_str(&response_str) {
                 Ok(s) => s,
                 Err(e) => {
-                    error!("[anixl] fail to parse anime {id} episodes list page {page}: {e} {response_str}");
+                    error!(
+                        "[anixl] fail to parse anime {id} episodes list page {page}: {e} {response_str}"
+                    );
                     break;
                 }
             };

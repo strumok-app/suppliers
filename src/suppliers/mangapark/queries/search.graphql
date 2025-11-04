@@ -1,0 +1,17 @@
+query ($query: String!, $page: Int = 1) {
+  get_searchComic(select: {
+       word: $query
+       page: $page
+       size: 10
+       sortby: "field_score"
+  }) {
+    items {
+      data {
+        id
+        name
+        altNames
+        urlCoverOri
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+query ($id: ID!) {
+    get_chapterNode(id: $id) {
+        data {
+            imageFile {
+                urlList
+            }
+        }
+    }
+}

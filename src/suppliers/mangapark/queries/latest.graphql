@@ -1,0 +1,18 @@
+query ($select: LatestReleases_Select) {
+    get_latestReleases(select: $select) {
+        items {
+            data {
+                id
+                name
+                tranLang
+                urlCover600
+                score_val
+                last_chapterNodes(amount: 1) {
+                    data {
+                        dname
+                    }
+                }
+            }
+        }
+    }
+}

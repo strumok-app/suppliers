@@ -9,6 +9,7 @@ mod hianime;
 mod mangadex;
 mod mangafire;
 mod mangainua;
+mod mangapark;
 mod tmdb;
 // mod uafilms;
 mod uakinoclub;
@@ -24,8 +25,8 @@ use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
 use mangainua::MangaInUaContentSupplier;
+use mangapark::MangaParkContentSupplier;
 use tmdb::TMDBContentSupplier;
-// use uafilms::UAFilmsContentSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
 use uaserial::UAserialContentSupplier;
 use uaserials_pro::UASerialsProContentSupplier;
@@ -89,8 +90,6 @@ pub enum AllContentSuppliers {
     UASerialsProContentSupplier,
     #[strum(serialize = "UAKinoClub")]
     UAKinoClubContentSupplier,
-    // #[strum(serialize = "UAFilms")]
-    // UAFilmsContentSupplier,
     #[strum(serialize = "UFDub")]
     UFDubContentSupplier,
     #[strum(serialize = "MangaDex")]
@@ -99,6 +98,8 @@ pub enum AllContentSuppliers {
     MangaFireContentSupplier,
     #[strum(serialize = "MangaInUa")]
     MangaInUaContentSupplier,
+    #[strum(serialize = "MangaPark")]
+    MangaParkContentSupplier,
 }
 
 #[enum_dispatch]
@@ -113,6 +114,8 @@ pub enum AllMangaPagesLoaders {
     MangaDexContentSupplier,
     #[strum(serialize = "MangaInUa")]
     MangaInUaContentSupplier,
+    #[strum(serialize = "MangaPark")]
+    MangaParkContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {
