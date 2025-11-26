@@ -15,6 +15,7 @@ use crate::{
 };
 
 const URL: &str = "https://vidsrc.cc";
+const SECRET_PREFIX: &str = "RNckJONvMn_";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -69,7 +70,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .get("movieType")
         .ok_or_else(|| anyhow!("[vidsrc_cc] movieType varaible not found"))?;
 
-    let vrf = generate_vrf(movie_id, &format!("secret_{user_id}"))?;
+    let vrf = generate_vrf(movie_id, &format!("{SECRET_PREFIX}{user_id}"))?;
 
     // println!("vrf: {vrf}");
 
