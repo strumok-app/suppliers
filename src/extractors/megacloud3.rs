@@ -229,7 +229,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_episode1_load_by_link() {
-        let link = "https://megacloud.blog/embed-2/v3/e-1/heQfyQKzZW3S?k=1";
+        let link = "https://megacloud.blog/embed-2/v3/e-1/7JoEzzz0ECPw?k=1&autoPlay=1&oa=0&asi=1";
         let sources = extract(link, "https://hianime.to", "Megacloud")
             .await
             .unwrap();

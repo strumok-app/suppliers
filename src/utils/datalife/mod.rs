@@ -69,8 +69,6 @@ pub async fn load_ajax_playlist(
         .text()
         .await?;
 
-    
-
     let res: AjaxPlaylistResponse = serde_json::from_str(&res_text)?;
 
     let html_fragment = scraper::Html::parse_fragment(&res.response);

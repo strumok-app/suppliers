@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::OnceLock};
 
-use anyhow::Ok;
-use log::error;
+use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
+use log::{error, warn};
 use regex::Regex;
 use serde::Deserialize;
 
@@ -59,23 +59,28 @@ pub async fn load_and_parse_playerjs_sources(
     let maybe_file = extract_playerjs_playlist(&html);
 
     if maybe_file.is_none() {
-        println!("PlayerJS playlist not found");
+        warn!("PlayerJS playlist not found");
         return Ok(vec![]);
     }
 
+    let mut result: Vec<ContentMediaItemSource> = vec![];
     let file = maybe_file.unwrap();
     if file.starts_with("[{") {
         let playerjs_file: Vec<PlayerJSFile> = serde_json::from_str(file)?;
-        let mut result: Vec<ContentMediaItemSource> = vec![];
         for file in playerjs_file {
             populate_sources(&mut result, description, &file);
         }
-        Ok(result)
+    } else if file.starts_with("http") {
+        populate_video_sources(&mut result, description, file);
     } else {
-        let mut sources: Vec<ContentMediaItemSource> = Vec::new();
-        populate_video_sources(&mut sources, description, file);
-        Ok(sources)
+        let file = file.trim_end_matches("=");
+        let decoded_b64 = BASE64_STANDARD_NO_PAD.decode(file)?;
+        let decoded_b64 = decoded_b64.into_iter().rev().collect();
+
+        let decoded_file = String::from_utf8(decoded_b64)?;
+        populate_video_sources(&mut result, description, &decoded_file);
     }
+    Ok(result)
 }
 
 pub fn extract_playerjs_playlist(content: &str) -> Option<&str> {
@@ -104,7 +109,6 @@ pub fn convert_strategy_season_dub_ep(
     sorted_media_items.into_values().collect()
 }
 
-#[allow(dead_code)]
 pub fn convert_strategy_season_ep_dub(
     playerjs_playlist: &Vec<PlayerJSFile>,
 ) -> Vec<ContentMediaItem> {
@@ -245,4 +249,20 @@ fn populate_subtitle(sources: &mut Vec<ContentMediaItemSource>, url: &str, defau
 
 fn default_season_episode_id(season: &str, episode: &str) -> u32 {
     super::text::extract_digits(season) * 10000 + super::text::extract_digits(episode)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_log::test(tokio::test)]
+    async fn shoudl_extact_tortuga() {
+        let res = load_and_parse_playerjs_sources(
+            "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР TRG",
+            "https://tortuga.tw/vod/119859",
+        )
+        .await;
+
+        println!("{res:?}");
+    }
 }

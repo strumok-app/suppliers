@@ -41,7 +41,9 @@ pub fn strip_html(text: &str) -> String {
     static STRIP_HTML_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
     let re = STRIP_HTML_REGEXP.get_or_init(|| Regex::new(r#"<[^>]*>"#).unwrap());
 
-    re.replace_all(text, "").into_owned().trim().into()
+    let striped = re.replace_all(text, "");
+
+    sanitize_text(&striped)
 }
 
 pub fn to_title_case(input: &str) -> String {

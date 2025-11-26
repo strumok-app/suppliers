@@ -280,7 +280,7 @@ mod tests {
     async fn should_load_media_items() {
         let res = AniTubeContentSupplier
             .load_media_items(
-                "31-zapisnik-smert",
+                "5513-vanpan-3-sezon",
                 vec![],
                 vec!["867ca5be02de10b799c164d7b7c31e6eece1bb10".into()],
             )
@@ -293,14 +293,29 @@ mod tests {
     async fn should_load_media_items_source() {
         let res = AniTubeContentSupplier
             .load_media_item_sources(
-                "31-zapisnik-smert",
+                "5513-vanpan-3-sezon",
                 vec![],
                 vec![
-                    "ОЗВУЧУВАННЯ QTV ПЛЕЄР ASHDI".to_string(),
-                    "https://ashdi.vip/vod/36200".to_string(),
-                    "ОЗВУЧУВАННЯ QTV ПЛЕЄР TRG".to_string(),
-                    "https://tortuga.tw/vod/41470".to_string(),
-                ],
+                    // "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР ASHDI",
+                    // "https://ashdi.vip/vod/213716",
+                    // "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР MOON",
+                    // "https://moonanime.art/iframe/ziroreraihcwpzdrtcu/",
+                    "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР TRG",
+                    "https://tortuga.tw/vod/119859",
+                    // "ОЗВУЧЕННЯ Робота Голосом ПЛЕЄР MOON",
+                    // "https://moonanime.art/iframe/nilgcqbfjpjswecgrhqzpfhqji/",
+                    // "ОЗВУЧЕННЯ Робота Голосом ПЛЕЄР ASHDI",
+                    // "https://ashdi.vip/vod/213732",
+                    // "ОЗВУЧЕННЯ AMANOGAWA ПЛЕЄР MOON",
+                    // "https://moonanime.art/iframe/peaqxhdbcojeofbw/",
+                    "ОЗВУЧЕННЯ AMANOGAWA ПЛЕЄР TRG",
+                    "https://tortuga.tw/vod/119858",
+                    // "СУБТИТРИ Робота Голосом ПЛЕЄР MOON",
+                    // "https://moonanime.art/iframe/ponbhrkhpxmsikczdgcyvodgimctlm/",
+                ]
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>(),
             )
             .await
             .unwrap();

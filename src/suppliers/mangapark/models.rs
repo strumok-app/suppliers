@@ -59,7 +59,7 @@ pub struct ComicNodeData {
     pub authors: Vec<String>,
     pub genres: Vec<String>,
     #[serde(rename = "originalStatus")]
-    pub original_status: String,
+    pub original_status: Option<String>,
     #[serde(rename = "uploadStatus")]
     pub upload_status: Option<String>,
     pub summary: Option<String>,

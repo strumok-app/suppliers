@@ -81,7 +81,11 @@ impl ContentSupplier for MangaParkContentSupplier {
             }
         };
 
-        variables.insert("page".to_string(), page.into());
+        let maybe_select = variables.get_mut("select").and_then(|s| s.as_object_mut());
+
+        if let Some(select) = maybe_select {
+            select.insert("page".to_string(), page.into());
+        }
 
         let body = json!({"query": gql, "variables": variables,});
 
@@ -211,10 +215,9 @@ fn comic_node_to_content_details(
         additional_info.push(format!("Genres: {}", node.genres.join(", ")));
     }
 
-    additional_info.push(format!(
-        "Status: {}",
-        node.upload_status.unwrap_or(node.original_status)
-    ));
+    if let Some(status) = node.upload_status.or(node.original_status) {
+        additional_info.push(format!("Status: {}", status));
+    }
 
     let media_items: Vec<_> = chapters
         .into_iter()
@@ -259,7 +262,7 @@ fn comic_node_to_content_details(
             .unwrap_or_default(),
         description: node
             .summary
-            .map(|s| utils::text::sanitize_text(&s))
+            .map(|s| utils::text::strip_html(&s))
             .unwrap_or_default(),
         media_type: MediaType::Manga,
         additional_info,
@@ -288,7 +291,7 @@ fn latest_response_to_content_info(item: LatestItem) -> ContentInfo {
     let cover = data.cover_url.unwrap_or_default();
 
     let mut secondary_title_parts = Vec::new();
-    if let Some(ch) = data.last_chapters.iter().next() {
+    if let Some(ch) = data.last_chapters.first() {
         secondary_title_parts.push(ch.data.dname.clone());
     }
     secondary_title_parts.push(data.tran_lang);
@@ -323,7 +326,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_load_popular_channel() {
         let res = MangaParkContentSupplier
-            .load_channel("Popular Updates", 1)
+            .load_channel("Popular Updates", 2)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -347,7 +350,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
         let res = MangaParkContentSupplier
-            .get_content_details("428464", vec![])
+            .get_content_details("431926", vec![])
             // .get_content_details("74763", vec![])
             .await;
         println!("{res:#?}");
