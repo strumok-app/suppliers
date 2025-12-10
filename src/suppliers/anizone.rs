@@ -203,16 +203,8 @@ fn search_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(extract_id_from_url)
-            .in_scope_flatten("div.h-6.inline > a")
-            .unwrap_or_default()
-            .boxed(),
-        title: html::TextValue::new()
-            .map(|s| utils::text::sanitize_text(&s))
-            .in_scope("div.h-6.inline > a")
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map("div.h-6.inline > a", "href", extract_id_from_url),
+        title: html::text_value_map("div.h-6.inline > a", |s| utils::text::sanitize_text(&s)),
         secondary_title: html::items_processor("div.h-4 > span", html::TextValue::new().boxed())
             .map(|s| Some(s.join(", ")))
             .boxed(),
@@ -229,18 +221,12 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             "main",
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
-                title: html::TextValue::new()
-                    .in_scope("h1")
-                    .unwrap_or_default()
-                    .boxed(),
+                title: html::text_value("h1"),
                 original_title: html::default_value(),
                 image: html::attr_value("div.mx-auto img", "src"),
-                description: html::TextValue::new()
-                    .all_nodes()
-                    .map(|s| utils::text::sanitize_text(&s))
-                    .in_scope("div.text-slate-100 div")
-                    .unwrap_or_default()
-                    .boxed(),
+                description: html::text_value_map("div.text-slate-100 div", |s| {
+                    utils::text::sanitize_text(&s)
+                }),
                 additional_info: html::items_processor(
                     "div.text-slate-100 span span",
                     html::TextValue::new().boxed(),

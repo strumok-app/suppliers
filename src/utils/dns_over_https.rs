@@ -1,7 +1,7 @@
-use hickory_resolver::config::ResolverConfig;
-use hickory_resolver::name_server::TokioConnectionProvider;
 use hickory_resolver::Resolver;
 use hickory_resolver::TokioResolver;
+use hickory_resolver::config::ResolverConfig;
+use hickory_resolver::name_server::TokioConnectionProvider;
 use reqwest::dns::Addrs;
 use reqwest::dns::Name;
 use reqwest::dns::Resolve;
@@ -45,4 +45,3 @@ impl Resolve for DoHResolver {
         })
     }
 }
-

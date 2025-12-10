@@ -4,7 +4,8 @@ pub mod anilist;
 pub mod crypto;
 pub mod crypto_js;
 pub mod datalife;
-mod doh;
+mod dns_over_https;
+pub mod enc_dec_app;
 pub mod html;
 pub mod jwp_player;
 pub mod lang;
@@ -18,11 +19,18 @@ use std::{
     time::Duration,
 };
 
-use doh::DoHResolver;
+use dns_over_https::DoHResolver;
+use log::debug;
 use reqwest::{
     ClientBuilder,
     header::{self, HeaderMap},
 };
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct GenericResponse {
+    pub result: String,
+}
 
 pub fn get_user_agent<'a>() -> &'a str {
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0"
@@ -90,6 +98,8 @@ pub async fn scrap_page<T>(
     processor: &dyn html::DOMProcessor<T>,
 ) -> Result<T, anyhow::Error> {
     let html = request_builder.send().await?.text().await?;
+
+    debug!("{html}");
 
     let document = scraper::Html::parse_document(&html);
     let root = document.root_element();

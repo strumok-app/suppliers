@@ -96,8 +96,6 @@ async fn try_load_server_sources(
     let server_name = &server.name;
     let display_name = format!("[PrimeWire] {idx}. {server_name}");
 
-    // println!("{link}");
-
     match server.name.as_str() {
         "PrimeVid" => {
             let link = load_server_link(client, server_key).await?;
@@ -139,6 +137,9 @@ async fn load_server_link(client: &Client, server_key: &String) -> Result<String
 
     let response: ServerSourceRes = serde_json::from_str(&response_str)?;
     let link = response.link;
+
+    // println!("{link}");
+
     Ok(link)
 }
 

@@ -1,9 +1,9 @@
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animeua;
-// mod aniplay;
 mod anitube;
-mod anixl;
+// mod anixl;
+mod animekai;
 mod anizone;
 mod hianime;
 mod mangadex;
@@ -11,7 +11,6 @@ mod mangafire;
 mod mangainua;
 mod mangapark;
 mod tmdb;
-// mod uafilms;
 mod uakinoclub;
 mod uaserial;
 mod uaserials_pro;
@@ -19,7 +18,8 @@ mod ufdub;
 
 use animeua::AnimeUAContentSupplier;
 use anitube::AniTubeContentSupplier;
-use anixl::AnixlContentSupplier;
+// use anixl::AnixlContentSupplier;
+use animekai::AnimeKaiContentSupplier;
 use anizone::AnizoneContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
@@ -76,8 +76,10 @@ pub enum AllContentSuppliers {
     TMDBContentSupplier,
     #[strum(serialize = "Hianime")]
     HianimeContentSupplier,
-    #[strum(serialize = "Anixl")]
-    AnixlContentSupplier,
+    #[strum(serialize = "AnimeKai")]
+    AnimeKaiContentSupplier,
+    // #[strum(serialize = "Anixl")]
+    // AnixlContentSupplier,
     #[strum(serialize = "Anizone")]
     AnizoneContentSupplier,
     #[strum(serialize = "AniTube")]

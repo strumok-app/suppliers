@@ -13,7 +13,7 @@ use crate::{
 
 use super::ContentSupplier;
 
-use anyhow::{anyhow, Ok};
+use anyhow::{Ok, anyhow};
 use indexmap::IndexMap;
 use regex::Regex;
 
@@ -133,11 +133,9 @@ impl ContentSupplier for UFDubContentSupplier {
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .in_scope_flatten(".short-text > .short-t")
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map(".short-text > .short-t", "href", |s| {
+            datalife::extract_id_from_url(URL, s)
+        }),
         title: html::text_value(".short-text > .short-t"),
         secondary_title: html::ItemsProcessor::new(
             ".short-text > .short-c > a",
@@ -165,11 +163,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             "div.cols",
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
-                title: html::TextValue::new()
-                    .map(|s| s.trim().to_owned())
-                    .in_scope("article .full-title > h1")
-                    .unwrap_or_default()
-                    .boxed(),
+                title: html::text_value_map("article .full-title > h1", |s| s.trim().to_owned()),
                 original_title: html::TextValue::new()
                     .map(|s| s.trim().to_owned())
                     .in_scope("article > .full-title > h1 > .short-t-or")
@@ -208,11 +202,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     }
                     .boxed(),
                 ),
-                params: html::AttrValue::new("value")
-                    .map_optional(|s| vec![s])
-                    .in_scope_flatten("article input")
-                    .unwrap_or_default()
-                    .boxed(),
+                params: html::attr_value_map("article input", "value", |s| vec![s]),
             }
             .boxed(),
         )

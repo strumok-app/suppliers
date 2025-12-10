@@ -19,7 +19,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
     };
 
     let client = utils::create_client();
-    let api_url = format!("{URL}/api/v1/video?id={hash}&w=1960&h=1080&r=null");
+    let api_url = format!("{URL}/api/v1/video?id={hash}&w=1960&h=1080&r=primewire.tf");
 
     let mut res = client
         .get(&api_url)

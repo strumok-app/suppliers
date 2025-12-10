@@ -151,11 +151,9 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     ".pmovie__related .poster",
                     content_info_processor(),
                 ),
-                params: html::AttrValue::new("data-src")
-                    .in_scope_flatten(".pmovie__player .video-inside iframe")
-                    .map_optional(|s| vec![s])
-                    .unwrap_or_default()
-                    .boxed(),
+                params: html::attr_value_map(".pmovie__player .video-inside iframe", "attr", |s| {
+                    vec![s]
+                }),
             }
             .boxed(),
         )

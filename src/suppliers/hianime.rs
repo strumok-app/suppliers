@@ -52,7 +52,7 @@ impl ContentSupplier for HianimeContentSupplier {
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let url = match get_channels_map().get(channel) {
-            Some(url) => format!("{url}={page}"),
+            Some(url) => format!("{url}?page={page}"),
             None => return Err(anyhow!("unknown channel")),
         };
 
@@ -291,20 +291,16 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
             "#wrapper",
             html::ContentDetailsProcessor {
                 media_type: MediaType::Video,
-                title: html::TextValue::new()
-                    .all_nodes()
-                    .map(|s| utils::text::sanitize_text(&s))
-                    .in_scope(format!("{ASIDE_SEL} .anisc-detail .film-name").as_str())
-                    .unwrap_or_default()
-                    .boxed(),
+                title: html::text_value_map(
+                    format!("{ASIDE_SEL} .anisc-detail .film-name").as_str(),
+                    |s| utils::text::sanitize_text(&s),
+                ),
                 original_title: html::default_value(),
                 image: html::attr_value(format!("{ASIDE_SEL} .anisc-poster img").as_str(), "src"),
-                description: html::TextValue::new()
-                    .all_nodes()
-                    .map(|s| utils::text::sanitize_text(&s))
-                    .in_scope(format!("{ASIDE_SEL} .anisc-detail .film-description").as_str())
-                    .unwrap_or_default()
-                    .boxed(),
+                description: html::text_value_map(
+                    format!("{ASIDE_SEL} .anisc-detail .film-description").as_str(),
+                    |s| utils::text::sanitize_text(&s),
+                ),
                 additional_info: html::items_processor(
                     format!("{ASIDE_SEL} .anisc-info-wrap .anisc-info .item:not(.w-hide)").as_str(),
                     html::TextValue::new()
@@ -325,18 +321,10 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(extract_id_from_url)
-            .in_scope(".film-detail .film-name a")
-            .flatten()
-            .unwrap_or_default()
-            .boxed(),
-        title: html::TextValue::new()
-            .all_nodes()
-            .map(|s| utils::text::sanitize_text(&s))
-            .in_scope(".film-detail .film-name")
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map(".film-detail .film-name a", "href", extract_id_from_url),
+        title: html::text_value_map(".film-detail .film-name", |s| {
+            utils::text::sanitize_text(&s)
+        }),
         secondary_title: html::default_value(),
         image: html::attr_value(".film-poster > img", "data-src"),
     }
@@ -358,12 +346,12 @@ fn get_channels_map() -> &'static IndexMap<&'static str, String> {
     static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
     CHANNELS_MAP.get_or_init(|| {
         IndexMap::from([
-            ("New", format!("{URL}/recently-added?page")),
-            ("Most Popular", format!("{URL}/most-popular?page")),
-            ("Recently Updated", format!("{URL}/recently-updated?page")),
-            ("Top Airing", format!("{URL}/top-airing?page")),
-            ("Movies", format!("{URL}/movie?page")),
-            ("TV Series", format!("{URL}/tv?page")),
+            ("New", format!("{URL}/recently-added")),
+            ("Most Popular", format!("{URL}/most-popular")),
+            ("Recently Updated", format!("{URL}/recently-updated")),
+            ("Top Airing", format!("{URL}/top-airing")),
+            ("Movies", format!("{URL}/movie")),
+            ("TV Series", format!("{URL}/tv")),
         ])
     })
 }

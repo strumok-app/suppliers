@@ -96,11 +96,9 @@ impl ContentSupplier for UASerialsProContentSupplier {
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(|id| datalife::extract_id_from_url(URL, id))
-            .in_scope_flatten("a.short-img")
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map("a.short-img", "href", |id| {
+            datalife::extract_id_from_url(URL, id)
+        }),
         title: html::text_value("div.th-title"),
         secondary_title: html::optional_text_value("div.th-title-oname"),
         image: html::self_hosted_image(URL, "a.short-img img", "data-src"),
@@ -132,11 +130,9 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     html::TextValue::new().all_nodes().boxed(),
                 ),
                 similar: html::default_value(),
-                params: html::AttrValue::new("data-src")
-                    .map_optional(|s| vec![s])
-                    .in_scope_flatten("#content > .video_box > iframe")
-                    .unwrap_or_default()
-                    .boxed(),
+                params: html::attr_value_map("#content > .video_box > iframe", "data-src", |s| {
+                    vec![s]
+                }),
             }
             .boxed(),
         )

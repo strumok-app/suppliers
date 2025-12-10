@@ -139,16 +139,10 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .in_scope_flatten(".movie-title")
-            .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .unwrap_or_default()
-            .boxed(),
-        title: html::TextValue::new()
-            .map(|s| utils::text::sanitize_text(&s))
-            .in_scope(".movie-title")
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map(".movie-title", "href", |s| {
+            datalife::extract_id_from_url(URL, s)
+        }),
+        title: html::text_value_map(".movie-title", |s| utils::text::sanitize_text(&s)),
         secondary_title: html::optional_text_value(".full-quality"),
         image: html::self_hosted_image(URL, ".movie-img > img", "src"),
     }
@@ -174,11 +168,9 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 title: html::text_value(".solototle"),
                 original_title: html::optional_text_value(".origintitle"),
                 image: html::self_hosted_image(URL, ".film-poster img", "src"),
-                description: html::TextValue::new()
-                    .map(|s| utils::text::sanitize_text(&s))
-                    .in_scope("div[itemprop=description]")
-                    .unwrap_or_default()
-                    .boxed(),
+                description: html::text_value_map("div[itemprop=description]", |s| {
+                    utils::text::sanitize_text(&s)
+                }),
                 additional_info: html::ItemsProcessor::new(
                     ".film-info > *",
                     html::JoinProcessors::default()

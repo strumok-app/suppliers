@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Ok};
+use anyhow::anyhow;
 use indexmap::IndexMap;
 use scraper::{ElementRef, Selector};
 use std::sync::OnceLock;
@@ -157,11 +157,7 @@ fn try_extract_episodes(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
         })
         .collect();
 
-    if items.is_empty() {
-        None
-    } else {
-        Some(items)
-    }
+    if items.is_empty() { None } else { Some(items) }
 }
 
 fn try_extract_movie(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
@@ -212,11 +208,7 @@ async fn try_extract_iframe_options(
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(|s| extract_id_from_url(&s))
-            .in_scope_flatten(".item > a")
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map(".item > a", "href", |s| extract_id_from_url(&s)),
         title: html::text_value(".item__data > a .name"),
         secondary_title: html::ItemsProcessor::new(
             ".item__data .info__item",
@@ -260,16 +252,12 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                 original_title: html::optional_text_value(".header--title .original"),
                 image: html::self_hosted_image(URL, ".poster img", "src"),
                 description: html::text_value(".player__info .player__description .text"),
-                additional_info: html::MergeProcessor::default()
+                additional_info: html::MergeItemsProcessor::default()
                     .add_processor(html::items_processor(
                         ".movie-data .movie-data-item",
                         html::JoinProcessors::new(vec![
                             html::text_value(".type"),
-                            html::TextValue::new()
-                                .all_nodes()
-                                .in_scope(".value")
-                                .unwrap_or_default()
-                                .boxed(),
+                            html::text_value(".value"),
                         ])
                         .map(|v| v.join(" "))
                         .boxed(),

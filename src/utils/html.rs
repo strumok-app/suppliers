@@ -8,6 +8,45 @@ use scraper::{ElementRef, Selector};
 
 use crate::models::{ContentDetails, ContentInfo, MediaType};
 
+// default pattern
+// fn content_info_processor() -> Box<html::ContentInfoProcessor> {
+//     html::ContentInfoProcessor {
+//         id: html::default_value(),
+//         title: html::default_value(),
+//         secondary_title: html::default_value(),
+//         image: html::default_value(),
+//     }
+//     .into()
+// }
+//
+// fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
+//     static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
+//         OnceLock::new();
+//     CONTENT_INFO_ITEMS_PROCESSOR
+//         .get_or_init(|| html::ItemsProcessor::new("", content_info_processor()))
+// }
+//
+// fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
+//     static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
+//         OnceLock::new();
+//     CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
+//         html::ScopeProcessor::new(
+//             "#dle-content",
+//             html::ContentDetailsProcessor {
+//                 media_type: MediaType::Video,
+//                 title: html::default_value(),
+//                 original_title: html::default_value(),
+//                 image: html::default_value(),
+//                 description: html::default_value(),
+//                 additional_info: html::default_value(),
+//                 similar: html::default_value(),
+//                 params: html::default_value(),
+//             }
+//             .boxed(),
+//         )
+//     })
+// }
+
 // base
 pub trait DOMProcessor<T>: Sync + Send {
     fn process(&self, el: &ElementRef) -> T;
@@ -172,6 +211,18 @@ pub fn text_value(selectors: &str) -> Box<dyn DOMProcessor<String>> {
         .boxed()
 }
 
+pub fn text_value_map<Out>(selectors: &str, mapper: fn(String) -> Out) -> Box<dyn DOMProcessor<Out>>
+where
+    Out: Default + 'static,
+{
+    TextValue::new()
+        .all_nodes()
+        .map(mapper)
+        .in_scope(selectors)
+        .unwrap_or_default()
+        .boxed()
+}
+
 pub fn optional_text_value(selectors: &str) -> Box<dyn DOMProcessor<Option<String>>> {
     TextValue::new().all_nodes().in_scope(selectors).boxed()
 }
@@ -194,6 +245,21 @@ impl AttrValue {
 
 pub fn attr_value(selectors: &str, attr: &'static str) -> Box<dyn DOMProcessor<String>> {
     AttrValue::new(attr)
+        .in_scope_flatten(selectors)
+        .unwrap_or_default()
+        .boxed()
+}
+
+pub fn attr_value_map<Out>(
+    selectors: &str,
+    attr: &'static str,
+    mapper: fn(String) -> Out,
+) -> Box<dyn DOMProcessor<Out>>
+where
+    Out: Default + 'static,
+{
+    AttrValue::new(attr)
+        .map_optional(mapper)
         .in_scope_flatten(selectors)
         .unwrap_or_default()
         .boxed()
@@ -337,6 +403,7 @@ impl<Item> Default for JoinProcessors<Item> {
     }
 }
 
+// join processors that return same item and return a list of items
 impl<Item> JoinProcessors<Item> {
     pub fn new(item_processors: Vec<Box<dyn DOMProcessor<Item>>>) -> JoinProcessors<Item> {
         JoinProcessors { item_processors }
@@ -354,12 +421,12 @@ pub fn join_processors<Item>(
     JoinProcessors::new(item_processors).into()
 }
 
-// join list of processors of items
-pub struct MergeProcessor<Item> {
+// merge a list of processors that procude a list of items (flatten them)
+pub struct MergeItemsProcessor<Item> {
     pub items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,
 }
 
-impl<Item> DOMProcessor<Vec<Item>> for MergeProcessor<Item> {
+impl<Item> DOMProcessor<Vec<Item>> for MergeItemsProcessor<Item> {
     fn process(&self, el: &ElementRef) -> Vec<Item> {
         let mut res: Vec<Item> = Vec::new();
 
@@ -371,7 +438,7 @@ impl<Item> DOMProcessor<Vec<Item>> for MergeProcessor<Item> {
     }
 }
 
-impl<Item> Default for MergeProcessor<Item> {
+impl<Item> Default for MergeItemsProcessor<Item> {
     fn default() -> Self {
         Self {
             items_processors: vec![],
@@ -379,9 +446,11 @@ impl<Item> Default for MergeProcessor<Item> {
     }
 }
 
-impl<Item> MergeProcessor<Item> {
-    pub fn new(items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>) -> MergeProcessor<Item> {
-        MergeProcessor { items_processors }
+impl<Item> MergeItemsProcessor<Item> {
+    pub fn new(
+        items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,
+    ) -> MergeItemsProcessor<Item> {
+        MergeItemsProcessor { items_processors }
     }
 
     pub fn add_processor(mut self, processor: Box<dyn DOMProcessor<Vec<Item>>>) -> Self {
@@ -390,12 +459,12 @@ impl<Item> MergeProcessor<Item> {
     }
 }
 
-impl<Item> ItrDOMProcessor<Item> for MergeProcessor<Item> {}
+impl<Item> ItrDOMProcessor<Item> for MergeItemsProcessor<Item> {}
 
 pub fn merge<Item>(
     items_processors: Vec<Box<dyn DOMProcessor<Vec<Item>>>>,
-) -> Box<MergeProcessor<Item>> {
-    MergeProcessor::new(items_processors).into()
+) -> Box<MergeItemsProcessor<Item>> {
+    MergeItemsProcessor::new(items_processors).into()
 }
 
 // lister processors list

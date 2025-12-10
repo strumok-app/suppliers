@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::OnceLock};
 
-use anyhow::{anyhow, Ok};
+use anyhow::{Ok, anyhow};
 use indexmap::IndexMap;
 use regex::Regex;
-use scraper::{selectable::Selectable, Selector};
+use scraper::{Selector, selectable::Selectable};
 
 use crate::{
     models::{
@@ -259,8 +259,6 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
             .text()
             .await?;
 
-        
-
         let fragment = scraper::Html::parse_fragment(&pages_list);
 
         let img_sel = Selector::parse("img").unwrap();
@@ -298,12 +296,9 @@ fn get_channels_map() -> &'static IndexMap<&'static str, String> {
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .in_scope(".card__content > h3 > a")
-            .flatten()
-            .unwrap_or_default()
-            .boxed(),
+        id: html::attr_value_map(".card__content > h3 > a", "href", |s| {
+            datalife::extract_id_from_url(URL, s)
+        }),
         title: html::text_value(".card__content > h3 > a"),
         secondary_title: html::items_processor(".card__category a", html::TextValue::new().boxed())
             .map(|str| Some(str.join(", ")))
