@@ -151,9 +151,7 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     ".pmovie__related .poster",
                     content_info_processor(),
                 ),
-                params: html::attr_value_map(".pmovie__player .video-inside iframe", "attr", |s| {
-                    vec![s]
-                }),
+                params: html::attr_value_map(".video-inside iframe", "data-src", |s| vec![s]),
             }
             .boxed(),
         )
@@ -197,7 +195,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AnimeUAContentSupplier
-            .get_content_details("7633-dr-stone-4", vec![])
+            .get_content_details("7736-urusei-yatsura-2024", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
