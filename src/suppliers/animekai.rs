@@ -39,13 +39,13 @@ impl ContentSupplier for AnimeKaiContentSupplier {
     }
 
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        if page > 1 {
-            return Ok(vec![]);
-        }
-
-        let request_builder = utils::create_client()
+        let mut request_builder = utils::create_client()
             .get(format!("{URL}/browser"))
             .query(&[("keyword", query)]);
+
+        if page > 1 {
+            request_builder = request_builder.query(&[("page", page)]);
+        }
 
         utils::scrap_page(request_builder, content_info_items_processor()).await
     }
@@ -283,7 +283,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = AnimeKaiContentSupplier.search("konosuba", 1).await;
+        let res = AnimeKaiContentSupplier.search("fairy", 2).await;
 
         println!("{res:?}");
     }

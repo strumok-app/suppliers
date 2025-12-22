@@ -6,7 +6,9 @@ use chrono::format::Item;
 use regex::Regex;
 use scraper::{ElementRef, Selector};
 
-use crate::models::{ContentDetails, ContentInfo, MediaType};
+use crate::models::{
+    ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, MediaType,
+};
 
 // default pattern
 // fn content_info_processor() -> Box<html::ContentInfoProcessor> {
@@ -171,6 +173,26 @@ impl DOMProcessor<ContentDetails> for ContentDetailsProcessor {
             additional_info: self.additional_info.process(el),
             media_items: None,
             similar: self.similar.process(el),
+            params: self.params.process(el),
+        }
+    }
+}
+
+pub struct ContentMediaItemProcessor {
+    pub title: Box<dyn DOMProcessor<String>>,
+    pub section: Box<dyn DOMProcessor<Option<String>>>,
+    pub image: Box<dyn DOMProcessor<Option<String>>>,
+    pub sources: Box<dyn DOMProcessor<Option<Vec<ContentMediaItemSource>>>>,
+    pub params: Box<dyn DOMProcessor<Vec<String>>>,
+}
+
+impl DOMProcessor<ContentMediaItem> for ContentMediaItemProcessor {
+    fn process(&self, el: &ElementRef) -> ContentMediaItem {
+        ContentMediaItem {
+            title: self.title.process(el),
+            section: self.section.process(el),
+            image: self.image.process(el),
+            sources: self.sources.process(el),
             params: self.params.process(el),
         }
     }
@@ -346,15 +368,21 @@ impl<In, Out> MapItem<In, Out> {
 
 // lists
 pub struct ItemsProcessor<Item> {
-    pub scope: Selector,
+    pub scope: Option<Selector>,
     pub item_processor: Box<dyn DOMProcessor<Item>>,
 }
 
 impl<Item> DOMProcessor<Vec<Item>> for ItemsProcessor<Item> {
     fn process(&self, el: &ElementRef) -> Vec<Item> {
-        el.select(&self.scope)
-            .map(|e| self.item_processor.process(&e))
-            .collect()
+        if let Some(selector) = &self.scope {
+            el.select(selector)
+                .map(|e| self.item_processor.process(&e))
+                .collect()
+        } else {
+            el.child_elements()
+                .map(|e| self.item_processor.process(&e))
+                .collect()
+        }
     }
 }
 
@@ -363,7 +391,7 @@ impl<Item> ItrDOMProcessor<Item> for ItemsProcessor<Item> {}
 impl<Item> ItemsProcessor<Item> {
     pub fn new(scope: &str, item_processor: Box<dyn DOMProcessor<Item>>) -> ItemsProcessor<Item> {
         ItemsProcessor {
-            scope: Selector::parse(scope).unwrap(),
+            scope: Some(Selector::parse(scope).unwrap()),
             item_processor,
         }
     }

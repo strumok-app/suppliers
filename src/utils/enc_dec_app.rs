@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Deserialize, Serialize};
 
@@ -16,7 +16,7 @@ struct GenericRequest {
 
 #[derive(Debug, Deserialize)]
 struct KaiDBFind {
-    episodes: HashMap<String, HashMap<String, KaiDBEpisode>>,
+    episodes: HashMap<u32, HashMap<u32, KaiDBEpisode>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,7 +82,7 @@ pub async fn kai_db_find(id: KaiBDId, id_val: &str) -> anyhow::Result<Vec<Conten
 
     let kai_db_res: Vec<KaiDBFind> = serde_json::from_str(&kai_db_res_str)?;
 
-    let mut result = vec![];
+    let mut sorted_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
     if let Some(kai_db_item) = kai_db_res.into_iter().next() {
         let seasons = kai_db_item.episodes;
         let has_multiple_seasons = seasons.len() > 1;
@@ -95,23 +95,28 @@ pub async fn kai_db_find(id: KaiBDId, id_val: &str) -> anyhow::Result<Vec<Conten
                 };
 
                 let section = if has_multiple_seasons {
-                    Some(season.to_owned())
+                    Some(season.to_string())
                 } else {
                     None
                 };
 
-                result.push(ContentMediaItem {
-                    title,
-                    section,
-                    image: None,
-                    sources: None,
-                    params: vec![episode.token],
-                });
+                let key = season * 1000 + ep_num;
+
+                sorted_media_items.insert(
+                    key,
+                    ContentMediaItem {
+                        title,
+                        section,
+                        image: None,
+                        sources: None,
+                        params: vec![episode.token],
+                    },
+                );
             }
         }
     }
 
-    Ok(result)
+    Ok(sorted_media_items.into_values().collect())
 }
 
 #[derive(Debug, Serialize)]

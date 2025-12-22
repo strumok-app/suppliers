@@ -4,6 +4,7 @@ use std::sync::OnceLock;
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
+use regex::Regex;
 use serde_json::json;
 
 use crate::{
@@ -180,8 +181,18 @@ impl MangaPagesLoader for MangaParkContentSupplier {
             .text()
             .await?;
 
+        let re = Regex::new(r#"//s[0-9]+\."#).unwrap();
+
         let pages_res: PagesResponse = serde_json::from_str(&response_str)?;
-        let pages = pages_res.data.chapter_node.data.image_file.url_list;
+        let pages = pages_res
+            .data
+            .chapter_node
+            .data
+            .image_file
+            .url_list
+            .into_iter()
+            .map(|s| re.replace(&s, "//s00.").to_string())
+            .collect();
 
         Ok(pages)
     }

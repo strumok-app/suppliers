@@ -1,9 +1,8 @@
+mod animekai;
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animeua;
 mod anitube;
-// mod anixl;
-mod animekai;
 mod anizone;
 mod hianime;
 mod mangadex;
@@ -15,11 +14,11 @@ mod uakinoclub;
 mod uaserial;
 mod uaserials_pro;
 mod ufdub;
+mod weebcentral;
 
+use animekai::AnimeKaiContentSupplier;
 use animeua::AnimeUAContentSupplier;
 use anitube::AniTubeContentSupplier;
-// use anixl::AnixlContentSupplier;
-use animekai::AnimeKaiContentSupplier;
 use anizone::AnizoneContentSupplier;
 use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
@@ -31,6 +30,7 @@ use uakinoclub::UAKinoClubContentSupplier;
 use uaserial::UAserialContentSupplier;
 use uaserials_pro::UASerialsProContentSupplier;
 use ufdub::UFDubContentSupplier;
+use weebcentral::WeebCentralContentSupplier;
 
 use enum_dispatch::enum_dispatch;
 use std::str::FromStr;
@@ -78,8 +78,6 @@ pub enum AllContentSuppliers {
     HianimeContentSupplier,
     #[strum(serialize = "AnimeKai")]
     AnimeKaiContentSupplier,
-    // #[strum(serialize = "Anixl")]
-    // AnixlContentSupplier,
     #[strum(serialize = "Anizone")]
     AnizoneContentSupplier,
     #[strum(serialize = "AniTube")]
@@ -102,6 +100,8 @@ pub enum AllContentSuppliers {
     MangaInUaContentSupplier,
     #[strum(serialize = "MangaPark")]
     MangaParkContentSupplier,
+    #[strum(serialize = "WeebCentral")]
+    WeebCentralContentSupplier,
 }
 
 #[enum_dispatch]
@@ -118,6 +118,8 @@ pub enum AllMangaPagesLoaders {
     MangaInUaContentSupplier,
     #[strum(serialize = "MangaPark")]
     MangaParkContentSupplier,
+    #[strum(serialize = "WeebCentral")]
+    WeebCentralContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {
