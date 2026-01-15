@@ -15,7 +15,7 @@ use crate::{
 };
 
 const URL: &str = "https://vidsrc.cc";
-const SECRET_PREFIX: &str = "RNckJONvMn_";
+const SECRET_PREFIX: &str = "zh&72ciO39tgH5";
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -37,7 +37,15 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     };
 
     let client = create_client();
-    let iframe_html = client.get(link).send().await?.text().await?;
+    let iframe_html = client
+        .get(link)
+        .header("Referer", URL)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    // println!("{iframe_html}");
 
     static IFRAME_RE: OnceLock<Regex> = OnceLock::new();
     let iframe_re =
@@ -70,7 +78,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .get("movieType")
         .ok_or_else(|| anyhow!("[vidsrc_cc] movieType varaible not found"))?;
 
-    let vrf = generate_vrf(movie_id, &format!("{SECRET_PREFIX}{user_id}"))?;
+    let vrf = generate_vrf(movie_id, &format!("{SECRET_PREFIX}_{user_id}"))?;
 
     // println!("vrf: {vrf}");
 
@@ -82,7 +90,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         api_link = format!("{}&season={}&episode={}", api_link, ep.s, ep.e);
     }
 
-    // println!("{api_link}");
+    println!("{api_link}");
 
     #[derive(Deserialize, Debug)]
     struct ApiServer {
@@ -103,7 +111,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
-    // println!("{api_res_str}");
+    println!("{api_res_str}");
 
     let api_res: ApiServersResponse = serde_json::from_str(&api_res_str)?;
 
@@ -199,10 +207,10 @@ mod test {
     async fn should_load_source() {
         let res = extract(&SourceParams {
             // id: 655,
-            id: 1399,
+            id: 385687,
             imdb_id: None, //Some("tt18259086".into()),
-            // ep: None,
-            ep: Some(Episode { s: 1, e: 1 }),
+            ep: None,
+            // ep: Some(Episode { s: 1, e: 1 }),
         })
         .await;
         println!("{res:#?}")
