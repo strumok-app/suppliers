@@ -8,7 +8,6 @@ mod hianime;
 mod mangadex;
 mod mangafire;
 mod mangainua;
-mod mangapark;
 mod tmdb;
 mod uakinoclub;
 mod uaserial;
@@ -24,7 +23,6 @@ use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
 use mangainua::MangaInUaContentSupplier;
-use mangapark::MangaParkContentSupplier;
 use tmdb::TMDBContentSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
 use uaserial::UAserialContentSupplier;
@@ -98,8 +96,6 @@ pub enum AllContentSuppliers {
     MangaFireContentSupplier,
     #[strum(serialize = "MangaInUa")]
     MangaInUaContentSupplier,
-    #[strum(serialize = "MangaPark")]
-    MangaParkContentSupplier,
     #[strum(serialize = "WeebCentral")]
     WeebCentralContentSupplier,
 }
@@ -111,13 +107,12 @@ pub trait MangaPagesLoader {
 
 #[enum_dispatch(MangaPagesLoader)]
 #[derive(EnumString)]
+#[allow(clippy::enum_variant_names)]
 pub enum AllMangaPagesLoaders {
     #[strum(serialize = "MangaDex")]
     MangaDexContentSupplier,
     #[strum(serialize = "MangaInUa")]
     MangaInUaContentSupplier,
-    #[strum(serialize = "MangaPark")]
-    MangaParkContentSupplier,
     #[strum(serialize = "WeebCentral")]
     WeebCentralContentSupplier,
 }
