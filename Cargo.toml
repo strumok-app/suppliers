@@ -19,15 +19,16 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 features = [
     "charset",
     "http2",
-    "rustls-tls",
-    "rustls-tls-native-roots",
+    "rustls",
     "cookies",
+    "query",
+    "form",
+    "json",
     # Compression
     "brotli",
     "gzip",
-    "json",
 ]
-version = "0.12.23"
+version = "0.13.2"
 default-features = false
 
 [dependencies.tokio]
