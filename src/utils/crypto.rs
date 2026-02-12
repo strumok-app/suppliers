@@ -1,5 +1,7 @@
+use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit, block_padding::Pkcs7};
 use aes_gcm::{Aes256Gcm, Nonce, aead::Aead};
 use anyhow::anyhow;
+use rc4::KeyInit;
 
 type AesCbc128Dec = cbc::Decryptor<aes::Aes128>;
 type AesCbcDec = cbc::Decryptor<aes::Aes256>;
@@ -10,7 +12,7 @@ pub fn decrypt_aes128(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u8
         .map_err(|e| anyhow!("aes cbc chiper init fails: {e}"))?;
 
     let pt = cipher
-        .decrypt_padded_vec_mut::<block_padding::Pkcs7>(ct)
+        .decrypt_padded_vec_mut::<Pkcs7>(ct)
         .map_err(|e| anyhow!("aes cbc decrypt fails {e}"))?;
 
     Ok(pt)
@@ -21,7 +23,7 @@ pub fn decrypt_aes(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u8>> 
         .map_err(|e| anyhow!("aes cbc chiper init fails: {e}"))?;
 
     let pt = cipher
-        .decrypt_padded_vec_mut::<block_padding::Pkcs7>(ct)
+        .decrypt_padded_vec_mut::<Pkcs7>(ct)
         .map_err(|e| anyhow!("aes cbc decrypt fails {e}"))?;
 
     Ok(pt)
@@ -29,9 +31,9 @@ pub fn decrypt_aes(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u8>> 
 
 pub fn decrypt_aes_gcm(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u8>> {
     let nonce = Nonce::from_slice(iv);
-    let key = Key::<Aes256Gcm>::from_slice(key);
+    let key = aes_gcm::Key::<Aes256Gcm>::from_slice(key);
 
-    let cipher = Aes256Gcm::new(key);
+    let cipher = Aes256Gcm::new(&key);
 
     let pt = cipher
         .decrypt(nonce, ct)
@@ -43,7 +45,7 @@ pub fn decrypt_aes_gcm(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u
 pub fn encrypt_aes(key: &[u8], iv: &[u8], pt: &[u8]) -> anyhow::Result<Vec<u8>> {
     let cipher = AesCbcEnc::new_from_slices(key, iv).map_err(|e| anyhow!(e))?;
 
-    let ct = cipher.encrypt_padded_vec_mut::<block_padding::Pkcs7>(pt);
+    let ct = cipher.encrypt_padded_vec_mut::<Pkcs7>(pt);
 
     Ok(ct)
 }
