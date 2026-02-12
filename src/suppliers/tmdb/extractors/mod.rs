@@ -1,8 +1,6 @@
 mod open_subs;
 mod primewire;
-// mod two_embed;
 mod vidrock;
-mod vidsrc1;
 mod vidzee;
 mod wyzie_subs;
 
@@ -17,12 +15,10 @@ type BoxExtractor = for<'a> fn(
     &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 6] = [
+const EXTRACTORS: [(&str, BoxExtractor); 5] = [
     ("vidrock", vidrock::extract_boxed),
     ("vidzee", vidzee::extract_boxed),
-    ("vidsrc_cc", vidsrc1::extract_boxed),
     ("primewire", primewire::extract_boxed),
-    // ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
     ("wydzie", wyzie_subs::extract_boxed),
 ];
