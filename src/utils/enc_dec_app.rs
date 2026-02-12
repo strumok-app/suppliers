@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use anyhow::Ok;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -9,10 +10,24 @@ use crate::{
 
 pub const ENC_DEC_APP_URL: &str = "https://enc-dec.app";
 
+// Common response for both enc and dec
+
 #[derive(Debug, Serialize)]
 struct GenericRequest {
     text: String,
 }
+
+#[derive(Debug, Deserialize)]
+struct DecResponse {
+    result: DecResult,
+}
+
+#[derive(Debug, Deserialize)]
+struct DecResult {
+    url: String,
+}
+
+// Animekai DB section
 
 #[derive(Debug, Deserialize)]
 struct KaiDBFind {
@@ -40,16 +55,6 @@ pub async fn kai_enc(text: &str) -> anyhow::Result<String> {
     Ok(res.result)
 }
 
-#[derive(Debug, Deserialize)]
-struct KaiDecResponse {
-    result: KaiDecResult,
-}
-
-#[derive(Debug, Deserialize)]
-struct KaiDecResult {
-    url: String,
-}
-
 pub async fn kai_dec(text: &str) -> anyhow::Result<String> {
     let url = format!("{ENC_DEC_APP_URL}/api/dec-kai");
 
@@ -65,7 +70,7 @@ pub async fn kai_dec(text: &str) -> anyhow::Result<String> {
 
     // println!("{res_str}");
 
-    let res: KaiDecResponse = serde_json::from_str(&res_str)?;
+    let res: DecResponse = serde_json::from_str(&res_str)?;
 
     Ok(res.result.url)
 }
@@ -119,24 +124,34 @@ pub async fn kai_db_find(id: KaiBDId, id_val: &str) -> anyhow::Result<Vec<Conten
     Ok(sorted_media_items.into_values().collect())
 }
 
+// MegaDec section
+
 #[derive(Debug, Serialize)]
-struct MegaDecRequest {
+struct PlayerDecRequest {
     text: String,
     agent: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct MegaDecResponse {
+struct PlayerDecResponse {
     result: JWPConfig,
 }
 
 pub async fn mega_dec(text: &str, user_agent: &str) -> anyhow::Result<JWPConfig> {
-    let url = format!("{ENC_DEC_APP_URL}/api/dec-mega");
+    player_dec("mega", text, user_agent).await
+}
+
+pub async fn rapid_dec(text: &str, user_agent: &str) -> anyhow::Result<JWPConfig> {
+    player_dec("rapid", text, user_agent).await
+}
+
+async fn player_dec(palyer: &str, text: &str, user_agent: &str) -> anyhow::Result<JWPConfig> {
+    let url = format!("{ENC_DEC_APP_URL}/api/dec-{palyer}");
 
     let client = create_json_client();
     let mega_dec_res_str = client
         .post(&url)
-        .json(&MegaDecRequest {
+        .json(&PlayerDecRequest {
             text: text.to_string(),
             agent: user_agent.to_string(),
         })
@@ -145,9 +160,81 @@ pub async fn mega_dec(text: &str, user_agent: &str) -> anyhow::Result<JWPConfig>
         .text()
         .await?;
 
-    let mega_dec_res: MegaDecResponse = serde_json::from_str(&mega_dec_res_str)?;
+    let mega_dec_res: PlayerDecResponse = serde_json::from_str(&mega_dec_res_str)?;
 
     Ok(mega_dec_res.result)
+}
+
+// Flix section
+
+#[derive(Debug, Deserialize)]
+struct FlixFindTV {
+    episodes: HashMap<u32, HashMap<u32, FlixEpisode>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct FlixEpisode {
+    title: Option<String>,
+    eid: String,
+}
+
+pub async fn flix_db_find_tv(tmdb_id: u32, s: u32, e: u32) -> anyhow::Result<Option<String>> {
+    flix_db_find(tmdb_id, s, e, true).await
+}
+
+pub async fn flix_db_find_movie(tmdb_id: u32) -> anyhow::Result<Option<String>> {
+    flix_db_find(tmdb_id, 1, 1, false).await
+}
+
+async fn flix_db_find(tmdb_id: u32, s: u32, e: u32, tv: bool) -> anyhow::Result<Option<String>> {
+    let t = if tv { "tv" } else { "movie" };
+    let url = format!("{ENC_DEC_APP_URL}/db/flix/find?tmdb_id={tmdb_id}&type={t}");
+
+    let flix_db_res_str = create_json_client().get(url).send().await?.text().await?;
+
+    // println!("{flix_db_res_str}");
+
+    let flix_db_res: Vec<FlixFindTV> = serde_json::from_str(&flix_db_res_str)?;
+
+    let maybe_eid = flix_db_res.into_iter().next().and_then(|flix_find| {
+        flix_find
+            .episodes
+            .get(&s)
+            .and_then(|season| season.get(&e))
+            .map(|episode| episode.eid.clone())
+    });
+
+    Ok(maybe_eid)
+}
+
+pub async fn flix_enc(text: &str) -> anyhow::Result<String> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-movies-flix?text={text}");
+
+    let res_str = create_json_client().get(url).send().await?.text().await?;
+
+    let res: GenericResponse = serde_json::from_str(&res_str)?;
+
+    Ok(res.result)
+}
+
+pub async fn flix_dec(text: &str) -> anyhow::Result<String> {
+    let url = format!("{ENC_DEC_APP_URL}/api/dec-movies-flix");
+
+    let res_str = create_json_client()
+        .post(url)
+        .json(&GenericRequest {
+            text: text.to_string(),
+        })
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    // println!("{res_str}");
+
+    let res: DecResponse = serde_json::from_str(&res_str)?;
+
+    Ok(res.result.url)
 }
 
 #[cfg(test)]
@@ -171,5 +258,17 @@ mod tests {
         let res = kai_dec("KKr_fsLSeN3qUntIt18i1b9SB7cZjMkUBwyEEISmuMJwbflEUa_vXwDsFw2KkwJe8XOqoOLG_aG_hMhCKJITK6lmqJDRHGi4zwMgeNY0JBhGqZs_VUJG4USp2qfZ1GxzWMHlNXF3bpHoqr9cpeFZLADzzmTxp7dL9IS6j")
             .await;
         println!("{res:?}")
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn should_find_flix_tv() {
+        let res = flix_db_find_tv(1399, 2, 2).await;
+        println!("{res:?}");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn should_find_flix_movie() {
+        let res = flix_db_find_movie(176).await;
+        println!("{res:?}");
     }
 }

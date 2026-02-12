@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use crate::{
     models::*,
     suppliers::{
-        get_supplier, AllContentSuppliers, AllMangaPagesLoaders, ContentSupplier, MangaPagesLoader,
+        AllContentSuppliers, AllMangaPagesLoaders, ContentSupplier, MangaPagesLoader, get_supplier,
     },
 };
 
@@ -96,6 +96,7 @@ pub fn avalaible_suppliers() -> Vec<String> {
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
+    env_logger::try_init();
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();
 }

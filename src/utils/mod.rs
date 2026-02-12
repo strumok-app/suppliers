@@ -68,7 +68,7 @@ pub fn create_json_client() -> &'static reqwest::Client {
 pub fn create_client_builder() -> reqwest::ClientBuilder {
     ClientBuilder::new()
         .connect_timeout(Duration::from_secs(5))
-        .read_timeout(Duration::from_secs(30))
+        .read_timeout(Duration::from_secs(15))
         .user_agent(get_user_agent())
         .danger_accept_invalid_certs(true)
         .cookie_store(true)
