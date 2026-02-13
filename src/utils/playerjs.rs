@@ -19,7 +19,7 @@ pub struct PlayerJSFile {
 pub async fn load_and_parse_playerjs(
     url: &str,
     startegy: fn(&Vec<PlayerJSFile>) -> Vec<ContentMediaItem>,
-) -> Result<Vec<ContentMediaItem>, anyhow::Error> {
+) -> anyhow::Result<Vec<ContentMediaItem>> {
     let html = super::create_client().get(url).send().await?.text().await?;
 
     let maybe_file = extract_playerjs_playlist(&html);
@@ -53,7 +53,7 @@ pub async fn load_and_parse_playerjs(
 pub async fn load_and_parse_playerjs_sources(
     description: &str,
     url: &str,
-) -> Result<Vec<ContentMediaItemSource>, anyhow::Error> {
+) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let html = super::create_client().get(url).send().await?.text().await?;
 
     let maybe_file = extract_playerjs_playlist(&html);

@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use indexmap::IndexMap;
-use scraper::{ElementRef, Selector};
 use std::sync::OnceLock;
 
 use crate::{
@@ -17,8 +16,8 @@ use crate::{
 
 use super::ContentSupplier;
 
-const URL: &str = "https://uaserial.top";
-const SEARCH_URL: &str = "https://uaserial.top/search";
+const URL: &str = "https://uaserial.biz";
+const SEARCH_URL: &str = "https://uaserial.biz/search";
 
 #[derive(Default)]
 pub struct UAserialContentSupplier;
@@ -80,16 +79,7 @@ impl ContentSupplier for UAserialContentSupplier {
         let html = utils::create_client().get(url).send().await?.text().await?;
         let document = scraper::Html::parse_document(&html);
         let root = document.root_element();
-
-        let mut maybe_details = content_details_processor().process(&root);
-
-        if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.media_items = try_extract_episodes(&root);
-
-            if details.media_items.is_none() {
-                details.media_items = try_extract_movie(&root);
-            }
-        }
+        let maybe_details = content_details_processor().process(&root);
 
         Ok(maybe_details)
     }
@@ -97,113 +87,29 @@ impl ContentSupplier for UAserialContentSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _params: Vec<String>,
         _langs: Vec<String>,
+        params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        Err(anyhow!("unimplemented"))
+        if params.len() != 1 {
+            return Err(anyhow!("Wrong params size"));
+        }
+
+        let url = &params[0];
+        let sources =
+            playerjs::load_and_parse_playerjs(url, playerjs::convert_strategy_dub_season_ep)
+                .await?;
+
+        Ok(sources)
     }
 
     async fn load_media_item_sources(
         &self,
         _id: &str,
         _langs: Vec<String>,
-        params: Vec<String>,
+        _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-        if params.is_empty() {
-            return Err(anyhow!("iframe url expected"));
-        }
-
-        let iframe_path = &params[0];
-        let url = format!("{URL}{iframe_path}");
-
-        let options = try_extract_iframe_options(url).await?;
-
-        if options.is_empty() {
-            return Ok(vec![]);
-        }
-
-        let sources_futures = options.iter().map(|(description, link)| {
-            playerjs::load_and_parse_playerjs_sources(description, link)
-        });
-
-        let results: Vec<ContentMediaItemSource> = futures::future::try_join_all(sources_futures)
-            .await?
-            .into_iter()
-            .flatten()
-            .collect();
-
-        Ok(results)
+        Err(anyhow!("unimplemented"))
     }
-}
-
-fn try_extract_episodes(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
-    static SERIES_SELECTOR: OnceLock<Selector> = OnceLock::new();
-    let selector =
-        SERIES_SELECTOR.get_or_init(|| Selector::parse("#select-series option").unwrap());
-
-    let items: Vec<_> = root
-        .select(selector)
-        .filter_map(|el| {
-            let url = el.attr("value")?;
-            let title = el.text().next()?;
-
-            Some(ContentMediaItem {
-                title: title.into(),
-                section: None,
-                image: None,
-                sources: None,
-                params: vec![url.into()],
-            })
-        })
-        .collect();
-
-    if items.is_empty() { None } else { Some(items) }
-}
-
-fn try_extract_movie(root: &ElementRef) -> Option<Vec<ContentMediaItem>> {
-    static MOVIES_SELECTOR: OnceLock<Selector> = OnceLock::new();
-    let selector = MOVIES_SELECTOR.get_or_init(|| Selector::parse("#embed").unwrap());
-
-    root.select(selector)
-        .map(|el| {
-            let url = el.attr("src")?;
-
-            Some(ContentMediaItem {
-                title: "Default".into(),
-                section: None,
-                image: None,
-                sources: None,
-                params: vec![url.into()],
-            })
-        })
-        .take(1)
-        .collect()
-}
-
-async fn try_extract_iframe_options(
-    url: String,
-) -> anyhow::Result<Vec<(String, String)>, anyhow::Error> {
-    const ALLOWED_VIDEO_HOSTS: &[&str] = &["ashdi", "tortuga"];
-    static OPTIONS_SELECTOR: OnceLock<Selector> = OnceLock::new();
-    let selector =
-        OPTIONS_SELECTOR.get_or_init(|| Selector::parse("option[data-type='link']").unwrap());
-
-    let html = utils::create_client().get(url).send().await?.text().await?;
-
-    let document = &scraper::Html::parse_document(&html);
-    let root = document.root_element();
-    let options: Vec<_> = root
-        .select(selector)
-        .filter_map(|el| {
-            let link = el.attr("value")?;
-            let description = el.text().next()?;
-
-            Some((description.to_owned(), link.to_owned()))
-        })
-        .filter(|(_, link)| ALLOWED_VIDEO_HOSTS.iter().any(|&host| link.contains(host)))
-        .collect();
-
-    Ok(options)
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
@@ -233,10 +139,7 @@ fn search_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
     static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
         OnceLock::new();
     CONTENT_INFO_ITEMS_PROCESSOR.get_or_init(|| {
-        html::ItemsProcessor::new(
-            "#block-search-page > .block__search__actors .row .col",
-            content_info_processor(),
-        )
+        html::ItemsProcessor::new("#block-search-page .row .col", content_info_processor())
     })
 }
 
@@ -274,7 +177,10 @@ fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> 
                     })
                     .boxed(),
                 similar: html::default_value(),
-                params: html::default_value(),
+                params: html::join_processors(vec![html::attr_value(
+                    "iframe.absolute__fill",
+                    "src",
+                )]),
             }
             .boxed(),
         )
@@ -321,7 +227,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = UAserialContentSupplier
-            .search("Термінатор", 0)
+            .search("термінатор", 0)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -339,19 +245,19 @@ mod tests {
     #[tokio::test]
     async fn should_load_content_details_for_tv_show() {
         let res = UAserialContentSupplier
-            .get_content_details("universal-basic-guys/season-1", vec![])
+            .get_content_details("terminator-zero/season-1", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
     }
 
     #[tokio::test]
-    async fn should_load_media_item_sources() {
+    async fn should_load_media_item() {
         let res = UAserialContentSupplier
-            .load_media_item_sources(
-                "charmed/season-8",
+            .load_media_items(
+                "terminator-zero/season-1",
                 vec![],
-                vec!["/embed/blue-exorcist/season-1/episode-1".into()],
+                vec!["https://hdvbua.pro/embed/9146".into()],
             )
             .await
             .unwrap();
