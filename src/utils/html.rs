@@ -11,6 +11,14 @@ use crate::models::{
 };
 
 // default pattern
+//
+// fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
+//     static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
+//         OnceLock::new();
+//     CONTENT_INFO_ITEMS_PROCESSOR
+//         .get_or_init(|| html::ItemsProcessor::new("", content_info_processor()))
+// }
+//
 // fn content_info_processor() -> Box<html::ContentInfoProcessor> {
 //     html::ContentInfoProcessor {
 //         id: html::default_value(),
@@ -19,13 +27,6 @@ use crate::models::{
 //         image: html::default_value(),
 //     }
 //     .into()
-// }
-//
-// fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-//     static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-//         OnceLock::new();
-//     CONTENT_INFO_ITEMS_PROCESSOR
-//         .get_or_init(|| html::ItemsProcessor::new("", content_info_processor()))
 // }
 //
 // fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {

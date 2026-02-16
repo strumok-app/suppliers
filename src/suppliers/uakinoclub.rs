@@ -120,7 +120,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         _langs: Vec<String>,
         mut params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-        if params.len() % 2 != 0 {
+        if !params.len().is_multiple_of(2) {
             return Err(anyhow!("Wrong params size"));
         }
 

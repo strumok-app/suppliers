@@ -33,7 +33,7 @@ pub fn decrypt_aes_gcm(key: &[u8], iv: &[u8], ct: &[u8]) -> anyhow::Result<Vec<u
     let nonce = Nonce::from_slice(iv);
     let key = aes_gcm::Key::<Aes256Gcm>::from_slice(key);
 
-    let cipher = Aes256Gcm::new(&key);
+    let cipher = Aes256Gcm::new(key);
 
     let pt = cipher
         .decrypt(nonce, ct)

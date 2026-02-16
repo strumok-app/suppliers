@@ -9,6 +9,7 @@ mod mangadex;
 mod mangafire;
 mod mangainua;
 mod tmdb;
+mod uaflix;
 mod uakinoclub;
 mod uaserial;
 mod uaserials_pro;
@@ -24,6 +25,7 @@ use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
 use mangainua::MangaInUaContentSupplier;
 use tmdb::TMDBContentSupplier;
+use uaflix::UAFlixSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
 use uaserial::UAserialContentSupplier;
 use uaserials_pro::UASerialsProContentSupplier;
@@ -82,6 +84,8 @@ pub enum AllContentSuppliers {
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
     AnimeUAContentSupplier,
+    #[strum(serialize = "UAFlix")]
+    UAFlixSupplier,
     #[strum(serialize = "UASerial")]
     UAserialContentSupplier,
     #[strum(serialize = "UASerialsPro")]
