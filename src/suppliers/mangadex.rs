@@ -74,6 +74,10 @@ impl ContentSupplier for MangaDexContentSupplier {
                 ("title", query),
                 ("includes[]", "cover_art"),
                 ("hasAvailableChapters", "true"),
+                ("contentRating[]", "safe"),
+                ("contentRating[]", "suggestive"),
+                ("contentRating[]", "erotica"),
+                ("contentRating[]", "pornographic"),
             ])
             .query(&[("limit", CHANNEL_PAGE_SIZE), ("offset", offset)])
             .send()
@@ -82,6 +86,7 @@ impl ContentSupplier for MangaDexContentSupplier {
             .await?;
 
         let search_res: MangaDexSearchResponse = serde_json::from_str(&res_json)?;
+
         Ok(search_res.into())
     }
 
@@ -96,6 +101,12 @@ impl ContentSupplier for MangaDexContentSupplier {
             .get(format!("{API_URL}/manga"))
             .query(query)
             .query(&[("limit", CHANNEL_PAGE_SIZE), ("offset", offset)])
+            .query(&[
+                ("contentRating[]", "safe"),
+                ("contentRating[]", "suggestive"),
+                ("contentRating[]", "erotica"),
+                ("contentRating[]", "pornographic"),
+            ])
             .send()
             .await?
             .json()
@@ -111,7 +122,14 @@ impl ContentSupplier for MangaDexContentSupplier {
     ) -> anyhow::Result<Option<ContentDetails>> {
         let res: MangaDexSingeItemResponse = utils::create_client()
             .get(format!("{API_URL}/manga/{id}"))
-            .query(&[("includes[]", "cover_art"), ("includes[]", "author")])
+            .query(&[
+                ("includes[]", "cover_art"),
+                ("includes[]", "author"),
+                ("contentRating[]", "safe"),
+                ("contentRating[]", "suggestive"),
+                ("contentRating[]", "erotica"),
+                ("contentRating[]", "pornographic"),
+            ])
             .send()
             .await?
             .json()
@@ -137,6 +155,10 @@ impl ContentSupplier for MangaDexContentSupplier {
                 ("order[chapter]", "asc".to_string()),
                 ("offset", last_offset.to_string()),
                 ("limit", CHAPTERS_LIMIT.to_string()),
+                ("contentRating[]", "safe".to_string()),
+                ("contentRating[]", "suggestive".to_string()),
+                ("contentRating[]", "erotica".to_string()),
+                ("contentRating[]", "pornographic".to_string()),
             ];
 
             for lang in &langs {
@@ -249,30 +271,30 @@ impl MangaPagesLoader for MangaDexContentSupplier {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MangaDexSingeItemResponse {
     data: Option<MangaDexItem>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MangaDexSearchResponse {
     data: Vec<MangaDexItem>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MangaDexItem {
     id: String,
     attributes: HashMap<String, serde_json::Value>,
     relationships: Vec<MangaDexRelationship>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MangaDexRelationship {
     r#type: String,
     attributes: Option<serde_json::Value>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct MangaDexChaptersResponse {
     limit: usize,
     offset: usize,
@@ -288,8 +310,10 @@ impl From<MangaDexSearchResponse> for Vec<ContentInfo> {
             .filter_map(move |item| {
                 let id = item.id;
                 let title = lookup_title(&item.attributes)?;
-                let file_name = lookup_cover_file_name(&item.relationships)?;
-                let image = format!("{COVERS_URL}/{id}/{file_name}.512.jpg");
+
+                let image = lookup_cover_file_name(&item.relationships)
+                    .map(|n| format!("{COVERS_URL}/{id}/{n}.512.jpg"))
+                    .unwrap_or_default();
 
                 Some(ContentInfo {
                     id,
@@ -330,13 +354,19 @@ impl From<MangaDexItem> for Option<ContentDetails> {
 }
 
 fn lookup_title(attributes: &HashMap<String, serde_json::Value>) -> Option<String> {
-    attributes
-        .get("title")?
-        .as_object()?
+    let title_obj = attributes.get("title")?.as_object()?;
+
+    let title = title_obj
         .get("en")
         .as_ref()
         .and_then(|v| v.as_str())
-        .map(|v| v.into())
+        .map(|v| v.into());
+
+    title.or(title_obj
+        .values()
+        .next()
+        .and_then(|v| v.as_str())
+        .map(|v| v.into()))
 }
 
 fn lookup_description(attributes: &HashMap<String, serde_json::Value>) -> Option<String> {
@@ -346,7 +376,7 @@ fn lookup_description(attributes: &HashMap<String, serde_json::Value>) -> Option
         .get("en")
         .as_ref()
         .and_then(|v| v.as_str())
-        .map(|v| v.into())
+        .map(utils::text::sanitize_text)
 }
 
 fn lookup_original_title(attributes: &HashMap<String, serde_json::Value>) -> Option<String> {
@@ -475,7 +505,7 @@ mod tests {
     #[tokio::test]
     async fn should_search() {
         let res = MangaDexContentSupplier::default()
-            .search("one", 2)
+            .search("idaten deities", 1)
             .await
             .unwrap();
         println!("{res:#?}");
@@ -484,7 +514,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details() {
         let res = MangaDexContentSupplier::default()
-            .get_content_details("cfc3d743-bd89-48e2-991f-63e680cc4edf", vec![])
+            .get_content_details("0f7295a6-eaf5-470b-a003-b7789a9a0f4a", vec![])
             .await
             .unwrap();
         println!("{res:#?}");
