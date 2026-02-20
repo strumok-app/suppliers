@@ -105,7 +105,7 @@ impl Default for UAFlixSupplier {
 
 impl ContentSupplier for UAFlixSupplier {
     fn get_channels(&self) -> Vec<String> {
-        vec![]
+        self.channels_map.keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
