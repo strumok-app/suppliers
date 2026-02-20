@@ -27,7 +27,15 @@ impl Default for UASerialsProContentSupplier {
             ]),
             processor_content_info_items: html::ItemsProcessor::new(
                 "div.short-item",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::attr_value_map("a.short-img", "href", |id| {
+                        datalife::extract_id_from_url(URL, id)
+                    }),
+                    title: html::text_value("div.th-title"),
+                    secondary_title: html::optional_text_value("div.th-title-oname"),
+                    image: html::self_hosted_image(URL, "a.short-img img", "data-src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ScopeProcessor::new(
                 "#dle-content",
@@ -135,18 +143,6 @@ impl ContentSupplier for UASerialsProContentSupplier {
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map("a.short-img", "href", |id| {
-            datalife::extract_id_from_url(URL, id)
-        }),
-        title: html::text_value("div.th-title"),
-        secondary_title: html::optional_text_value("div.th-title-oname"),
-        image: html::self_hosted_image(URL, "a.short-img img", "data-src"),
-    }
-    .into()
 }
 
 #[cfg(test)]

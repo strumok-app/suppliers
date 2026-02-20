@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use indexmap::IndexMap;
 use scraper::{ElementRef, Selector};
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
     suppliers::ContentSupplier,
     utils::{
         self,
-        html::{self, DOMProcessor, ItrDOMProcessor},
+        html::{self, DOMProcessor, ItrDOMProcessor, attr_value_map},
     },
 };
 
@@ -27,17 +28,26 @@ struct Episodes {
 }
 
 pub struct UAFlixSupplier {
+    channels_map: IndexMap<&'static str, String>,
     selector_episodes_scope: Selector,
     selector_episode_link: Selector,
     selector_episode_image: Selector,
     selector_pages: Selector,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_info_channel_items: html::ItemsProcessor<ContentInfo>,
 }
 
 impl Default for UAFlixSupplier {
     fn default() -> Self {
         Self {
+            channels_map: IndexMap::from([
+                ("Фільми", format!("{URL}/film/")),
+                ("Серіали", format!("{URL}/serials/")),
+                ("Мультфільми", format!("{URL}/cartoons/")),
+                ("Дорами", format!("{URL}/dorama/")),
+                ("Аніме", format!("{URL}/anime/")),
+            ]),
             selector_episodes_scope: Selector::parse("#sers-wr .video-item").unwrap(),
             selector_episode_link: Selector::parse("a.vi-img").unwrap(),
             selector_episode_image: Selector::parse("img").unwrap(),
@@ -68,7 +78,26 @@ impl Default for UAFlixSupplier {
             ),
             processor_content_info_items: html::ItemsProcessor::new(
                 ".sres-wrap",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::AttrValue::new("href")
+                        .map_optional(extract_id_from_url)
+                        .unwrap_or_default()
+                        .boxed(),
+                    title: html::text_value("h2"),
+                    secondary_title: html::default_value(),
+                    image: html::self_hosted_image(URL, ".sres-img img", "src"),
+                }
+                .boxed(),
+            ),
+            processor_content_info_channel_items: html::ItemsProcessor::new(
+                "#dle-content .video-item",
+                html::ContentInfoProcessor {
+                    id: attr_value_map(".vi-img", "href", extract_id_from_url),
+                    title: html::text_value(".vi-desc .vi-title"),
+                    secondary_title: html::default_value(),
+                    image: html::self_hosted_image(URL, ".vi-img img", "src"),
+                }
+                .boxed(),
             ),
         }
     }
@@ -104,8 +133,14 @@ impl ContentSupplier for UAFlixSupplier {
         Ok(results)
     }
 
-    async fn load_channel(&self, _channel: &str, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        Ok(vec![])
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let url = utils::datalife::get_channel_url(&self.channels_map, channel, page)?;
+
+        utils::scrap_page(
+            utils::create_client().get(&url),
+            &self.processor_content_info_channel_items,
+        )
+        .await
     }
 
     async fn get_content_details(
@@ -300,20 +335,6 @@ impl UAFlixSupplier {
         Episodes { episodes, pages }
     }
 }
-// default pattern
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(extract_id_from_url)
-            .unwrap_or_default()
-            .boxed(),
-        title: html::text_value("h2"),
-        secondary_title: html::default_value(),
-        image: html::self_hosted_image(URL, ".sres-img img", "src"),
-    }
-    .into()
-}
 
 fn extract_id_from_url(mut url: String) -> String {
     url.drain((URL.len() + 1)..(url.len() - 1)).collect()
@@ -322,6 +343,15 @@ fn extract_id_from_url(mut url: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn should_load_channel() {
+        let res = UAFlixSupplier::default()
+            .load_channel("Аніме", 2)
+            .await
+            .unwrap();
+        println!("{res:#?}");
+    }
 
     #[tokio::test]
     async fn should_search() {

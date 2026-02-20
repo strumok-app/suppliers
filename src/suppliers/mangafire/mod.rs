@@ -39,7 +39,18 @@ impl Default for MangaFireContentSupplier {
             ]),
             processor_content_info_items: html::ItemsProcessor::new(
                 ".original .unit",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::AttrValue::new("href")
+                        .map_optional(extract_id)
+                        .in_scope("a.poster")
+                        .flatten()
+                        .unwrap_or_default()
+                        .boxed(),
+                    title: html::text_value(".info > a"),
+                    secondary_title: html::default_value(),
+                    image: html::attr_value(".poster img", "src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ContentDetailsProcessor {
                 media_type: MediaType::Manga,
@@ -365,21 +376,6 @@ impl MangaFireContentSupplier {
             params: vec![],
         })
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(extract_id)
-            .in_scope("a.poster")
-            .flatten()
-            .unwrap_or_default()
-            .boxed(),
-        title: html::text_value(".info > a"),
-        secondary_title: html::default_value(),
-        image: html::attr_value(".poster img", "src"),
-    }
-    .into()
 }
 
 fn extract_id(link: String) -> String {

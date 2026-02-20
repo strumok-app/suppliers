@@ -73,6 +73,19 @@ impl Default for AnimeUAContentSupplier {
     }
 }
 
+fn content_info_processor() -> Box<html::ContentInfoProcessor> {
+    html::ContentInfoProcessor {
+        id: html::AttrValue::new("href")
+            .map_optional(|s| datalife::extract_id_from_url(URL, s))
+            .unwrap_or_default()
+            .boxed(),
+        title: html::text_value(".poster__desc > .poster__title"),
+        secondary_title: html::default_value(),
+        image: html::self_hosted_image(URL, ".poster__img img", "data-src"),
+    }
+    .into()
+}
+
 impl ContentSupplier for AnimeUAContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         self.channels_map.keys().map(|&s| s.into()).collect()
@@ -151,19 +164,6 @@ impl ContentSupplier for AnimeUAContentSupplier {
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .unwrap_or_default()
-            .boxed(),
-        title: html::text_value(".poster__desc > .poster__title"),
-        secondary_title: html::default_value(),
-        image: html::self_hosted_image(URL, ".poster__img img", "data-src"),
-    }
-    .into()
 }
 
 #[cfg(test)]

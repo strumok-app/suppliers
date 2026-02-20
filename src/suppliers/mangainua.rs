@@ -45,7 +45,29 @@ impl Default for MangaInUaContentSupplier {
                 ("Бойовик", format!("{URL}/mangas/boyovik/")),
                 ("Психологія", format!("{URL}/mangas/psihologia/")),
             ]),
-            processor_content_info_items: html::ItemsProcessor::new(".movie > article.item", content_info_processor()),
+            processor_content_info_items: html::ItemsProcessor::new(".movie > article.item",     html::ContentInfoProcessor {
+                id: html::attr_value_map(".card__content > h3 > a", "href", |s| {
+                    datalife::extract_id_from_url(URL, s)
+                }),
+                title: html::text_value(".card__content > h3 > a"),
+                secondary_title: html::items_processor(".card__category a", html::TextValue::new().boxed())
+                    .map(|str| Some(str.join(", ")))
+                    .boxed(),
+                image: html::join_processors(vec![
+                    html::attr_value(".card__cover > figure > img", "data-src"),
+                    html::attr_value(".card__cover > figure > img", "src"),
+                ])
+                .map(|items| {
+                    items
+                        .into_iter()
+                        .filter(|src| !src.is_empty())
+                        .map(|src| format!("{URL}{src}"))
+                        .next()
+                })
+                .unwrap_or_default()
+                .boxed(),
+            }
+            .boxed()),
             processor_content_details: html::ScopeProcessor::new(
                 "#site-content",
                 html::ContentDetailsProcessor {
@@ -341,31 +363,6 @@ impl MangaInUaContentSupplier {
 
         Ok(vec![user_hash.to_string()])
     }
-}
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map(".card__content > h3 > a", "href", |s| {
-            datalife::extract_id_from_url(URL, s)
-        }),
-        title: html::text_value(".card__content > h3 > a"),
-        secondary_title: html::items_processor(".card__category a", html::TextValue::new().boxed())
-            .map(|str| Some(str.join(", ")))
-            .boxed(),
-        image: html::join_processors(vec![
-            html::attr_value(".card__cover > figure > img", "data-src"),
-            html::attr_value(".card__cover > figure > img", "src"),
-        ])
-        .map(|items| {
-            items
-                .into_iter()
-                .filter(|src| !src.is_empty())
-                .map(|src| format!("{URL}{src}"))
-                .next()
-        })
-        .unwrap_or_default()
-        .boxed(),
-    }
-    .into()
 }
 
 #[cfg(test)]

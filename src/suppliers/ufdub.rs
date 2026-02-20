@@ -38,7 +38,20 @@ impl Default for UFDubContentSupplier {
             ]),
             processor_content_info_items: html::ItemsProcessor::new(
                 ".cont .short",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::attr_value_map(".short-text > .short-t", "href", |s| {
+                        datalife::extract_id_from_url(URL, s)
+                    }),
+                    title: html::text_value(".short-text > .short-t"),
+                    secondary_title: html::ItemsProcessor::new(
+                        ".short-text > .short-c > a",
+                        html::TextValue::new().boxed(),
+                    )
+                    .map(|v| Some(v.join(",")))
+                    .boxed(),
+                    image: html::self_hosted_image(URL, ".short-i img", "src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ScopeProcessor::new(
                 "div.cols",
@@ -198,23 +211,6 @@ impl ContentSupplier for UFDubContentSupplier {
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         todo!()
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map(".short-text > .short-t", "href", |s| {
-            datalife::extract_id_from_url(URL, s)
-        }),
-        title: html::text_value(".short-text > .short-t"),
-        secondary_title: html::ItemsProcessor::new(
-            ".short-text > .short-c > a",
-            html::TextValue::new().boxed(),
-        )
-        .map(|v| Some(v.join(",")))
-        .boxed(),
-        image: html::self_hosted_image(URL, ".short-i img", "src"),
-    }
-    .into()
 }
 
 #[cfg(test)]

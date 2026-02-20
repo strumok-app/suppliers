@@ -84,6 +84,21 @@ impl Default for UAserialContentSupplier {
     }
 }
 
+fn content_info_processor() -> Box<html::ContentInfoProcessor> {
+    html::ContentInfoProcessor {
+        id: html::attr_value_map(".item > a", "href", |s| extract_id_from_url(&s)),
+        title: html::text_value(".item__data > a .name"),
+        secondary_title: html::ItemsProcessor::new(
+            ".item__data .info__item",
+            html::TextValue::new().boxed(),
+        )
+        .map(|infos| Some(infos.join(",")))
+        .boxed(),
+        image: html::self_hosted_image(URL, ".item > a > .img-wrap > img", "src"),
+    }
+    .into()
+}
+
 impl ContentSupplier for UAserialContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         self.channels_map.keys().map(|&s| s.into()).collect()
@@ -174,21 +189,6 @@ impl ContentSupplier for UAserialContentSupplier {
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map(".item > a", "href", |s| extract_id_from_url(&s)),
-        title: html::text_value(".item__data > a .name"),
-        secondary_title: html::ItemsProcessor::new(
-            ".item__data .info__item",
-            html::TextValue::new().boxed(),
-        )
-        .map(|infos| Some(infos.join(",")))
-        .boxed(),
-        image: html::self_hosted_image(URL, ".item > a > .img-wrap > img", "src"),
-    }
-    .into()
 }
 
 fn extract_id_from_url(id: &str) -> String {

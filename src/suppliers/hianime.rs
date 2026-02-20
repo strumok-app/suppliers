@@ -83,6 +83,18 @@ impl Default for HianimeContentSupplier {
     }
 }
 
+fn content_info_processor() -> Box<html::ContentInfoProcessor> {
+    html::ContentInfoProcessor {
+        id: html::attr_value_map(".film-detail .film-name a", "href", extract_id_from_url),
+        title: html::text_value_map(".film-detail .film-name", |s| {
+            utils::text::sanitize_text(&s)
+        }),
+        secondary_title: html::default_value(),
+        image: html::attr_value(".film-poster > img", "data-src"),
+    }
+    .into()
+}
+
 impl ContentSupplier for HianimeContentSupplier {
     fn get_channels(&self) -> Vec<String> {
         self.channels_map.keys().map(|&s| s.into()).collect()
@@ -336,18 +348,6 @@ impl HianimeContentSupplier {
 
         Ok(sources_resposne.link)
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map(".film-detail .film-name a", "href", extract_id_from_url),
-        title: html::text_value_map(".film-detail .film-name", |s| {
-            utils::text::sanitize_text(&s)
-        }),
-        secondary_title: html::default_value(),
-        image: html::attr_value(".film-poster > img", "data-src"),
-    }
-    .into()
 }
 
 fn extract_id_from_url(mut id: String) -> String {

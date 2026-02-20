@@ -59,7 +59,17 @@ impl Default for AnimeKaiContentSupplier {
             ),
             processor_content_info_items: html::ItemsProcessor::new(
                 ".aitem-wrapper.regular .aitem .inner",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::attr_value_map("a.poster", "href", |s| {
+                        s.rsplit_once("/")
+                            .map(|(_, r)| r.to_string())
+                            .unwrap_or_default()
+                    }),
+                    title: html::text_value("a.title"),
+                    secondary_title: html::default_value(),
+                    image: html::attr_value("a.poster img", "data-src"),
+                }
+                .boxed(),
             ),
         }
     }
@@ -240,20 +250,6 @@ async fn extract_server_source(
     let sources = megaup::extract(&link, &prefix).await?;
 
     Ok(sources)
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map("a.poster", "href", |s| {
-            s.rsplit_once("/")
-                .map(|(_, r)| r.to_string())
-                .unwrap_or_default()
-        }),
-        title: html::text_value("a.title"),
-        secondary_title: html::default_value(),
-        image: html::attr_value("a.poster img", "data-src"),
-    }
-    .into()
 }
 
 #[cfg(test)]

@@ -31,7 +31,15 @@ impl Default for UAKinoClubContentSupplier {
             ]),
             processor_content_info_items: html::ItemsProcessor::new(
                 "#dle-content .movie-item",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::attr_value_map(".movie-title", "href", |s| {
+                        datalife::extract_id_from_url(URL, s)
+                    }),
+                    title: html::text_value_map(".movie-title", |s| utils::text::sanitize_text(&s)),
+                    secondary_title: html::optional_text_value(".full-quality"),
+                    image: html::self_hosted_image(URL, ".movie-img > img", "src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ScopeProcessor::new(
                 "#dle-content",
@@ -203,18 +211,6 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 
         Ok(results)
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map(".movie-title", "href", |s| {
-            datalife::extract_id_from_url(URL, s)
-        }),
-        title: html::text_value_map(".movie-title", |s| utils::text::sanitize_text(&s)),
-        secondary_title: html::optional_text_value(".full-quality"),
-        image: html::self_hosted_image(URL, ".movie-img > img", "src"),
-    }
-    .into()
 }
 
 #[cfg(test)]

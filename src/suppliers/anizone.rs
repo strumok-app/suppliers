@@ -29,7 +29,20 @@ impl Default for AnizoneContentSupplier {
             selector_tracks: scraper::Selector::parse("track[kind='subtitles']").unwrap(),
             processor_content_info_items: html::ItemsProcessor::new(
                 "main > div > div > div.grid > div",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::attr_value_map("div.h-6.inline > a", "href", extract_id_from_url),
+                    title: html::text_value_map("div.h-6.inline > a", |s| {
+                        utils::text::sanitize_text(&s)
+                    }),
+                    secondary_title: html::items_processor(
+                        "div.h-4 > span",
+                        html::TextValue::new().boxed(),
+                    )
+                    .map(|s| Some(s.join(", ")))
+                    .boxed(),
+                    image: html::attr_value("img", "src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ScopeProcessor::new(
                 "main",
@@ -223,18 +236,6 @@ impl AnizoneContentSupplier {
             subtitles,
         })
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::attr_value_map("div.h-6.inline > a", "href", extract_id_from_url),
-        title: html::text_value_map("div.h-6.inline > a", |s| utils::text::sanitize_text(&s)),
-        secondary_title: html::items_processor("div.h-4 > span", html::TextValue::new().boxed())
-            .map(|s| Some(s.join(", ")))
-            .boxed(),
-        image: html::attr_value("img", "src"),
-    }
-    .into()
 }
 
 fn extract_id_from_url(id: String) -> String {

@@ -32,7 +32,17 @@ impl Default for AniTubeContentSupplier {
             channels_map: IndexMap::from([("Новинки", format!("{URL}/anime/page/"))]),
             processor_content_info_items: html::ItemsProcessor::new(
                 "article.story",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::AttrValue::new("href")
+                        .map_optional(|s| datalife::extract_id_from_url(URL, s))
+                        .in_scope_flatten(".story_c > h2 > a")
+                        .unwrap_or_default()
+                        .boxed(),
+                    title: html::text_value(".story_c > h2 > a"),
+                    secondary_title: html::default_value(),
+                    image: html::self_hosted_image(URL, ".story_c_l img", "data-src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ScopeProcessor::new(
                 "div.content",
@@ -224,20 +234,6 @@ impl AniTubeContentSupplier {
 
         Some(vec![hash.into()])
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(|s| datalife::extract_id_from_url(URL, s))
-            .in_scope_flatten(".story_c > h2 > a")
-            .unwrap_or_default()
-            .boxed(),
-        title: html::text_value(".story_c > h2 > a"),
-        secondary_title: html::default_value(),
-        image: html::self_hosted_image(URL, ".story_c_l img", "data-src"),
-    }
-    .into()
 }
 
 fn extract_image(src: String) -> String {

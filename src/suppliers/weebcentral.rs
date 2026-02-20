@@ -29,7 +29,16 @@ impl Default for WeebCentralContentSupplier {
         Self {
             processor_content_info_items: html::ItemsProcessor::new(
                 "article > section > a",
-                content_info_processor(),
+                html::ContentInfoProcessor {
+                    id: html::AttrValue::new("href")
+                        .map_optional(extract_id)
+                        .unwrap_or_default()
+                        .boxed(),
+                    title: html::text_value("article > div:not([class]) > div.bottom-0 > div"),
+                    secondary_title: html::default_value(),
+                    image: html::attr_value("article > picture > img", "src"),
+                }
+                .boxed(),
             ),
             processor_content_details: html::ScopeProcessor::new(
                 "main",
@@ -207,19 +216,6 @@ impl MangaPagesLoader for WeebCentralContentSupplier {
 
         Ok(pages)
     }
-}
-
-fn content_info_processor() -> Box<html::ContentInfoProcessor> {
-    html::ContentInfoProcessor {
-        id: html::AttrValue::new("href")
-            .map_optional(extract_id)
-            .unwrap_or_default()
-            .boxed(),
-        title: html::text_value("article > div:not([class]) > div.bottom-0 > div"),
-        secondary_title: html::default_value(),
-        image: html::attr_value("article > picture > img", "src"),
-    }
-    .into()
 }
 
 fn extract_id(text: String) -> String {
