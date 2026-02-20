@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use indexmap::IndexMap;
-use std::sync::OnceLock;
 
 use crate::{
     models::{
@@ -19,12 +18,64 @@ use super::ContentSupplier;
 
 const URL: &str = "https://animeua.club";
 
-#[derive(Default)]
-pub struct AnimeUAContentSupplier;
+pub struct AnimeUAContentSupplier {
+    channels_map: IndexMap<&'static str, String>,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+}
+
+impl Default for AnimeUAContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([
+                ("Новинки", format!("{URL}/page/")),
+                ("ТОП 100", format!("{URL}/top.html")),
+                ("Повнометражки", format!("{URL}/film/page/")),
+                ("Аніме серіали", format!("{URL}/anime/page/")),
+            ]),
+            processor_content_info_items: html::ItemsProcessor::new(
+                ".grid-item",
+                content_info_processor(),
+            ),
+            processor_content_details: html::ScopeProcessor::new(
+                "#dle-content",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::text_value(".page__subcol-main > h1"),
+                    original_title: html::optional_text_value(
+                        ".page__subcol-main > .pmovie__original-title",
+                    ),
+                    image: html::self_hosted_image(URL, ".pmovie__poster > img", "data-src"),
+                    description: html::text_value(".page__text"),
+                    additional_info: html::merge(vec![
+                        html::join_processors(vec![
+                            html::text_value(".page__subcol-main .pmovie__subrating--site"),
+                            html::text_value(".page__subcol-main > .pmovie__year"),
+                            html::text_value(".page__subcol-main > .pmovie__genres"),
+                        ]),
+                        html::items_processor(
+                            ".page__subcol-side2 li",
+                            html::TextValue::new()
+                                .all_nodes()
+                                .map(|s| utils::text::sanitize_text(&s))
+                                .boxed(),
+                        ),
+                    ]),
+                    similar: html::items_processor(
+                        ".pmovie__related .poster",
+                        content_info_processor(),
+                    ),
+                    params: html::attr_value_map(".video-inside iframe", "data-src", |s| vec![s]),
+                }
+                .boxed(),
+            ),
+        }
+    }
+}
 
 impl ContentSupplier for AnimeUAContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|&s| s.into()).collect()
+        self.channels_map.keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -46,17 +97,17 @@ impl ContentSupplier for AnimeUAContentSupplier {
 
         utils::scrap_page(
             datalife::search_request(URL, query),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
+        let url = datalife::get_channel_url(&self.channels_map, channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -70,7 +121,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_details_processor(),
+            &self.processor_content_details,
         )
         .await
     }
@@ -115,71 +166,13 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR
-        .get_or_init(|| html::ItemsProcessor::new(".grid-item", content_info_processor()))
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "#dle-content",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::text_value(".page__subcol-main > h1"),
-                original_title: html::optional_text_value(
-                    ".page__subcol-main > .pmovie__original-title",
-                ),
-                image: html::self_hosted_image(URL, ".pmovie__poster > img", "data-src"),
-                description: html::text_value(".page__text"),
-                additional_info: html::merge(vec![
-                    html::join_processors(vec![
-                        html::text_value(".page__subcol-main .pmovie__subrating--site"),
-                        html::text_value(".page__subcol-main > .pmovie__year"),
-                        html::text_value(".page__subcol-main > .pmovie__genres"),
-                    ]),
-                    html::items_processor(
-                        ".page__subcol-side2 li",
-                        html::TextValue::new()
-                            .all_nodes()
-                            .map(|s| utils::text::sanitize_text(&s))
-                            .boxed(),
-                    ),
-                ]),
-                similar: html::items_processor(
-                    ".pmovie__related .poster",
-                    content_info_processor(),
-                ),
-                params: html::attr_value_map(".video-inside iframe", "data-src", |s| vec![s]),
-            }
-            .boxed(),
-        )
-    })
-}
-
-fn get_channels_map() -> &'static IndexMap<&'static str, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| {
-        IndexMap::from([
-            ("Новинки", format!("{URL}/page/")),
-            ("ТОП 100", format!("{URL}/top.html")),
-            ("Повнометражки", format!("{URL}/film/page/")),
-            ("Аніме серіали", format!("{URL}/anime/page/")),
-        ])
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn should_load_channel() {
-        let res = AnimeUAContentSupplier
+        let res = AnimeUAContentSupplier::default()
             .load_channel("ТОП 100", 2)
             .await
             .unwrap();
@@ -188,7 +181,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = AnimeUAContentSupplier
+        let res = AnimeUAContentSupplier::default()
             .search("Доктор Стоун", 0)
             .await
             .unwrap();
@@ -197,7 +190,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_content_details() {
-        let res = AnimeUAContentSupplier
+        let res = AnimeUAContentSupplier::default()
             .get_content_details("7736-urusei-yatsura-2024", vec![])
             .await
             .unwrap();
@@ -206,7 +199,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_items() {
-        let res = AnimeUAContentSupplier
+        let res = AnimeUAContentSupplier::default()
             .load_media_items(
                 "7633-dr-stone-4",
                 vec![],

@@ -1,6 +1,5 @@
 use anyhow::anyhow;
 use indexmap::IndexMap;
-use std::sync::OnceLock;
 
 use super::ContentSupplier;
 use crate::models::{
@@ -11,12 +10,53 @@ use crate::utils::{self, datalife, html, playerjs};
 
 const URL: &str = "https://uaserials.my";
 
-#[derive(Default)]
-pub struct UASerialsProContentSupplier;
+pub struct UASerialsProContentSupplier {
+    channels_map: IndexMap<&'static str, String>,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+}
+
+impl Default for UASerialsProContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([
+                ("Фільми", format!("{URL}/films/page/")),
+                ("Серіали", format!("{URL}/series/page/")),
+                ("Мультфільми", format!("{URL}/fcartoon/page/")),
+                ("Мультсеріали", format!("{URL}/cartoon/page/")),
+            ]),
+            processor_content_info_items: html::ItemsProcessor::new(
+                "div.short-item",
+                content_info_processor(),
+            ),
+            processor_content_details: html::ScopeProcessor::new(
+                "#dle-content",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::text_value("h1.short-title .oname_ua"),
+                    original_title: html::optional_text_value(".oname"),
+                    image: html::self_hosted_image(URL, ".fimg > img", "src"),
+                    description: html::text_value(".ftext.full-text"),
+                    additional_info: html::items_processor(
+                        "ul.short-list > li:not(.mylists-mobile)",
+                        html::TextValue::new().all_nodes().boxed(),
+                    ),
+                    similar: html::default_value(),
+                    params: html::attr_value_map(
+                        "#content > .video_box > iframe",
+                        "data-src",
+                        |s| vec![s],
+                    ),
+                }
+                .boxed(),
+            ),
+        }
+    }
+}
 
 impl ContentSupplier for UASerialsProContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|&s| s.into()).collect()
+        self.channels_map.keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -37,11 +77,11 @@ impl ContentSupplier for UASerialsProContentSupplier {
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
+        let url = datalife::get_channel_url(&self.channels_map, channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -49,7 +89,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, query).query(&[("search_start", page.to_string())]),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -65,7 +105,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_details_processor(),
+            &self.processor_content_details,
         )
         .await
     }
@@ -109,57 +149,12 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR
-        .get_or_init(|| html::ItemsProcessor::new("div.short-item", content_info_processor()))
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "#dle-content",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::text_value("h1.short-title .oname_ua"),
-                original_title: html::optional_text_value(".oname"),
-                image: html::self_hosted_image(URL, ".fimg > img", "src"),
-                description: html::text_value(".ftext.full-text"),
-                additional_info: html::items_processor(
-                    "ul.short-list > li:not(.mylists-mobile)",
-                    html::TextValue::new().all_nodes().boxed(),
-                ),
-                similar: html::default_value(),
-                params: html::attr_value_map("#content > .video_box > iframe", "data-src", |s| {
-                    vec![s]
-                }),
-            }
-            .boxed(),
-        )
-    })
-}
-
-fn get_channels_map() -> &'static IndexMap<&'static str, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| {
-        IndexMap::from([
-            ("Фільми", format!("{URL}/films/page/")),
-            ("Серіали", format!("{URL}/series/page/")),
-            ("Мультфільми", format!("{URL}/fcartoon/page/")),
-            ("Мультсеріали", format!("{URL}/cartoon/page/")),
-        ])
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[tokio::test]
     async fn should_load_channel() {
-        let res = UASerialsProContentSupplier
+        let res = UASerialsProContentSupplier::default()
             .load_channel("Серіали", 1)
             .await
             .unwrap();
@@ -168,7 +163,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = UASerialsProContentSupplier
+        let res = UASerialsProContentSupplier::default()
             .search("Зоряний шлях", 2)
             .await
             .unwrap();
@@ -177,7 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_content_details() {
-        let res = UASerialsProContentSupplier
+        let res = UASerialsProContentSupplier::default()
             .get_content_details("10963-gra-v-kalmara", vec![])
             .await
             .unwrap();
@@ -186,7 +181,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_items() {
-        let res = UASerialsProContentSupplier
+        let res = UASerialsProContentSupplier::default()
             .load_media_items(
                 "8831-gotel-kokayin",
                 vec![],

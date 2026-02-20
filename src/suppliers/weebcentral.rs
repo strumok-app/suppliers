@@ -18,8 +18,77 @@ use crate::{
 const URL: &str = "https://weebcentral.com";
 const PAGE_SIZE: u16 = 32;
 
-#[derive(Default)]
-pub struct WeebCentralContentSupplier;
+pub struct WeebCentralContentSupplier {
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+    processor_content_media_item: html::FilterProcessor<ContentMediaItem>,
+}
+
+impl Default for WeebCentralContentSupplier {
+    fn default() -> Self {
+        Self {
+            processor_content_info_items: html::ItemsProcessor::new(
+                "article > section > a",
+                content_info_processor(),
+            ),
+            processor_content_details: html::ScopeProcessor::new(
+                "main",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::text_value("#top > section > section > h1"),
+                    original_title: html::default_value(),
+                    image: html::attr_value(
+                        "#top > section > section:nth-child(1) > section > picture > img",
+                        "src",
+                    ),
+                    description: html::text_value(
+                        "#top > section > section:nth-child(2) > section:nth-child(3) ul li p",
+                    ),
+                    additional_info: html::items_processor(
+                        "#top > section > section:nth-child(1) > section:nth-child(5) ul li",
+                        html::TextValue::new()
+                            .all_nodes()
+                            .map(|s| utils::text::sanitize_text(&s))
+                            .boxed(),
+                    )
+                    .filter(|s| !s.starts_with("RSS") && !s.starts_with("Track"))
+                    .boxed(),
+                    similar: html::items_processor(
+                        "#top > section:nth-child(2) > div ul li",
+                        html::ContentInfoProcessor {
+                            id: html::attr_value_map("a", "href", extract_id),
+                            title: html::text_value("a > div > div:nth-child(2) div"),
+                            secondary_title: html::default_value(),
+                            image: html::attr_value("a > div > div:nth-child(1) img", "src"),
+                        }
+                        .boxed(),
+                    ),
+                    params: html::default_value(),
+                }
+                .boxed(),
+            ),
+            processor_content_media_item: html::ItemsProcessor {
+                scope: None,
+                item_processor: html::ContentMediaItemProcessor {
+                    title: html::text_value("a > span:nth-child(2) > span:nth-child(1)"),
+                    section: html::default_value(),
+                    image: html::default_value(),
+                    sources: html::attr_value_map("input", "value", |chapter_id| {
+                        Some(vec![ContentMediaItemSource::Manga {
+                            description: "Default".to_string(),
+                            headers: None,
+                            pages: None,
+                            params: vec![chapter_id],
+                        }])
+                    }),
+                    params: html::default_value(),
+                }
+                .boxed(),
+            }
+            .filter(|i| !i.title.is_empty()),
+        }
+    }
+}
 
 impl ContentSupplier for WeebCentralContentSupplier {
     fn get_channels(&self) -> Vec<String> {
@@ -56,7 +125,7 @@ impl ContentSupplier for WeebCentralContentSupplier {
                 request_builder.query(&[("offset", PAGE_SIZE * page), ("limit", PAGE_SIZE)]);
         }
 
-        utils::scrap_fragment(request_builder, content_info_items_processor()).await
+        utils::scrap_fragment(request_builder, &self.processor_content_info_items).await
     }
 
     async fn load_channel(&self, _channel: &str, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
@@ -72,7 +141,7 @@ impl ContentSupplier for WeebCentralContentSupplier {
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_details_processor(),
+            &self.processor_content_details,
         )
         .await
     }
@@ -91,30 +160,11 @@ impl ContentSupplier for WeebCentralContentSupplier {
 
         let url = format!("{URL}/series/{actual_id}/full-chapter-list");
 
-        static PROCESSOR: OnceLock<html::FilterProcessor<ContentMediaItem>> = OnceLock::new();
-        let processor = PROCESSOR.get_or_init(|| {
-            html::ItemsProcessor {
-                scope: None,
-                item_processor: html::ContentMediaItemProcessor {
-                    title: html::text_value("a > span:nth-child(2) > span:nth-child(1)"),
-                    section: html::default_value(),
-                    image: html::default_value(),
-                    sources: html::attr_value_map("input", "value", |chapter_id| {
-                        Some(vec![ContentMediaItemSource::Manga {
-                            description: "Default".to_string(),
-                            headers: None,
-                            pages: None,
-                            params: vec![chapter_id],
-                        }])
-                    }),
-                    params: html::default_value(),
-                }
-                .boxed(),
-            }
-            .filter(|i| !i.title.is_empty())
-        });
-
-        utils::scrap_fragment(create_client().get(&url), processor).await
+        utils::scrap_fragment(
+            create_client().get(&url),
+            &self.processor_content_media_item,
+        )
+        .await
     }
 
     async fn load_media_item_sources(
@@ -172,57 +222,6 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR.get_or_init(|| {
-        html::ItemsProcessor::new("article > section > a", content_info_processor())
-    })
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "main",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::text_value("#top > section > section > h1"),
-                original_title: html::default_value(),
-                image: html::attr_value(
-                    "#top > section > section:nth-child(1) > section > picture > img",
-                    "src",
-                ),
-                description: html::text_value(
-                    "#top > section > section:nth-child(2) > section:nth-child(3) ul li p",
-                ),
-                additional_info: html::items_processor(
-                    "#top > section > section:nth-child(1) > section:nth-child(5) ul li",
-                    html::TextValue::new()
-                        .all_nodes()
-                        .map(|s| utils::text::sanitize_text(&s))
-                        .boxed(),
-                )
-                .filter(|s| !s.starts_with("RSS") && !s.starts_with("Track"))
-                .boxed(),
-                similar: html::items_processor(
-                    "#top > section:nth-child(2) > div ul li",
-                    html::ContentInfoProcessor {
-                        id: html::attr_value_map("a", "href", extract_id),
-                        title: html::text_value("a > div > div:nth-child(2) div"),
-                        secondary_title: html::default_value(),
-                        image: html::attr_value("a > div > div:nth-child(1) img", "src"),
-                    }
-                    .boxed(),
-                ),
-                params: html::default_value(),
-            }
-            .boxed(),
-        )
-    })
-}
-
 fn extract_id(text: String) -> String {
     static OFFSET: usize = URL.len() + 8usize;
     text[OFFSET..].to_string()
@@ -234,14 +233,16 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = WeebCentralContentSupplier.search("fairy", 1).await;
+        let res = WeebCentralContentSupplier::default()
+            .search("fairy", 1)
+            .await;
 
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
-        let res = WeebCentralContentSupplier
+        let res = WeebCentralContentSupplier::default()
             .get_content_details("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail", vec![])
             .await;
 
@@ -250,7 +251,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_media_items() {
-        let res = WeebCentralContentSupplier
+        let res = WeebCentralContentSupplier::default()
             .load_media_items("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail", vec![], vec![])
             .await;
 
@@ -259,7 +260,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_pages() {
-        let res = WeebCentralContentSupplier
+        let res = WeebCentralContentSupplier::default()
             .load_pages("", vec!["01J76XYY73BP96JM3WRJSTBVMX".to_string()])
             .await;
 

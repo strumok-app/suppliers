@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use anyhow::anyhow;
 use indexmap::IndexMap;
 
@@ -17,13 +15,59 @@ use crate::{
 };
 
 const URL: &str = "https://anikai.to";
+const ENTITY_SECTION: &str = ".watch-section  .container  .entity-section";
 
-#[derive(Default)]
-pub struct AnimeKaiContentSupplier;
+pub struct AnimeKaiContentSupplier {
+    channels_map: IndexMap<&'static str, String>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+}
+
+impl Default for AnimeKaiContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([
+                ("New Releases", format!("{URL}/new-releases")),
+                ("Updates", format!("{URL}/updates")),
+                ("Ongoing", format!("{URL}/ongoing")),
+                ("Recent", format!("{URL}/recent")),
+            ]),
+            processor_content_details: html::ScopeProcessor::new(
+                "main",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::text_value(&format!("{ENTITY_SECTION} h1")),
+                    original_title: html::optional_text_value(&format!(
+                        "{ENTITY_SECTION} .al-title"
+                    )),
+                    image: html::attr_value(&format!("{ENTITY_SECTION} .poster img"), "src"),
+                    description: html::text_value("#main-entity .desc"),
+                    additional_info: html::items_processor(
+                        "#main-entity .detail div div",
+                        html::TextValue::new()
+                            .all_nodes()
+                            .map(|s| s.trim_end().to_owned())
+                            .boxed(),
+                    ),
+                    similar: html::default_value(),
+                    params: html::join_processors(vec![html::attr_value(
+                        &format!("{ENTITY_SECTION} .rate-box"),
+                        "data-id",
+                    )]),
+                }
+                .boxed(),
+            ),
+            processor_content_info_items: html::ItemsProcessor::new(
+                ".aitem-wrapper.regular .aitem .inner",
+                content_info_processor(),
+            ),
+        }
+    }
+}
 
 impl ContentSupplier for AnimeKaiContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|&s| s.to_string()).collect()
+        self.channels_map.keys().map(|&s| s.to_string()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -47,18 +91,18 @@ impl ContentSupplier for AnimeKaiContentSupplier {
             request_builder = request_builder.query(&[("page", page)]);
         }
 
-        utils::scrap_page(request_builder, content_info_items_processor()).await
+        utils::scrap_page(request_builder, &self.processor_content_info_items).await
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = match get_channels_map().get(channel) {
+        let url = match self.channels_map.get(channel) {
             Some(url) => format!("{url}?page={page}"),
             None => return Err(anyhow!("unknown channel")),
         };
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -72,7 +116,7 @@ impl ContentSupplier for AnimeKaiContentSupplier {
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_details_processor(),
+            &self.processor_content_details,
         )
         .await
     }
@@ -212,69 +256,13 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR.get_or_init(|| {
-        html::ItemsProcessor::new(
-            ".aitem-wrapper.regular .aitem .inner",
-            content_info_processor(),
-        )
-    })
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-
-    const ENTITY_SECTION: &str = ".watch-section  .container  .entity-section";
-
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "main",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::text_value(&format!("{ENTITY_SECTION} h1")),
-                original_title: html::optional_text_value(&format!("{ENTITY_SECTION} .al-title")),
-                image: html::attr_value(&format!("{ENTITY_SECTION} .poster img"), "src"),
-                description: html::text_value("#main-entity .desc"),
-                additional_info: html::items_processor(
-                    "#main-entity .detail div div",
-                    html::TextValue::new()
-                        .all_nodes()
-                        .map(|s| s.trim_end().to_owned())
-                        .boxed(),
-                ),
-                similar: html::default_value(),
-                params: html::join_processors(vec![html::attr_value(
-                    &format!("{ENTITY_SECTION} .rate-box"),
-                    "data-id",
-                )]),
-            }
-            .boxed(),
-        )
-    })
-}
-
-fn get_channels_map() -> &'static IndexMap<&'static str, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| {
-        IndexMap::from([
-            ("New Releases", format!("{URL}/new-releases")),
-            ("Updates", format!("{URL}/updates")),
-            ("Ongoing", format!("{URL}/ongoing")),
-            ("Recent", format!("{URL}/recent")),
-        ])
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
     async fn should_load_channel() {
-        let res = AnimeKaiContentSupplier
+        let res = AnimeKaiContentSupplier::default()
             .load_channel("New Releases", 1)
             .await;
 
@@ -283,14 +271,14 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = AnimeKaiContentSupplier.search("fairy", 2).await;
+        let res = AnimeKaiContentSupplier::default().search("fairy", 2).await;
 
         println!("{res:?}");
     }
 
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
-        let res = AnimeKaiContentSupplier
+        let res = AnimeKaiContentSupplier::default()
             .get_content_details(
                 "konosuba-gods-blessing-on-this-wonderful-world-0kp7",
                 vec![],
@@ -302,7 +290,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_media_items() {
-        let res = AnimeKaiContentSupplier
+        let res = AnimeKaiContentSupplier::default()
             .load_media_items(
                 "konosuba-gods-blessing-on-this-wonderful-world-0kp7",
                 vec![],
@@ -315,7 +303,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_media_item_sources() {
-        let res = AnimeKaiContentSupplier
+        let res = AnimeKaiContentSupplier::default()
             .load_media_item_sources(
                 "konosuba-gods-blessing-on-this-wonderful-world-0kp7",
                 vec![],

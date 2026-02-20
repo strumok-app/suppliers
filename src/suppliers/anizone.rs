@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use anyhow::anyhow;
 
 use crate::{
@@ -17,8 +15,44 @@ use super::ContentSupplier;
 
 const SITE_URL: &str = "https://anizone.to";
 
-#[derive(Default)]
-pub struct AnizoneContentSupplier;
+pub struct AnizoneContentSupplier {
+    selector_player: scraper::Selector,
+    selector_tracks: scraper::Selector,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+}
+
+impl Default for AnizoneContentSupplier {
+    fn default() -> Self {
+        Self {
+            selector_player: scraper::Selector::parse("main media-player").unwrap(),
+            selector_tracks: scraper::Selector::parse("track[kind='subtitles']").unwrap(),
+            processor_content_info_items: html::ItemsProcessor::new(
+                "main > div > div > div.grid > div",
+                content_info_processor(),
+            ),
+            processor_content_details: html::ScopeProcessor::new(
+                "main",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::text_value("h1"),
+                    original_title: html::default_value(),
+                    image: html::attr_value("div.mx-auto img", "src"),
+                    description: html::text_value_map("div.text-slate-100 div", |s| {
+                        utils::text::sanitize_text(&s)
+                    }),
+                    additional_info: html::items_processor(
+                        "div.text-slate-100 span span",
+                        html::TextValue::new().boxed(),
+                    ),
+                    similar: html::default_value(),
+                    params: html::default_value(),
+                }
+                .boxed(),
+            ),
+        }
+    }
+}
 
 impl ContentSupplier for AnizoneContentSupplier {
     fn get_channels(&self) -> Vec<String> {
@@ -46,7 +80,7 @@ impl ContentSupplier for AnizoneContentSupplier {
             utils::create_client()
                 .get(format!("{SITE_URL}/anime"))
                 .query(&[("search", query)]),
-            search_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -62,7 +96,7 @@ impl ContentSupplier for AnizoneContentSupplier {
     ) -> anyhow::Result<Option<ContentDetails>> {
         utils::scrap_page(
             utils::create_client().get(format!("{SITE_URL}/anime/{id}")),
-            content_details_processor(),
+            &self.processor_content_details,
         )
         .await
     }
@@ -112,7 +146,7 @@ impl ContentSupplier for AnizoneContentSupplier {
 
         let ep_num = &params[0];
 
-        let anime_page_res = load_anime_page(id, ep_num, langs).await?;
+        let anime_page_res = self.load_anime_page(id, ep_num, langs).await?;
         let mut results: Vec<ContentMediaItemSource> = vec![];
 
         results.push(ContentMediaItemSource::Video {
@@ -145,60 +179,50 @@ struct AnimePageResult {
     subtitles: Vec<Subtitle>,
 }
 
-async fn load_anime_page(
-    id: &str,
-    ep_num: &str,
-    langs: Vec<String>,
-) -> anyhow::Result<AnimePageResult> {
-    let url = format!("{SITE_URL}/anime/{id}/{ep_num}");
+impl AnizoneContentSupplier {
+    async fn load_anime_page(
+        &self,
+        id: &str,
+        ep_num: &str,
+        langs: Vec<String>,
+    ) -> anyhow::Result<AnimePageResult> {
+        let url = format!("{SITE_URL}/anime/{id}/{ep_num}");
 
-    let page_content = create_client().get(url).send().await?.text().await?;
+        let page_content = create_client().get(url).send().await?.text().await?;
 
-    let document = scraper::Html::parse_document(&page_content);
-    let player_selector = scraper::Selector::parse("main media-player").unwrap();
-    let tracks_selector = scraper::Selector::parse("track[kind='subtitles']").unwrap();
+        let document = scraper::Html::parse_document(&page_content);
 
-    let player_el = document
-        .select(&player_selector)
-        .next()
-        .ok_or_else(|| anyhow!("player not found for anime {} ep_num {}", id, ep_num))?;
+        let player_el = document
+            .select(&self.selector_player)
+            .next()
+            .ok_or_else(|| anyhow!("player not found for anime {} ep_num {}", id, ep_num))?;
 
-    let hls_src = player_el
-        .attr("src")
-        .ok_or_else(|| anyhow!("player src not found for anime {} ep_num {}", id, ep_num))?;
+        let hls_src = player_el
+            .attr("src")
+            .ok_or_else(|| anyhow!("player src not found for anime {} ep_num {}", id, ep_num))?;
 
-    let subtitles: Vec<_> = player_el
-        .select(&tracks_selector)
-        .filter_map(|track_el| {
-            let src = track_el.attr("src")?;
-            let label = track_el.attr("label")?;
+        let subtitles: Vec<_> = player_el
+            .select(&self.selector_tracks)
+            .filter_map(|track_el| {
+                let src = track_el.attr("src")?;
+                let label = track_el.attr("label")?;
 
-            if !utils::lang::is_allowed(&langs, label) {
-                return None;
-            }
+                if !utils::lang::is_allowed(&langs, label) {
+                    return None;
+                }
 
-            Some(Subtitle {
-                src: src.to_string(),
-                label: label.to_string(),
+                Some(Subtitle {
+                    src: src.to_string(),
+                    label: label.to_string(),
+                })
             })
+            .collect();
+
+        Ok(AnimePageResult {
+            hls_src: hls_src.to_string(),
+            subtitles,
         })
-        .collect();
-
-    Ok(AnimePageResult {
-        hls_src: hls_src.to_string(),
-        subtitles,
-    })
-}
-
-fn search_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR.get_or_init(|| {
-        html::ItemsProcessor::new(
-            "main > div > div > div.grid > div",
-            content_info_processor(),
-        )
-    })
+    }
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
@@ -211,32 +235,6 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
         image: html::attr_value("img", "src"),
     }
     .into()
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "main",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::text_value("h1"),
-                original_title: html::default_value(),
-                image: html::attr_value("div.mx-auto img", "src"),
-                description: html::text_value_map("div.text-slate-100 div", |s| {
-                    utils::text::sanitize_text(&s)
-                }),
-                additional_info: html::items_processor(
-                    "div.text-slate-100 span span",
-                    html::TextValue::new().boxed(),
-                ),
-                similar: html::default_value(),
-                params: html::default_value(),
-            }
-            .boxed(),
-        )
-    })
 }
 
 fn extract_id_from_url(id: String) -> String {
@@ -253,13 +251,13 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = AnizoneContentSupplier.search("Naruto", 1).await;
+        let res = AnizoneContentSupplier::default().search("Naruto", 1).await;
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
-        let res = AnizoneContentSupplier
+        let res = AnizoneContentSupplier::default()
             .get_content_details("uyyyn4kf", vec![])
             .await;
         println!("{res:#?}")
@@ -267,7 +265,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_media_items() {
-        let res = AnizoneContentSupplier
+        let res = AnizoneContentSupplier::default()
             .load_media_items("47tr68c3", vec![], vec![])
             .await;
         println!("{res:#?}")
@@ -275,7 +273,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_load_media_item_sources() {
-        let res = AnizoneContentSupplier
+        let res = AnizoneContentSupplier::default()
             .load_media_item_sources(
                 "47tr68c3",
                 vec!["en".to_string(), "jp".to_string()],

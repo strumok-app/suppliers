@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::collections::HashMap;
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
@@ -19,12 +19,38 @@ const COVERS_URL: &str = "https://uploads.mangadex.org/covers";
 const CHANNEL_PAGE_SIZE: usize = 20;
 const CHAPTERS_LIMIT: usize = 500;
 
-#[derive(Default)]
-pub struct MangaDexContentSupplier;
+pub struct MangaDexContentSupplier {
+    channels_map: IndexMap<&'static str, Vec<(&'static str, &'static str)>>,
+}
+
+impl Default for MangaDexContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([
+                (
+                    "Latest Updates",
+                    vec![
+                        ("order[createdAt]", "desc"),
+                        ("includes[]", "cover_art"),
+                        ("hasAvailableChapters", "true"),
+                    ],
+                ),
+                (
+                    "Popular Titles",
+                    vec![
+                        ("order[followedCount]", "desc"),
+                        ("includes[]", "cover_art"),
+                        ("hasAvailableChapters", "true"),
+                    ],
+                ),
+            ]),
+        }
+    }
+}
 
 impl ContentSupplier for MangaDexContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|&s| s.into()).collect()
+        self.channels_map.keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -60,9 +86,9 @@ impl ContentSupplier for MangaDexContentSupplier {
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let query = match get_channels_map().get(channel) {
+        let query = match self.channels_map.get(channel) {
             Some(query) => query,
-            None => return Err(anyhow!("Unknow channel")),
+            None => return Err(anyhow!("Unknown channel")),
         };
 
         let offset = (page as usize - 1) * CHANNEL_PAGE_SIZE;
@@ -102,7 +128,7 @@ impl ContentSupplier for MangaDexContentSupplier {
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let mut requests_left = 30usize;
         let mut last_offset = 0usize;
-        let cleint = utils::create_client();
+        let client = utils::create_client();
         let mut media_items: IndexMap<String, ContentMediaItem> = IndexMap::new();
         while requests_left > 0 {
             let mut query = vec![
@@ -117,7 +143,7 @@ impl ContentSupplier for MangaDexContentSupplier {
                 query.push(("translatedLanguage[]", lang.to_string()));
             }
 
-            let res_str = cleint
+            let res_str = client
                 .get(format!("{API_URL}/manga/{id}/feed"))
                 .query(&query)
                 .send()
@@ -431,30 +457,6 @@ fn lookup_scanlation_group(rels: &[MangaDexRelationship]) -> &str {
         .unwrap_or("Unknown")
 }
 
-fn get_channels_map() -> &'static IndexMap<&'static str, Vec<(&'static str, &'static str)>> {
-    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, Vec<(&str, &str)>>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| {
-        IndexMap::from([
-            (
-                "Latest Updates",
-                vec![
-                    ("order[createdAt]", "desc"),
-                    ("includes[]", "cover_art"),
-                    ("hasAvailableChapters", "true"),
-                ],
-            ),
-            (
-                "Popular Titles",
-                vec![
-                    ("order[followedCount]", "desc"),
-                    ("includes[]", "cover_art"),
-                    ("hasAvailableChapters", "true"),
-                ],
-            ),
-        ])
-    })
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -463,7 +465,7 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn should_load_channel() {
-        let res = MangaDexContentSupplier
+        let res = MangaDexContentSupplier::default()
             .load_channel("Popular Titles", 2)
             .await
             .unwrap();
@@ -472,13 +474,16 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = MangaDexContentSupplier.search("one", 2).await.unwrap();
+        let res = MangaDexContentSupplier::default()
+            .search("one", 2)
+            .await
+            .unwrap();
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_get_content_details() {
-        let res = MangaDexContentSupplier
+        let res = MangaDexContentSupplier::default()
             .get_content_details("cfc3d743-bd89-48e2-991f-63e680cc4edf", vec![])
             .await
             .unwrap();
@@ -487,7 +492,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_items() {
-        let res = MangaDexContentSupplier
+        let res = MangaDexContentSupplier::default()
             .load_media_items("c1e284bc-0436-42fe-b571-fa35a94279ce", vec![], vec![])
             .await
             .unwrap();
@@ -496,7 +501,7 @@ mod tests {
 
     #[tokio::test()]
     async fn should_load_pages() {
-        let res = MangaDexContentSupplier
+        let res = MangaDexContentSupplier::default()
             .load_pages(
                 "c1e284bc-0436-42fe-b571-fa35a94279ce",
                 vec!["1fe13d15-982f-402b-8120-91f717f886b8".into()],

@@ -12,7 +12,6 @@ use extractors::{Episode, SourceParams, run_extractors};
 use indexmap::IndexMap;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
-use std::sync::OnceLock;
 
 use super::ContentSupplier;
 
@@ -20,12 +19,28 @@ static SECRET: &str = env!("TMDB_SECRET");
 const URL: &str = "https://api.themoviedb.org/3";
 const IMAGES_URL: &str = "http://image.tmdb.org/t/p";
 
-#[derive(Deserialize, Default)]
-pub struct TMDBContentSupplier;
+pub struct TMDBContentSupplier {
+    channels_map: IndexMap<String, (&'static str, &'static str)>,
+}
+
+impl Default for TMDBContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([
+                ("Trending".into(), ("", "/trending/all/day")),
+                ("Popular Movies".into(), ("movie", "/movie/popular")),
+                ("Popular TV Shows".into(), ("tv", "/tv/popular")),
+                ("Top Rated Movies".into(), ("movie", "/movie/top_rated")),
+                ("Top Rated TV Shows".into(), ("tv", "/tv/top_rated")),
+                ("On The Air TV Shows".into(), ("tv", "/tv/on_the_air")),
+            ]),
+        }
+    }
+}
 
 impl ContentSupplier for TMDBContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|s| s.into()).collect()
+        self.channels_map.keys().map(|s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -71,7 +86,7 @@ impl ContentSupplier for TMDBContentSupplier {
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let (fallback_media_type, path) = match get_channels_map().get(channel) {
+        let (fallback_media_type, path) = match self.channels_map.get(channel) {
             Some(params) => params,
             None => return Err(anyhow!("Unknow channel")),
         };
@@ -403,39 +418,27 @@ fn original_poster_image(path: String) -> String {
     }
 }
 
-fn get_channels_map() -> &'static IndexMap<String, (&'static str, &'static str)> {
-    static CHANNELS_MAP: OnceLock<IndexMap<String, (&str, &str)>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| {
-        IndexMap::from([
-            ("Trending".into(), ("", "/trending/all/day")),
-            ("Popular Movies".into(), ("movie", "/movie/popular")),
-            ("Popular TV Shows".into(), ("tv", "/tv/popular")),
-            ("Top Rated Movies".into(), ("movie", "/movie/top_rated")),
-            ("Top Rated TV Shows".into(), ("tv", "/tv/top_rated")),
-            ("On The Air TV Shows".into(), ("tv", "/tv/on_the_air")),
-        ])
-    })
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = TMDBContentSupplier.search("venom", 1).await;
+        let res = TMDBContentSupplier::default().search("venom", 1).await;
         println!("{res:#?}")
     }
 
     #[test_log::test(tokio::test)]
     async fn should_load_channel() {
-        let res = TMDBContentSupplier.load_channel("Popular Movies", 1).await;
+        let res = TMDBContentSupplier::default()
+            .load_channel("Popular Movies", 1)
+            .await;
         println!("{res:#?}")
     }
 
     #[test_log::test(tokio::test())]
     async fn should_get_movie_content_details() {
-        let res = TMDBContentSupplier
+        let res = TMDBContentSupplier::default()
             .get_content_details("movie/939243", vec![])
             .await;
         println!("{res:#?}");
@@ -443,7 +446,7 @@ mod test {
 
     #[tokio::test]
     async fn should_should_load_movie_media_items() {
-        let res = TMDBContentSupplier
+        let res = TMDBContentSupplier::default()
             .load_media_items(
                 "movie/939243",
                 vec![],
@@ -455,7 +458,7 @@ mod test {
 
     #[tokio::test]
     async fn should_should_load_movie_media_items_sources() {
-        let res = TMDBContentSupplier
+        let res = TMDBContentSupplier::default()
             .load_media_item_sources(
                 "movie/939243",
                 vec![],
@@ -467,7 +470,7 @@ mod test {
 
     #[test_log::test(tokio::test())]
     async fn should_get_tv_content_details() {
-        let res = TMDBContentSupplier
+        let res = TMDBContentSupplier::default()
             .get_content_details("tv/253", vec![])
             .await;
         println!("{res:#?}");
@@ -475,7 +478,7 @@ mod test {
 
     #[tokio::test]
     async fn should_should_load_tv_media_items() {
-        let res = TMDBContentSupplier
+        let res = TMDBContentSupplier::default()
             .load_media_items(
                 "tv/253",
                 vec![],
@@ -486,7 +489,7 @@ mod test {
     }
     #[tokio::test]
     async fn should_load_media_tv_item_sources() {
-        let res = TMDBContentSupplier
+        let res = TMDBContentSupplier::default()
             .load_media_item_sources(
                 "tv/253",
                 vec![],

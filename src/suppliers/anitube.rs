@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use indexmap::IndexMap;
 use regex::Regex;
 
@@ -21,12 +19,88 @@ use anyhow::anyhow;
 
 const URL: &str = "https://anitube.in.ua";
 
-#[derive(Default)]
-pub struct AniTubeContentSupplier;
+pub struct AniTubeContentSupplier {
+    channels_map: IndexMap<&'static str, String>,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+    regexp_dle_hash: Regex,
+}
+
+impl Default for AniTubeContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([("Новинки", format!("{URL}/anime/page/"))]),
+            processor_content_info_items: html::ItemsProcessor::new(
+                "article.story",
+                content_info_processor(),
+            ),
+            processor_content_details: html::ScopeProcessor::new(
+                "div.content",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::TextValue::new()
+                        .map(|s| utils::text::sanitize_text(&s))
+                        .in_scope(".story_c > .rcol > h2")
+                        .unwrap_or_default()
+                        .boxed(),
+                    original_title: html::default_value(),
+                    image: html::self_hosted_image(URL, ".story_c .story_post img", "src"),
+                    description: html::text_value(
+                        ".story_c > .rcol > .story_c_r > .story_c_text > .my-text",
+                    ),
+                    additional_info: html::ExtractValue::new(|el| {
+                        let mut res: Vec<_> = el
+                            .text()
+                            .collect::<String>()
+                            .split("\n")
+                            .map(utils::text::sanitize_text)
+                            .filter(|s| !s.is_empty() && !s.starts_with("."))
+                            .collect();
+
+                        if res.len() <= 5 {
+                            return vec![];
+                        }
+
+                        res.drain(2..(res.len() - 3)).collect()
+                    })
+                    .in_scope(".story_c > .rcol")
+                    .unwrap_or_default()
+                    .boxed(),
+                    similar: html::items_processor(
+                        "ul.portfolio_items > li",
+                        html::ContentInfoProcessor {
+                            id: html::AttrValue::new("href")
+                                .map_optional(|s| datalife::extract_id_from_url(URL, s))
+                                .in_scope_flatten(".sl_poster > a")
+                                .unwrap_or_default()
+                                .boxed(),
+                            title: html::text_value(".text_content > a"),
+                            secondary_title: html::default_value(),
+                            image: html::ExtractValue::new(|el| {
+                                el.attr("src")
+                                    .or(el.attr("data-src"))
+                                    .unwrap_or_default()
+                                    .to_owned()
+                            })
+                            .in_scope(".sl_poster img")
+                            .map_optional(extract_image)
+                            .unwrap_or_default()
+                            .boxed(),
+                        }
+                        .boxed(),
+                    ),
+                    params: html::default_value(),
+                }
+                .boxed(),
+            ),
+            regexp_dle_hash: Regex::new(r#"dle_login_hash\s+=\s+'(?<hash>[a-z0-9]+)'"#).unwrap(),
+        }
+    }
+}
 
 impl ContentSupplier for AniTubeContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|&s| s.into()).collect()
+        self.channels_map.keys().map(|&s| s.into()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -44,17 +118,17 @@ impl ContentSupplier for AniTubeContentSupplier {
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         utils::scrap_page(
             datalife::search_request(URL, query).query(&[("search_start", page.to_string())]),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
+        let url = datalife::get_channel_url(&self.channels_map, channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -76,10 +150,10 @@ impl ContentSupplier for AniTubeContentSupplier {
         let document = scraper::Html::parse_document(&html);
         let root = document.root_element();
 
-        let mut maybe_details = content_details_processor().process(&root);
+        let mut maybe_details = self.processor_content_details.process(&root);
 
         if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.params = extract_params(&html).unwrap_or_default()
+            details.params = self.extract_params(&html).unwrap_or_default()
         }
 
         Ok(maybe_details)
@@ -140,17 +214,16 @@ impl ContentSupplier for AniTubeContentSupplier {
     }
 }
 
-fn extract_params(html: &str) -> Option<Vec<String>> {
-    static DLE_HASH_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
-    let dle_hash_re = DLE_HASH_REGEXP
-        .get_or_init(|| Regex::new(r#"dle_login_hash\s+=\s+'(?<hash>[a-z0-9]+)'"#).unwrap());
+impl AniTubeContentSupplier {
+    fn extract_params(&self, html: &str) -> Option<Vec<String>> {
+        let hash = self
+            .regexp_dle_hash
+            .captures(html)
+            .and_then(|c| c.name("hash"))
+            .map(|m| m.as_str())?;
 
-    let hash = dle_hash_re
-        .captures(html)
-        .and_then(|c| c.name("hash"))
-        .map(|m| m.as_str())?;
-
-    Some(vec![hash.into()])
+        Some(vec![hash.into()])
+    }
 }
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
@@ -167,79 +240,6 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR
-        .get_or_init(|| html::ItemsProcessor::new("article.story", content_info_processor()))
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "div.content",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::TextValue::new()
-                    .map(|s| utils::text::sanitize_text(&s))
-                    .in_scope(".story_c > .rcol > h2")
-                    .unwrap_or_default()
-                    .boxed(),
-                original_title: html::default_value(),
-                image: html::self_hosted_image(URL, ".story_c .story_post img", "src"),
-                description: html::text_value(
-                    ".story_c > .rcol > .story_c_r > .story_c_text > .my-text",
-                ),
-                additional_info: html::ExtractValue::new(|el| {
-                    let mut res: Vec<_> = el
-                        .text()
-                        .collect::<String>()
-                        .split("\n")
-                        .map(utils::text::sanitize_text)
-                        .filter(|s| !s.is_empty() && !s.starts_with("."))
-                        .collect();
-
-                    if res.len() <= 5 {
-                        return vec![];
-                    }
-
-                    res.drain(2..(res.len() - 3)).collect()
-                })
-                .in_scope(".story_c > .rcol")
-                .unwrap_or_default()
-                .boxed(),
-                similar: html::items_processor(
-                    "ul.portfolio_items > li",
-                    html::ContentInfoProcessor {
-                        id: html::AttrValue::new("href")
-                            .map_optional(|s| datalife::extract_id_from_url(URL, s))
-                            .in_scope_flatten(".sl_poster > a")
-                            .unwrap_or_default()
-                            .boxed(),
-                        title: html::text_value(".text_content > a"),
-                        secondary_title: html::default_value(),
-                        image: html::ExtractValue::new(|el| {
-                            el.attr("src")
-                                .or(el.attr("data-src"))
-                                .unwrap_or_default()
-                                .to_owned()
-                        })
-                        .in_scope(".sl_poster img")
-                        .map_optional(extract_image)
-                        .unwrap_or_default()
-                        .boxed(),
-                    }
-                    .boxed(),
-                ),
-                params: html::default_value(),
-            }
-            .boxed(),
-        )
-    })
-}
-
 fn extract_image(src: String) -> String {
     if src.starts_with("http") {
         return src.to_string();
@@ -247,17 +247,12 @@ fn extract_image(src: String) -> String {
     format!("{URL}{src}")
 }
 
-fn get_channels_map() -> &'static IndexMap<&'static str, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| IndexMap::from([("Новинки", format!("{URL}/anime/page/"))]))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     #[tokio::test]
     async fn should_load_channel() {
-        let res = AniTubeContentSupplier
+        let res = AniTubeContentSupplier::default()
             .load_channel("Новинки", 2)
             .await
             .unwrap();
@@ -266,13 +261,16 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = AniTubeContentSupplier.search("ball", 2).await.unwrap();
+        let res = AniTubeContentSupplier::default()
+            .search("ball", 2)
+            .await
+            .unwrap();
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
-        let res = AniTubeContentSupplier
+        let res = AniTubeContentSupplier::default()
             .get_content_details("31-zapisnik-smert", vec![])
             .await
             .unwrap();
@@ -281,7 +279,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_items() {
-        let res = AniTubeContentSupplier
+        let res = AniTubeContentSupplier::default()
             .load_media_items(
                 "5513-vanpan-3-sezon",
                 vec![],
@@ -294,7 +292,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_items_source() {
-        let res = AniTubeContentSupplier
+        let res = AniTubeContentSupplier::default()
             .load_media_item_sources(
                 "5513-vanpan-3-sezon",
                 vec![],

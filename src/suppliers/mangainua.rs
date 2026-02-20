@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::OnceLock};
+use std::collections::HashMap;
 
 use anyhow::{Ok, anyhow};
 use indexmap::IndexMap;
@@ -20,12 +20,69 @@ use super::{ContentSupplier, MangaPagesLoader};
 
 const URL: &str = "https://manga.in.ua";
 
-#[derive(Default)]
-pub struct MangaInUaContentSupplier;
+pub struct MangaInUaContentSupplier {
+    channels_map: IndexMap<&'static str, String>,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+    re_user_hash: Regex,
+}
+
+impl Default for MangaInUaContentSupplier {
+    fn default() -> Self {
+        Self {
+            channels_map: IndexMap::from([
+                ("Новинки", URL.to_string()),
+                ("Манґа", format!("{URL}/xfsearch/type/manga/")),
+                ("Манхва", format!("{URL}/xfsearch/type/manhwa/")),
+                ("Романтика", format!("{URL}/mangas/romantika/")),
+                ("Драма", format!("{URL}/mangas/drama/")),
+                ("Комедія", format!("{URL}/mangas/komedia/")),
+                ("Буденність", format!("{URL}/mangas/budenst/")),
+                ("Фентезі", format!("{URL}/mangas/fentez/")),
+                ("Школа", format!("{URL}/mangas/shkola/")),
+                ("Надприродне", format!("{URL}/mangas/nadprirodne/")),
+                ("Пригоди", format!("{URL}/mangas/prigodi/")),
+                ("Бойовик", format!("{URL}/mangas/boyovik/")),
+                ("Психологія", format!("{URL}/mangas/psihologia/")),
+            ]),
+            processor_content_info_items: html::ItemsProcessor::new(".movie > article.item", content_info_processor()),
+            processor_content_details: html::ScopeProcessor::new(
+                "#site-content",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Manga,
+                    title: html::text_value(".item__full-title span"),
+                    original_title: html::default_value(),
+                    image: html::self_hosted_image(URL, ".item__full-sidebar--poster img", "src"),
+                    description: html::text_value(".item__full-description"),
+                    additional_info: html::ItemsProcessor::new(
+                        ".item__full-sidebar > .item__full-sidebar--section > .item__full-sideba--header",
+                        html::join_processors(vec![
+                            html::text_value(".item__full-sidebar--sub"),
+                            html::text_value(".item__full-sidebar--description"),
+                        ])
+                        .map(|strs| {
+                            strs.into_iter()
+                                .map(|s| utils::text::sanitize_text(&s))
+                                .filter(|s| !s.is_empty())
+                                .collect::<Vec<_>>()
+                                .join(" ")
+                        })
+                        .boxed(),
+                    )
+                    .boxed(),
+                    similar: html::default_value(),
+                    params: html::default_value(),
+                }
+                .boxed(),
+            ),
+            re_user_hash: Regex::new(r"site_login_hash\s+=\s+'([a-z0-9]+)'").unwrap()
+        }
+    }
+}
 
 impl ContentSupplier for MangaInUaContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        get_channels_map().keys().map(|&s| s.to_string()).collect()
+        self.channels_map.keys().map(|&s| s.to_string()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -47,17 +104,17 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
         utils::scrap_page(
             datalife::search_request(URL, query),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
 
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let url = datalife::get_channel_url(get_channels_map(), channel, page)?;
+        let url = datalife::get_channel_url(&self.channels_map, channel, page)?;
 
         utils::scrap_page(
             utils::create_client().get(&url),
-            content_info_items_processor(),
+            &self.processor_content_info_items,
         )
         .await
     }
@@ -79,10 +136,10 @@ impl ContentSupplier for MangaInUaContentSupplier {
         let document = scraper::Html::parse_document(&html);
         let root = document.root_element();
 
-        let mut maybe_details = content_details_processor().process(&root);
+        let mut maybe_details = self.processor_content_details.process(&root);
 
         if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.params = extract_params(id, &html)?;
+            details.params = self.extract_params(id, &html)?;
         }
 
         Ok(maybe_details)
@@ -273,27 +330,18 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
     }
 }
 
-fn get_channels_map() -> &'static IndexMap<&'static str, String> {
-    static CHANNELS_MAP: OnceLock<IndexMap<&'static str, String>> = OnceLock::new();
-    CHANNELS_MAP.get_or_init(|| {
-        IndexMap::from([
-            ("Новинки", URL.to_string()),
-            ("Манґа", format!("{URL}/xfsearch/type/manga/")),
-            ("Манхва", format!("{URL}/xfsearch/type/manhwa/")),
-            ("Романтика", format!("{URL}/mangas/romantika/")),
-            ("Драма", format!("{URL}/mangas/drama/")),
-            ("Комедія", format!("{URL}/mangas/komedia/")),
-            ("Буденність", format!("{URL}/mangas/budenst/")),
-            ("Фентезі", format!("{URL}/mangas/fentez/")),
-            ("Школа", format!("{URL}/mangas/shkola/")),
-            ("Надприродне", format!("{URL}/mangas/nadprirodne/")),
-            ("Пригоди", format!("{URL}/mangas/prigodi/")),
-            ("Бойовик", format!("{URL}/mangas/boyovik/")),
-            ("Психологія", format!("{URL}/mangas/psihologia/")),
-        ])
-    })
-}
+impl MangaInUaContentSupplier {
+    fn extract_params(&self, id: &str, html: &str) -> anyhow::Result<Vec<String>> {
+        let user_hash = self
+            .re_user_hash
+            .captures(html)
+            .and_then(|c| c.get(1))
+            .map(|g| g.as_str())
+            .ok_or_else(|| anyhow!("user hash not found for id: {}", id))?;
 
+        Ok(vec![user_hash.to_string()])
+    }
+}
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::attr_value_map(".card__content > h3 > a", "href", |s| {
@@ -320,62 +368,6 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR.get_or_init(|| {
-        html::ItemsProcessor::new(".movie > article.item", content_info_processor())
-    })
-}
-
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "#site-content",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Manga,
-                title: html::text_value(".item__full-title span"),
-                original_title: html::default_value(),
-                image: html::self_hosted_image(URL, ".item__full-sidebar--poster img", "src"),
-                description: html::text_value(".item__full-description"),
-                additional_info: html::ItemsProcessor::new(
-                    ".item__full-sidebar > .item__full-sidebar--section > .item__full-sideba--header",
-                    html::join_processors(vec![
-                        html::text_value(".item__full-sidebar--sub"),
-                        html::text_value(".item__full-sidebar--description"),
-                    ])
-                    .map(|strs| {
-                        strs.into_iter()
-                            .map(|s| utils::text::sanitize_text(&s))
-                            .filter(|s| !s.is_empty())
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    })
-                    .boxed(),
-                )
-                .boxed(),
-                similar: html::default_value(),
-                params: html::default_value(),
-            }
-            .boxed(),
-        )
-    })
-}
-
-fn extract_params(id: &str, html: &str) -> anyhow::Result<Vec<String>> {
-    static RE_USER_HASH: OnceLock<Regex> = OnceLock::new();
-    let user_hash = RE_USER_HASH
-        .get_or_init(|| Regex::new(r"site_login_hash\s+=\s+'([a-z0-9]+)'").unwrap())
-        .captures(html)
-        .and_then(|c| c.get(1))
-        .map(|g| g.as_str())
-        .ok_or_else(|| anyhow!("user hash not found for id: {}", id))?;
-
-    Ok(vec![user_hash.to_string()])
-}
-
 #[cfg(test)]
 mod tests {
 
@@ -383,19 +375,23 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let result = MangaInUaContentSupplier.search("solo leveling", 0).await;
+        let result = MangaInUaContentSupplier::default()
+            .search("solo leveling", 0)
+            .await;
         println!("{result:#?}")
     }
 
     #[tokio::test]
     async fn should_load_channel() {
-        let result = MangaInUaContentSupplier.load_channel("Новинки", 1).await;
+        let result = MangaInUaContentSupplier::default()
+            .load_channel("Новинки", 1)
+            .await;
         println!("{result:#?}")
     }
 
     #[tokio::test]
     async fn should_get_content_details() {
-        let result = MangaInUaContentSupplier
+        let result = MangaInUaContentSupplier::default()
             .get_content_details("mangas/boyovik/14196-hunter-x-hunter", vec![])
             .await;
         println!("{result:#?}")
@@ -403,7 +399,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_items() {
-        let result = MangaInUaContentSupplier
+        let result = MangaInUaContentSupplier::default()
             .load_media_items(
                 "mangas/boyovik/14196-hunter-x-hunter",
                 vec![],
@@ -415,7 +411,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_media_item_sources() {
-        let result = MangaInUaContentSupplier
+        let result = MangaInUaContentSupplier::default()
             .load_media_item_sources(
                 "mangas/boyovik/14196-hunter-x-hunter",
                 vec![],
@@ -430,7 +426,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_pages() {
-        let result = MangaInUaContentSupplier
+        let result = MangaInUaContentSupplier::default()
             .load_pages(
                 "mangas/boyovik/14196-hunter-x-hunter",
                 vec![
