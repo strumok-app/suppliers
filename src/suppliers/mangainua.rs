@@ -115,7 +115,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
         form_params.insert("news_category", "1");
         form_params.insert("this_link", "");
 
-        let chaptes_list_html = client
+        let chapters_list_html = client
             .post(format!("{URL}/engine/ajax/controller.php"))
             .query(&[("mod", "load_chapters")])
             .form(&form_params)
@@ -128,7 +128,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
             .text()
             .await?;
 
-        let fragment = scraper::Html::parse_fragment(&chaptes_list_html);
+        let fragment = scraper::Html::parse_fragment(&chapters_list_html);
 
         let title_sel = Selector::parse("a").unwrap();
 

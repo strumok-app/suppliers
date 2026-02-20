@@ -595,3 +595,19 @@ pub fn self_hosted_image(
         .unwrap_or_default()
         .boxed()
 }
+
+pub fn self_hosted_image_optional(
+    url: &'static str,
+    selectors: &str,
+    attr: &'static str,
+) -> Box<dyn DOMProcessor<Option<String>>> {
+    AttrValue::new(attr)
+        .in_scope_flatten(selectors)
+        .map_optional(move |src| {
+            if src.starts_with("http") {
+                return src.to_string();
+            }
+            format!("{url}{src}")
+        })
+        .boxed()
+}

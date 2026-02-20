@@ -233,14 +233,14 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_serach() {
+    async fn should_search() {
         let res = WeebCentralContentSupplier.search("fairy", 1).await;
 
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn shoudl_get_content_details() {
+    async fn should_get_content_details() {
         let res = WeebCentralContentSupplier
             .get_content_details("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail", vec![])
             .await;

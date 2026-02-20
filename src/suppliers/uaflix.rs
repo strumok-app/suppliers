@@ -1,7 +1,5 @@
-use std::sync::OnceLock;
-
-use anyhow::Ok;
-use scraper::{ElementRef, Selector, selector};
+use anyhow::anyhow;
+use scraper::{ElementRef, Selector};
 
 use crate::{
     models::{
@@ -11,15 +9,70 @@ use crate::{
     suppliers::ContentSupplier,
     utils::{
         self,
-        html::{self, DOMProcessor},
+        html::{self, DOMProcessor, ItrDOMProcessor},
     },
 };
 
 const URL: &str = "https://uafix.net";
 const SEARCH_URL: &str = "https://uafix.net/search.html";
 
-#[derive(Default)]
-pub struct UAFlixSupplier;
+struct Episode {
+    link: String,
+    image: Option<String>,
+}
+
+struct Episodes {
+    episodes: Vec<Episode>,
+    pages: usize,
+}
+
+pub struct UAFlixSupplier {
+    selector_episodes_scope: Selector,
+    selector_episode_link: Selector,
+    selector_episode_image: Selector,
+    selector_pages: Selector,
+    processor_content_details: html::ScopeProcessor<ContentDetails>,
+    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+}
+
+impl Default for UAFlixSupplier {
+    fn default() -> Self {
+        Self {
+            selector_episodes_scope: Selector::parse("#sers-wr .video-item").unwrap(),
+            selector_episode_link: Selector::parse("a.vi-img").unwrap(),
+            selector_episode_image: Selector::parse("img").unwrap(),
+            selector_pages: Selector::parse(".pagination li").unwrap(),
+            processor_content_details: html::ScopeProcessor::new(
+                "#dle-content",
+                html::ContentDetailsProcessor {
+                    media_type: MediaType::Video,
+                    title: html::text_value("#ftitle > span"),
+                    original_title: html::default_value(),
+                    image: html::self_hosted_image(URL, ".fposter2 img", "src"),
+                    description: html::text_value_map("#serial-kratko", |text| {
+                        utils::text::sanitize_text(&text)
+                    }),
+                    additional_info: html::items_processor(
+                        "#finfo li",
+                        html::TextValue::new().all_nodes().boxed(),
+                    ),
+                    similar: html::default_value(),
+                    params: html::join_processors(vec![html::attr_value(
+                        ".video-box iframe",
+                        "src",
+                    )])
+                    .filter(|link| !link.is_empty())
+                    .boxed(),
+                }
+                .boxed(),
+            ),
+            processor_content_info_items: html::ItemsProcessor::new(
+                ".sres-wrap",
+                content_info_processor(),
+            ),
+        }
+    }
+}
 
 impl ContentSupplier for UAFlixSupplier {
     fn get_channels(&self) -> Vec<String> {
@@ -46,12 +99,12 @@ impl ContentSupplier for UAFlixSupplier {
             .query(&[("do", "search"), ("subaction", "search"), ("story", query)])
             .query(&[("search_start", (page + 1))]);
 
-        let results = utils::scrap_page(request, content_info_items_processor()).await?;
+        let results = utils::scrap_page(request, &self.processor_content_info_items).await?;
 
         Ok(results)
     }
 
-    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+    async fn load_channel(&self, _channel: &str, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         Ok(vec![])
     }
 
@@ -61,7 +114,6 @@ impl ContentSupplier for UAFlixSupplier {
         _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}/");
-
         let html = utils::create_client()
             .get(&url)
             .send()
@@ -69,25 +121,59 @@ impl ContentSupplier for UAFlixSupplier {
             .text()
             .await?;
 
-        let document = scraper::Html::parse_document(&html);
-        let root = document.root_element();
+        let (mut maybe_content_details, episodes) = self.try_load_content_details(&html);
 
-        let mut maybe_details = content_details_processor().process(&root);
+        if let Some(&mut ref mut content_details) = maybe_content_details.as_mut() {
+            if !episodes.episodes.is_empty() {
+                let mut content_media_items: Vec<ContentMediaItem> = vec![];
 
-        if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.media_items = try_extract_media_items(root);
+                let pages = episodes.pages;
+
+                self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
+
+                if pages > 1 {
+                    for page in 2..pages {
+                        let page_url = format!("{url}?page={page}");
+
+                        let episodes: Episodes = self.load_next_page_episodes(&page_url).await?;
+
+                        if episodes.episodes.is_empty() {
+                            break;
+                        }
+
+                        self.fill_content_media_items_from_episodes(
+                            &mut content_media_items,
+                            episodes,
+                        );
+                    }
+                }
+
+                content_details.media_items = Some(content_media_items)
+            }
         }
 
-        Ok(maybe_details)
+        Ok(maybe_content_details)
     }
 
     async fn load_media_items(
         &self,
-        id: &str,
+        _id: &str,
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        Ok(vec![])
+        if params.len() != 1 {
+            return Err(anyhow!("single param expected"));
+        }
+
+        let media_items = utils::playerjs::load_and_parse_playerjs(
+            utils::create_client()
+                .get(&params[0])
+                .header("Referer", URL),
+            utils::playerjs::convert_strategy_dub_season_ep,
+        )
+        .await?;
+
+        Ok(media_items)
     }
 
     async fn load_media_item_sources(
@@ -96,43 +182,130 @@ impl ContentSupplier for UAFlixSupplier {
         _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-        Ok(vec![])
+        if params.len() != 1 {
+            return Err(anyhow!("single param expected"));
+        }
+
+        let url = format!("{}/{}/{}/", URL, id, params[0]);
+        let iframe_url = self.extract_iframe_url(&url).await?;
+
+        let sources = utils::playerjs::load_and_parse_playerjs_sources(
+            utils::create_client()
+                .get(&iframe_url)
+                .header("Referer", URL),
+            "Source",
+        )
+        .await?;
+
+        Ok(sources)
     }
 }
 
-fn try_extract_media_items(root: ElementRef<'_>) -> Option<Vec<ContentMediaItem>> {
-    static SIRIES_SELECTOR: OnceLock<Selector> = OnceLock::new();
-    let selector =
-        SIRIES_SELECTOR.get_or_init(|| Selector::parse("#sers-wr .video-item a").unwrap());
+impl UAFlixSupplier {
+    async fn load_next_page_episodes(&self, page_url: &str) -> anyhow::Result<Episodes> {
+        let html = utils::create_client()
+            .get(page_url)
+            .send()
+            .await?
+            .text()
+            .await?;
 
-    root.select(selector).filter_map(|el| {
-        let href = el.attr("href")?;
-        let ep_id = utils::datalife::format_id_from_url(URL, href);
+        let document = scraper::Html::parse_document(&html);
 
-        Some(ContentMediaItem {
-            title: "".to_string(),
-            image: None,
-            section: None,
-            sources: None,
-            params: vec![],
-        })
-    });
+        Ok(self.try_extract_episodes_links(document.root_element()))
+    }
 
-    None
+    async fn extract_iframe_url(&self, url: &str) -> anyhow::Result<String> {
+        let html = utils::create_client().get(url).send().await?.text().await?;
+
+        let root = scraper::Html::parse_document(&html);
+        let selector = scraper::Selector::parse(".video-box iframe").unwrap();
+
+        let iframe_el = root
+            .select(&selector)
+            .next()
+            .ok_or_else(|| anyhow!("iframe not found"))?;
+
+        let link = iframe_el
+            .attr("src")
+            .ok_or_else(|| anyhow!("iframe has no link"))?;
+
+        Ok(link.to_string())
+    }
+
+    fn fill_content_media_items_from_episodes(
+        &self,
+        content_media_items: &mut Vec<ContentMediaItem>,
+        episodes: Episodes,
+    ) {
+        episodes
+            .episodes
+            .into_iter()
+            .rev()
+            .filter_map(|ep| {
+                let image = ep.image;
+
+                let id = ep.link;
+                let (_, id) = id[..id.len() - 1].rsplit_once("/")?;
+                let parts: Vec<_> = id.split("-").collect();
+
+                let &s_num = parts.get(1)?;
+                let &e_num = parts.get(3)?;
+
+                Some(ContentMediaItem {
+                    title: format!("Серія {e_num}"),
+                    sources: None,
+                    section: Some(s_num.to_string()),
+                    image,
+                    params: vec![id.to_string()],
+                })
+            })
+            .for_each(|item| content_media_items.push(item));
+    }
+
+    fn try_load_content_details(&self, html: &str) -> (Option<ContentDetails>, Episodes) {
+        let document = scraper::Html::parse_document(html);
+        let root = document.root_element();
+
+        let maybe_details = self.processor_content_details.process(&root);
+        let episodes_links = self.try_extract_episodes_links(root);
+
+        return (maybe_details, episodes_links);
+    }
+
+    fn try_extract_episodes_links(&self, root: ElementRef<'_>) -> Episodes {
+        let episodes: Vec<_> = root
+            .select(&self.selector_episodes_scope)
+            .filter_map(|el| {
+                let link = el
+                    .select(&self.selector_episode_link)
+                    .next()
+                    .and_then(|el| el.attr("href"))?;
+
+                let image = el
+                    .select(&self.selector_episode_image)
+                    .next()
+                    .and_then(|el| el.attr("data-src"))
+                    .map(|path| format!("{URL}/{path}"));
+
+                Some(Episode {
+                    link: link.to_string(),
+                    image,
+                })
+            })
+            .collect();
+
+        let pages = root.select(&self.selector_pages).count();
+
+        Episodes { episodes, pages }
+    }
 }
-
 // default pattern
-fn content_info_items_processor() -> &'static html::ItemsProcessor<ContentInfo> {
-    static CONTENT_INFO_ITEMS_PROCESSOR: OnceLock<html::ItemsProcessor<ContentInfo>> =
-        OnceLock::new();
-    CONTENT_INFO_ITEMS_PROCESSOR
-        .get_or_init(|| html::ItemsProcessor::new(".sres-wrap", content_info_processor()))
-}
 
 fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     html::ContentInfoProcessor {
         id: html::AttrValue::new("href")
-            .map_optional(|link| utils::datalife::extract_id_from_url(URL, link))
+            .map_optional(extract_id_from_url)
             .unwrap_or_default()
             .boxed(),
         title: html::text_value("h2"),
@@ -142,30 +315,8 @@ fn content_info_processor() -> Box<html::ContentInfoProcessor> {
     .into()
 }
 
-fn content_details_processor() -> &'static html::ScopeProcessor<ContentDetails> {
-    static CONTENT_DETAILS_PROCESSOR: OnceLock<html::ScopeProcessor<ContentDetails>> =
-        OnceLock::new();
-    CONTENT_DETAILS_PROCESSOR.get_or_init(|| {
-        html::ScopeProcessor::new(
-            "#dle-content",
-            html::ContentDetailsProcessor {
-                media_type: MediaType::Video,
-                title: html::text_value("#ftitle > span"),
-                original_title: html::default_value(),
-                image: html::self_hosted_image(URL, ".fposter2 img", "src"),
-                description: html::text_value_map("#serial-kratko", |text| {
-                    utils::text::sanitize_text(&text)
-                }),
-                additional_info: html::items_processor(
-                    "#finfo li",
-                    html::TextValue::new().all_nodes().boxed(),
-                ),
-                similar: html::default_value(),
-                params: html::default_value(),
-            }
-            .boxed(),
-        )
-    })
+fn extract_id_from_url(mut url: String) -> String {
+    url.drain((URL.len() + 1)..(url.len() - 1)).collect()
 }
 
 #[cfg(test)]
@@ -174,15 +325,50 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = UAFlixSupplier.search("Наруто", 1).await;
+        let res = UAFlixSupplier::default().search("Наруто", 1).await;
 
         println!("{res:#?}");
     }
 
     #[tokio::test]
-    async fn should_get_content_details() {
-        let res = UAFlixSupplier
-            .get_content_details("serials/schodennik-z-chuzhozemja", vec![])
+    async fn should_get_content_details_1() {
+        let res = UAFlixSupplier::default()
+            .get_content_details("serials/divni-diva", vec![])
+            .await;
+
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_get_content_details_2() {
+        let res = UAFlixSupplier::default()
+            .get_content_details("serials/naruto-naruto", vec![])
+            .await;
+
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_load_media_item() {
+        let res = UAFlixSupplier::default()
+            .load_media_items(
+                "serials/naruto-naruto",
+                vec![],
+                vec!["https://ashdi.vip/serial/236".to_string()],
+            )
+            .await;
+
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_load_media_item_sources() {
+        let res = UAFlixSupplier::default()
+            .load_media_item_sources(
+                "serials/schodennik-z-chuzhozemja",
+                vec![],
+                vec!["season-01-episode-02".to_string()],
+            )
             .await;
 
         println!("{res:#?}")

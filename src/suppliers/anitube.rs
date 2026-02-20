@@ -127,9 +127,12 @@ impl ContentSupplier for AniTubeContentSupplier {
             let description = &chunk[0];
             let url = &chunk[1];
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(description, url)
-                .await
-                .unwrap_or_default();
+            let mut sources = playerjs::load_and_parse_playerjs_sources(
+                utils::create_client().get(url),
+                description,
+            )
+            .await
+            .unwrap_or_default();
             results.append(&mut sources);
         }
 

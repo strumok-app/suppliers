@@ -77,8 +77,11 @@ impl ContentSupplier for UASerialsProContentSupplier {
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_season_dub_ep)
-                .await
+            playerjs::load_and_parse_playerjs(
+                utils::create_client().get(&params[0]),
+                playerjs::convert_strategy_season_dub_ep,
+            )
+            .await
         } else {
             Err(anyhow!("iframe url expected"))
         }

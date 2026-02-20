@@ -85,7 +85,11 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
-            playerjs::load_and_parse_playerjs(&params[0], playerjs::convert_strategy_dub).await
+            playerjs::load_and_parse_playerjs(
+                utils::create_client().get(&params[0]),
+                playerjs::convert_strategy_dub,
+            )
+            .await
         } else {
             let maybe_news_id = id
                 .rsplit_once("/")
@@ -129,7 +133,11 @@ impl ContentSupplier for UAKinoClubContentSupplier {
             let description = params.remove(0);
             let url = params.remove(0);
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(&description, &url).await?;
+            let mut sources = playerjs::load_and_parse_playerjs_sources(
+                utils::create_client().get(&url),
+                &description,
+            )
+            .await?;
             results.append(&mut sources);
         }
 

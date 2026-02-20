@@ -95,9 +95,11 @@ impl ContentSupplier for UAserialContentSupplier {
         }
 
         let url = &params[0];
-        let sources =
-            playerjs::load_and_parse_playerjs(url, playerjs::convert_strategy_dub_season_ep)
-                .await?;
+        let sources = playerjs::load_and_parse_playerjs(
+            utils::create_client().get(url),
+            playerjs::convert_strategy_dub_season_ep,
+        )
+        .await?;
 
         Ok(sources)
     }

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 #[derive(Debug, Clone, Copy)]
 pub enum ContentType {
     Movie,

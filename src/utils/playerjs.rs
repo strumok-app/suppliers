@@ -3,6 +3,7 @@ use std::{collections::BTreeMap, sync::OnceLock};
 use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
 use log::{error, warn};
 use regex::Regex;
+use reqwest::RequestBuilder;
 use serde::Deserialize;
 
 use crate::models::{ContentMediaItem, ContentMediaItemSource};
@@ -17,10 +18,10 @@ pub struct PlayerJSFile {
 }
 
 pub async fn load_and_parse_playerjs(
-    url: &str,
+    request_builder: RequestBuilder,
     startegy: fn(&Vec<PlayerJSFile>) -> Vec<ContentMediaItem>,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
-    let html = super::create_client().get(url).send().await?.text().await?;
+    let html = request_builder.send().await?.text().await?;
 
     let maybe_file = extract_playerjs_playlist(&html);
 
@@ -51,10 +52,10 @@ pub async fn load_and_parse_playerjs(
 
 /// Extract flat sources structure from playerjs (no multiple episodes, sesons, dubs expected)
 pub async fn load_and_parse_playerjs_sources(
+    request_builder: RequestBuilder,
     description: &str,
-    url: &str,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let html = super::create_client().get(url).send().await?.text().await?;
+    let html = request_builder.send().await?.text().await?;
 
     let maybe_file = extract_playerjs_playlist(&html);
 
@@ -253,13 +254,15 @@ fn default_season_episode_id(season: &str, episode: &str) -> u32 {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::create_client;
+
     use super::*;
 
     #[test_log::test(tokio::test)]
     async fn shoudl_extact_tortuga() {
         let res = load_and_parse_playerjs_sources(
+            create_client().get("https://tortuga.tw/vod/119859"),
             "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР TRG",
-            "https://tortuga.tw/vod/119859",
         )
         .await;
 
