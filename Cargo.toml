@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "3.9.2"
+version = "3.9.3"
 edition = "2024"
 
 [profile.release]
@@ -17,16 +17,16 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
 
 [dependencies.reqwest]
 features = [
-    "charset",
-    "http2",
-    "rustls",
-    "cookies",
-    "query",
-    "form",
-    "json",
-    # Compression
-    "brotli",
-    "gzip",
+  "charset",
+  "http2",
+  "rustls",
+  "cookies",
+  "query",
+  "form",
+  "json",
+  # Compression
+  "brotli",
+  "gzip",
 ]
 version = "0.13.2"
 default-features = false

@@ -58,7 +58,7 @@ impl Default for UAFlixSupplier {
                     media_type: MediaType::Video,
                     title: html::text_value("#ftitle > span"),
                     original_title: html::default_value(),
-                    image: html::self_hosted_image(URL, ".fposter2 img", "src"),
+                    image: html::self_hosted_image(URL, ".fposter2 img", "data-src"),
                     description: html::text_value_map("#serial-kratko", |text| {
                         utils::text::sanitize_text(&text)
                     }),
@@ -158,33 +158,26 @@ impl ContentSupplier for UAFlixSupplier {
 
         let (mut maybe_content_details, episodes) = self.try_load_content_details(&html);
 
-        if let Some(&mut ref mut content_details) = maybe_content_details.as_mut() {
-            if !episodes.episodes.is_empty() {
-                let mut content_media_items: Vec<ContentMediaItem> = vec![];
+        if let Some(&mut ref mut content_details) = maybe_content_details.as_mut()
+            && !episodes.episodes.is_empty()
+        {
+            let mut content_media_items: Vec<ContentMediaItem> = vec![];
+            let pages = episodes.pages;
+            self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
+            if pages > 1 {
+                for page in 2..pages {
+                    let page_url = format!("{url}?page={page}");
 
-                let pages = episodes.pages;
+                    let episodes: Episodes = self.load_next_page_episodes(&page_url).await?;
 
-                self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
-
-                if pages > 1 {
-                    for page in 2..pages {
-                        let page_url = format!("{url}?page={page}");
-
-                        let episodes: Episodes = self.load_next_page_episodes(&page_url).await?;
-
-                        if episodes.episodes.is_empty() {
-                            break;
-                        }
-
-                        self.fill_content_media_items_from_episodes(
-                            &mut content_media_items,
-                            episodes,
-                        );
+                    if episodes.episodes.is_empty() {
+                        break;
                     }
-                }
 
-                content_details.media_items = Some(content_media_items)
+                    self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
+                }
             }
+            content_details.media_items = Some(content_media_items)
         }
 
         Ok(maybe_content_details)
@@ -305,7 +298,7 @@ impl UAFlixSupplier {
         let maybe_details = self.processor_content_details.process(&root);
         let episodes_links = self.try_extract_episodes_links(root);
 
-        return (maybe_details, episodes_links);
+        (maybe_details, episodes_links)
     }
 
     fn try_extract_episodes_links(&self, root: ElementRef<'_>) -> Episodes {

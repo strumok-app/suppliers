@@ -336,7 +336,7 @@ impl From<MangaDexItem> for Option<ContentDetails> {
         let original_title = lookup_original_title(attributes);
         let file_name = lookup_cover_file_name(relationships)?;
         let image = format!("{COVERS_URL}/{id}/{file_name}.512.jpg");
-        let description = lookup_description(attributes)?;
+        let description = lookup_description(attributes).unwrap_or_default();
         let additional_info = lookup_additional_info(attributes, relationships);
 
         Some(ContentDetails {
