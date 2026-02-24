@@ -105,7 +105,6 @@ impl ContentSupplier for MangaDexContentSupplier {
                 ("contentRating[]", "safe"),
                 ("contentRating[]", "suggestive"),
                 ("contentRating[]", "erotica"),
-                ("contentRating[]", "pornographic"),
             ])
             .send()
             .await?
