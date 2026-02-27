@@ -202,7 +202,7 @@ impl DOMProcessor<ContentMediaItem> for ContentMediaItemProcessor {
 // text nodes
 #[derive(Default)]
 pub struct TextValue {
-    pub all_nodes: bool,
+    all_nodes: bool,
 }
 
 impl DOMProcessor<String> for TextValue {
@@ -562,6 +562,16 @@ pub fn scope_processor<Item>(
 
 // utilities
 
+pub struct Any<Item> {
+    processors: Vec<Box<dyn DOMProcessor<Option<Item>>>>,
+}
+
+impl<Item> DOMProcessor<Option<Item>> for Any<Item> {
+    fn process(&self, el: &ElementRef) -> Option<Item> {
+        self.processors.iter().filter_map(|p| p.process(el)).next()
+    }
+}
+
 pub struct DefaultValue {}
 
 impl<V: Default> DOMProcessor<V> for DefaultValue {
@@ -579,19 +589,14 @@ pub fn default_value() -> Box<DefaultValue> {
     Box::new(DefaultValue::new())
 }
 
-pub fn self_hosted_image(
+pub fn self_hosted_image<'a>(
     url: &'static str,
     selectors: &str,
     attr: &'static str,
 ) -> Box<dyn DOMProcessor<String>> {
     AttrValue::new(attr)
         .in_scope_flatten(selectors)
-        .map_optional(move |src| {
-            if src.starts_with("http") {
-                return src.to_string();
-            }
-            format!("{url}{src}")
-        })
+        .map_optional(|src| self_hosted_url(url, &src))
         .unwrap_or_default()
         .boxed()
 }
@@ -603,11 +608,13 @@ pub fn self_hosted_image_optional(
 ) -> Box<dyn DOMProcessor<Option<String>>> {
     AttrValue::new(attr)
         .in_scope_flatten(selectors)
-        .map_optional(move |src| {
-            if src.starts_with("http") {
-                return src.to_string();
-            }
-            format!("{url}{src}")
-        })
+        .map_optional(|src| self_hosted_url(url, &src))
         .boxed()
+}
+
+pub fn self_hosted_url(base_url: &str, src: &str) -> String {
+    if src.starts_with("http") {
+        return src.to_string();
+    }
+    format!("{base_url}{src}")
 }

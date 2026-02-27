@@ -33,7 +33,15 @@ impl Default for UASerialsProContentSupplier {
                     }),
                     title: html::text_value("div.th-title"),
                     secondary_title: html::optional_text_value("div.th-title-oname"),
-                    image: html::self_hosted_image(URL, "a.short-img img", "data-src"),
+                    image: html::ExtractValue::new(|el| {
+                        el.attr("src")
+                            .or(el.attr("data-src"))
+                            .map(|url| html::self_hosted_url(URL, url))
+                            .unwrap_or_default()
+                    })
+                    .in_scope("a.short-img img")
+                    .unwrap_or_default()
+                    .boxed(), // html::self_hosted_image(URL, "a.short-img img", "data-src"),
                 }
                 .boxed(),
             ),
@@ -151,7 +159,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_channel() {
         let res = UASerialsProContentSupplier::default()
-            .load_channel("Серіали", 1)
+            .load_channel("Серіали", 0)
             .await
             .unwrap();
         println!("{res:#?}");
