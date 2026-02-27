@@ -34,8 +34,8 @@ impl Default for UASerialsProContentSupplier {
                     title: html::text_value("div.th-title"),
                     secondary_title: html::optional_text_value("div.th-title-oname"),
                     image: html::ExtractValue::new(|el| {
-                        el.attr("src")
-                            .or(el.attr("data-src"))
+                        el.attr("data-src")
+                            .or(el.attr("src"))
                             .map(|url| html::self_hosted_url(URL, url))
                             .unwrap_or_default()
                     })
