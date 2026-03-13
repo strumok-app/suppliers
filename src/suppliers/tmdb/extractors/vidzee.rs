@@ -15,7 +15,7 @@ use crate::{
     utils::{create_client, crypto},
 };
 
-const KEY_PASS: &str = "b3f2a9d4c6e1f8a7b";
+const KEY_PASS: &str = "7c9e2b4a1f6d8a3e5";
 const CORE_URL: &str = "https://core.vidzee.wtf";
 const PLAYER_URL: &str = "https://player.vidzee.wtf";
 
