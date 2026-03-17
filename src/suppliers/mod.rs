@@ -20,6 +20,7 @@ use animekai::AnimeKaiContentSupplier;
 use animeua::AnimeUAContentSupplier;
 use anitube::AniTubeContentSupplier;
 use anizone::AnizoneContentSupplier;
+use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
 use mangainua::MangaInUaContentSupplier;
@@ -73,6 +74,8 @@ pub trait ContentSupplier {
 pub enum AllContentSuppliers {
     #[strum(serialize = "TMDB")]
     TMDBContentSupplier,
+    #[strum(serialize = "Hianime")]
+    HianimeContentSupplier,
     #[strum(serialize = "AnimeKai")]
     AnimeKaiContentSupplier,
     #[strum(serialize = "Anizone")]

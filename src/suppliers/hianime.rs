@@ -18,7 +18,7 @@ use crate::utils::html::{self, DOMProcessor};
 
 use super::ContentSupplier;
 
-const URL: &str = "https://hianimez.to";
+const URL: &str = "https://aniwatchtv.to";
 const ASIDE_SEL: &str = "#ani_detail .ani_detail-stage .anis-content";
 
 pub struct HianimeContentSupplier {
@@ -315,8 +315,9 @@ impl HianimeContentSupplier {
             }
         };
 
-        let res = match server.title.as_str() {
-            "HD-1" | "HD-2" | "HD-3" => megacloud::extract(&link, URL, &prefix).await,
+        // println!("{server:#?}");
+        let res = match server_name.as_str() {
+            "megacloud" | "vidsrc" | "t-cloud" => megacloud::extract(&link, URL, &prefix).await,
             _ => return vec![],
         };
 
