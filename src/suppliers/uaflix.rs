@@ -42,11 +42,11 @@ impl Default for UAFlixSupplier {
     fn default() -> Self {
         Self {
             channels_map: IndexMap::from([
-                ("Фільми", format!("{URL}/film/")),
-                ("Серіали", format!("{URL}/serials/")),
-                ("Мультфільми", format!("{URL}/cartoons/")),
-                ("Дорами", format!("{URL}/dorama/")),
-                ("Аніме", format!("{URL}/anime/")),
+                ("Фільми", format!("{URL}/film/page/")),
+                ("Серіали", format!("{URL}/serials/page/")),
+                ("Мультфільми", format!("{URL}/cartoons/page/")),
+                ("Дорами", format!("{URL}/dorama/page/")),
+                ("Аніме", format!("{URL}/anime/page/")),
             ]),
             selector_episodes_scope: Selector::parse("#sers-wr .video-item").unwrap(),
             selector_episode_link: Selector::parse("a.vi-img").unwrap(),
