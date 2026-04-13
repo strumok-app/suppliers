@@ -8,7 +8,7 @@ use crate::models::{
 use crate::utils::html::DOMProcessor;
 use crate::utils::{self, datalife, html, playerjs};
 
-const URL: &str = "https://uaserials.net";
+const URL: &str = "https://uaserials.my";
 
 pub struct UASerialsProContentSupplier {
     channels_map: IndexMap<&'static str, String>,
