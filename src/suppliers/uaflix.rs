@@ -56,9 +56,23 @@ impl Default for UAFlixSupplier {
                 "#dle-content",
                 html::ContentDetailsProcessor {
                     media_type: MediaType::Video,
-                    title: html::text_value("#ftitle > span"),
-                    original_title: html::default_value(),
-                    image: html::self_hosted_image(URL, ".fposter2 img", "data-src"),
+                    title: html::Any::new(
+                        |s| !s.is_empty(),
+                        vec![
+                            html::text_value("#ftitle > span"),
+                            html::text_value("#ftitle"),
+                        ],
+                    )
+                    .boxed(),
+                    original_title: html::optional_text_value(".eng-rus"),
+                    image: html::Any::new(
+                        |s| !s.is_empty(),
+                        vec![
+                            html::self_hosted_image(URL, ".fposter2 img", "data-src"),
+                            html::self_hosted_image(URL, ".fposter2 img", "src"),
+                        ],
+                    )
+                    .boxed(),
                     description: html::text_value_map("#serial-kratko", |text| {
                         utils::text::sanitize_text(&text)
                     }),
@@ -366,6 +380,24 @@ mod tests {
     async fn should_get_content_details_2() {
         let res = UAFlixSupplier::default()
             .get_content_details("serials/naruto-naruto", vec![])
+            .await;
+
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_get_content_details_3() {
+        let res = UAFlixSupplier::default()
+            .get_content_details("serials/van-pis-velikij-kush", vec![])
+            .await;
+
+        println!("{res:#?}")
+    }
+
+    #[tokio::test]
+    async fn should_get_content_details_4() {
+        let res = UAFlixSupplier::default()
+            .get_content_details("cartoons/legenda-pro-aanga-ostanniu-volodar-stuxiu", vec![])
             .await;
 
         println!("{res:#?}")

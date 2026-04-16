@@ -2666,7 +2666,7 @@ dependencies = [
 
 [[package]]
 name = "strumok_suppliers"
-version = "3.9.11"
+version = "3.9.13"
 dependencies = [
  "aes",
  "aes-gcm",

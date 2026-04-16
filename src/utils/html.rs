@@ -563,12 +563,32 @@ pub fn scope_processor<Item>(
 // utilities
 
 pub struct Any<Item> {
-    processors: Vec<Box<dyn DOMProcessor<Option<Item>>>>,
+    pub predicate: Box<dyn Fn(&Item) -> bool + Sync + Send>,
+    pub processors: Vec<Box<dyn DOMProcessor<Item>>>,
 }
 
-impl<Item> DOMProcessor<Option<Item>> for Any<Item> {
-    fn process(&self, el: &ElementRef) -> Option<Item> {
-        self.processors.iter().filter_map(|p| p.process(el)).next()
+impl<Item> Any<Item> {
+    pub fn new<Predicate>(
+        predicate: Predicate,
+        processors: Vec<Box<dyn DOMProcessor<Item>>>,
+    ) -> Any<Item>
+    where
+        Predicate: Fn(&Item) -> bool + Sync + Send + 'static,
+    {
+        Any {
+            predicate: Box::new(predicate),
+            processors,
+        }
+    }
+}
+
+impl<Item: Default> DOMProcessor<Item> for Any<Item> {
+    fn process(&self, el: &ElementRef) -> Item {
+        self.processors
+            .iter()
+            .map(|p| p.process(el))
+            .find(|r| (self.predicate)(r))
+            .unwrap_or_default()
     }
 }
 
