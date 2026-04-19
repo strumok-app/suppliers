@@ -53,7 +53,7 @@ pub async fn extract(
     let mut result: Vec<ContentMediaItemSource> = vec![];
     let mut srv_num = 1u8;
     for lid in lids {
-        let maybe_sources = load_server_link(&utils::create_json_client(), lid, srv_num).await;
+        let maybe_sources = load_server_link(utils::create_json_client(), lid, srv_num).await;
         if let Ok(sources) = maybe_sources {
             result.extend(sources);
         }

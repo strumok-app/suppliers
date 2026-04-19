@@ -15,7 +15,7 @@ use crate::{
     utils::{create_client, crypto},
 };
 
-const KEY_PASS: &str = "7c9e2b4a1f6d8a3e5";
+const KEY_PASS: &str = "4f2a9c7d1e8b3a6f0d5c2e9a7b1f4d8c";
 const CORE_URL: &str = "https://core.vidzee.wtf";
 const PLAYER_URL: &str = "https://player.vidzee.wtf";
 
@@ -241,8 +241,8 @@ mod test {
     #[test_log::test(tokio::test)]
     async fn should_load_source() {
         let res = extract(&SourceParams {
-            id: 655,
-            // id: 1399,
+            // id: 655,
+            id: 1399,
             imdb_id: None, //Some("tt18259086".into()),
             // ep: None,
             ep: Some(Episode { s: 1, e: 1 }),
