@@ -390,7 +390,9 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = MangaFireContentSupplier::default().search("one", 2).await;
+        let res = MangaFireContentSupplier::default()
+            .search("jujutsu", 1)
+            .await;
         println!("{res:#?}")
     }
 

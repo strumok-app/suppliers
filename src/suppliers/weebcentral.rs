@@ -169,11 +169,13 @@ impl ContentSupplier for WeebCentralContentSupplier {
 
         let url = format!("{URL}/series/{actual_id}/full-chapter-list");
 
-        utils::scrap_fragment(
+        let res = utils::scrap_fragment(
             create_client().get(&url),
             &self.processor_content_media_item,
         )
-        .await
+        .await;
+
+        res.map(|items| items.into_iter().rev().collect())
     }
 
     async fn load_media_item_sources(
