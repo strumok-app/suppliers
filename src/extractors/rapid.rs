@@ -11,6 +11,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
     let user_agent = get_user_agent();
     let media_url_res_str = client
         .get(media_url)
+        .header("Referer", url)
         .header("User-Agent", user_agent)
         .send()
         .await?
@@ -27,7 +28,7 @@ pub async fn extract(url: &str, prefix: &str) -> anyhow::Result<Vec<ContentMedia
 
     // println!("{jwpconfig:?}");
 
-    Ok(jwpconfig.to_media_item_sources(prefix, None))
+    Ok(jwpconfig.to_media_item_sources(prefix, None, false))
 }
 
 #[cfg(test)]

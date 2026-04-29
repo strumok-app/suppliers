@@ -3,8 +3,9 @@
 use std::{borrow::Cow, str, sync::OnceLock};
 
 use chrono::format::Item;
+use log::warn;
 use regex::Regex;
-use scraper::{ElementRef, Selector};
+use scraper::{ElementRef, Selector, selector::ToCss};
 
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, MediaType,
@@ -256,7 +257,13 @@ pub struct AttrValue {
 
 impl DOMProcessor<Option<String>> for AttrValue {
     fn process(&self, el: &ElementRef) -> Option<String> {
-        el.attr(self.attr).map(|s| s.into())
+        let res = el.attr(self.attr).map(|s| s.to_string());
+
+        if res.is_none() {
+            warn!("attr {:?} not found in {:?}", self.attr, el);
+        }
+
+        res
     }
 }
 
@@ -271,6 +278,13 @@ pub fn attr_value(selectors: &str, attr: &'static str) -> Box<dyn DOMProcessor<S
         .in_scope_flatten(selectors)
         .unwrap_or_default()
         .boxed()
+}
+
+pub fn optional_attr_value(
+    selectors: &str,
+    attr: &'static str,
+) -> Box<dyn DOMProcessor<Option<String>>> {
+    AttrValue::new(attr).in_scope_flatten(selectors).boxed()
 }
 
 pub fn attr_value_map<Out>(
@@ -538,9 +552,20 @@ pub struct ScopeProcessor<Item> {
 
 impl<Item> DOMProcessor<Option<Item>> for ScopeProcessor<Item> {
     fn process(&self, el: &ElementRef) -> Option<Item> {
-        el.select(&self.scope)
+        let res = el
+            .select(&self.scope)
             .map(|e| self.item_processor.process(&e))
-            .next()
+            .next();
+
+        if res.is_none() {
+            warn!(
+                "nothing found by selector: {:?} in {:?}",
+                self.scope.to_css_string(),
+                el
+            );
+        }
+
+        res
     }
 }
 

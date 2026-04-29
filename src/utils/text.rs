@@ -57,3 +57,64 @@ pub fn to_title_case(input: &str) -> String {
         .collect::<Vec<String>>()
         .join(" ")
 }
+
+pub fn extract_css_background_url(css_style: &str) -> Option<String> {
+    static BACKGROUND_URL_RE: OnceLock<Regex> = OnceLock::new();
+    BACKGROUND_URL_RE
+        .get_or_init(|| Regex::new(r#"background\s*:\s*url\(\s*['"]?(?<url>[^'")\s]+)['"]?\s*\)"#).unwrap())
+        .captures(css_style)
+        .and_then(|m| m.name("url").map(|u| u.as_str().to_string()))
+}
+
+pub fn extract_background_url_value(css_style: &str) -> Option<String> {
+    extract_css_background_url(css_style)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_extract_background_url_with_single_quotes() {
+        let css = "background: url('https://cdn.cimovix.store/cover/597c7b407a02cc0a92167e7a371eca25.webp');";
+        let result = extract_css_background_url(css);
+        assert_eq!(
+            result,
+            Some("https://cdn.cimovix.store/cover/597c7b407a02cc0a92167e7a371eca25.webp".to_string())
+        );
+    }
+
+    #[test]
+    fn should_extract_background_url_with_double_quotes() {
+        let css = r#"background: url("https://example.com/image.jpg");"#;
+        let result = extract_css_background_url(css);
+        assert_eq!(
+            result,
+            Some("https://example.com/image.jpg".to_string())
+        );
+    }
+
+    #[test]
+    fn should_extract_background_url_without_quotes() {
+        let css = "background: url(https://example.com/image.jpg);";
+        let result = extract_css_background_url(css);
+        assert_eq!(result, Some("https://example.com/image.jpg".to_string()));
+    }
+
+    #[test]
+    fn should_extract_background_url_with_spaces() {
+        let css = "background  :  url( 'https://example.com/image.jpg' );";
+        let result = extract_css_background_url(css);
+        assert_eq!(
+            result,
+            Some("https://example.com/image.jpg".to_string())
+        );
+    }
+
+    #[test]
+    fn should_return_none_for_invalid_css() {
+        let css = "color: red;";
+        let result = extract_css_background_url(css);
+        assert_eq!(result, None);
+    }
+}

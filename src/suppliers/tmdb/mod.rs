@@ -111,7 +111,6 @@ impl ContentSupplier for TMDBContentSupplier {
     async fn get_content_details(
         &self,
         id: &str,
-        _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let res: TMDBDetailsResponse = utils::create_json_client()
             .get(format!("{URL}/{id}"))
@@ -130,7 +129,6 @@ impl ContentSupplier for TMDBContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.is_empty() {
@@ -143,7 +141,6 @@ impl ContentSupplier for TMDBContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -151,7 +148,7 @@ impl ContentSupplier for TMDBContentSupplier {
         }
 
         let source_params: SourceParams = serde_json::from_str(&params[0])?;
-        let sources = run_extractors(&source_params, &langs).await;
+        let sources = run_extractors(&source_params).await;
 
         Ok(sources)
     }
@@ -439,7 +436,7 @@ mod test {
     #[test_log::test(tokio::test())]
     async fn should_get_movie_content_details() {
         let res = TMDBContentSupplier::default()
-            .get_content_details("movie/939243", vec![])
+            .get_content_details("movie/939243")
             .await;
         println!("{res:#?}");
     }
@@ -449,7 +446,6 @@ mod test {
         let res = TMDBContentSupplier::default()
             .load_media_items(
                 "movie/939243",
-                vec![],
                 vec![r#"{"imdb_id":"tt18259086"}"#.into()],
             )
             .await;
@@ -461,7 +457,6 @@ mod test {
         let res = TMDBContentSupplier::default()
             .load_media_item_sources(
                 "movie/939243",
-                vec![],
                 vec![r#"{"id": 939243, "imdb_id":"tt18259086"}"#.into()],
             )
             .await;
@@ -471,7 +466,7 @@ mod test {
     #[test_log::test(tokio::test())]
     async fn should_get_tv_content_details() {
         let res = TMDBContentSupplier::default()
-            .get_content_details("tv/253", vec![])
+            .get_content_details("tv/253")
             .await;
         println!("{res:#?}");
     }
@@ -481,7 +476,6 @@ mod test {
         let res = TMDBContentSupplier::default()
             .load_media_items(
                 "tv/253",
-                vec![],
                 vec![r#"{"imdb_id":"tt0060028"}"#.into(), "3".into()],
             )
             .await;
@@ -492,7 +486,6 @@ mod test {
         let res = TMDBContentSupplier::default()
             .load_media_item_sources(
                 "tv/253",
-                vec![],
                 vec![r#"{"id": 253, "imdb_id":"tt0060028", "ep":{"e":1, "s":1}}"#.into()],
             )
             .await;

@@ -144,7 +144,6 @@ impl ContentSupplier for MangaInUaContentSupplier {
     async fn get_content_details(
         &self,
         id: &str,
-        _langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
@@ -170,7 +169,6 @@ impl ContentSupplier for MangaInUaContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.len() != 1 {
@@ -237,7 +235,6 @@ impl ContentSupplier for MangaInUaContentSupplier {
     async fn load_media_item_sources(
         &self,
         id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() < 2 {
@@ -389,7 +386,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details() {
         let result = MangaInUaContentSupplier::default()
-            .get_content_details("mangas/boyovik/14196-hunter-x-hunter", vec![])
+            .get_content_details("mangas/boyovik/14196-hunter-x-hunter")
             .await;
         println!("{result:#?}")
     }
@@ -399,7 +396,6 @@ mod tests {
         let result = MangaInUaContentSupplier::default()
             .load_media_items(
                 "mangas/boyovik/14196-hunter-x-hunter",
-                vec![],
                 vec!["772f84a2554710856146eb1863c483d705b01412".to_string()],
             )
             .await;
@@ -411,7 +407,6 @@ mod tests {
         let result = MangaInUaContentSupplier::default()
             .load_media_item_sources(
                 "mangas/boyovik/14196-hunter-x-hunter",
-                vec![],
                 vec![
                     "772f84a2554710856146eb1863c483d705b01412".to_string(),
                     "1".to_string(),

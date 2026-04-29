@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+
 #[derive(Debug, Clone, Copy)]
 pub enum ContentType {
     Movie,
@@ -51,6 +52,7 @@ pub enum ContentMediaItemSource {
         link: String,
         description: String,
         headers: Option<HashMap<String, String>>,
+        hls_proxy: bool,
     },
     Subtitle {
         link: String,

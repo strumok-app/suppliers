@@ -110,11 +110,7 @@ impl ContentSupplier for UASerialsProContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
         println!("{url}");
@@ -129,7 +125,6 @@ impl ContentSupplier for UASerialsProContentSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
@@ -146,7 +141,6 @@ impl ContentSupplier for UASerialsProContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
@@ -160,8 +154,7 @@ mod tests {
     async fn should_load_channel() {
         let res = UASerialsProContentSupplier::default()
             .load_channel("Серіали", 0)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -169,17 +162,15 @@ mod tests {
     async fn should_search() {
         let res = UASerialsProContentSupplier::default()
             .search("Зоряний шлях", 2)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UASerialsProContentSupplier::default()
-            .get_content_details("10963-gra-v-kalmara", vec![])
-            .await
-            .unwrap();
+            .get_content_details("10963-gra-v-kalmara")
+            .await;
         println!("{res:#?}");
     }
 
@@ -188,11 +179,9 @@ mod tests {
         let res = UASerialsProContentSupplier::default()
             .load_media_items(
                 "8831-gotel-kokayin",
-                vec![],
                 vec!["https://hdvbua.pro/embed/9123".into()],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}")
     }
 }

@@ -44,6 +44,7 @@ pub async fn load_and_parse_playerjs(
                 description: String::from("Default"),
                 headers: None,
                 link: String::from(file),
+                hls_proxy: false
             }]),
             params: vec![],
         }])
@@ -211,6 +212,8 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
                 link: link.to_owned(),
                 description: format!("{quality}{title}"),
                 headers: None,
+
+            hls_proxy: false
             });
         }
     } else {
@@ -218,6 +221,7 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
             link: file.to_owned(),
             description: String::from(title.trim()),
             headers: None,
+            hls_proxy: false
         });
     }
 }

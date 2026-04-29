@@ -1,10 +1,11 @@
+mod anikoto;
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animekai;
 mod animeua;
+mod anitaku;
 mod anitube;
 mod anizone;
-mod hianime;
 mod mangadex;
 mod mangafire;
 mod mangainua;
@@ -16,11 +17,12 @@ mod uaserials_pro;
 mod ufdub;
 mod weebcentral;
 
+use anikoto::AnikotoContentSupplier;
 use animekai::AnimeKaiContentSupplier;
 use animeua::AnimeUAContentSupplier;
+use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
 use anizone::AnizoneContentSupplier;
-use hianime::HianimeContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangafire::MangaFireContentSupplier;
 use mangainua::MangaInUaContentSupplier;
@@ -49,21 +51,15 @@ pub trait ContentSupplier {
     fn get_supported_languages(&self) -> Vec<String>;
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
     async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>>;
-    async fn get_content_details(
-        &self,
-        id: &str,
-        langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>>;
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>>;
     async fn load_media_items(
         &self,
         id: &str,
-        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>>;
     async fn load_media_item_sources(
         &self,
         id: &str,
-        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>>;
 }
@@ -74,12 +70,14 @@ pub trait ContentSupplier {
 pub enum AllContentSuppliers {
     #[strum(serialize = "TMDB")]
     TMDBContentSupplier,
-    #[strum(serialize = "Hianime")]
-    HianimeContentSupplier,
     #[strum(serialize = "AnimeKai")]
     AnimeKaiContentSupplier,
     #[strum(serialize = "Anizone")]
     AnizoneContentSupplier,
+    #[strum(serialize = "Anitaku")]
+    AnitakuContentSupplier,
+    #[strum(serialize = "Anikoto")]
+    AnikotoContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]

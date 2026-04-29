@@ -7,27 +7,17 @@ use super::SourceParams;
 
 const STREIO_URL: &str = "https://opensubtitles.stremio.homes";
 
-pub fn extract_boxed<'a>(
-    params: &'a SourceParams,
-    langs: &'a [String],
-) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
-    Box::pin(extract(params, langs))
+pub fn extract_boxed<'a>(params: &'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
+    Box::pin(extract(params))
 }
 
-pub async fn extract(
-    params: &SourceParams,
-    langs: &[String],
-) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    if langs.is_empty() {
-        return Ok(vec![]);
-    }
-
+pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let imdb_id = match &params.imdb_id {
         Some(v) => v,
         None => return Ok(vec![]),
     };
 
-    let langs_str = langs.join("|");
+    let langs_str = "en|uk";
     let base_url =
         format!("{STREIO_URL}/{langs_str}/ai-translated=true|from=all|Cauto-adjustment=true");
 
@@ -97,8 +87,7 @@ mod tests {
                 id: 280,
                 imdb_id: Some("tt0103064".to_owned()),
                 ep: None,
-            },
-            &["en".to_owned(), "uk".to_owned()],
+            }
         )
         .await;
 
@@ -112,8 +101,7 @@ mod tests {
                 id: 655,
                 imdb_id: Some("tt0092455".to_owned()),
                 ep: Some(Episode { e: 1, s: 1 }),
-            },
-            &["en".to_owned(), "uk".to_owned()],
+            }
         )
         .await;
 

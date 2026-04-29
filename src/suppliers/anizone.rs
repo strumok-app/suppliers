@@ -19,6 +19,7 @@ pub struct AnizoneContentSupplier {
     selector_player: scraper::Selector,
     selector_tracks: scraper::Selector,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
+    processor_channel_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
 }
 
@@ -40,6 +41,16 @@ impl Default for AnizoneContentSupplier {
                     )
                     .map(|s| Some(s.join(", ")))
                     .boxed(),
+                    image: html::attr_value("img", "src"),
+                }
+                .boxed(),
+            ),
+            processor_channel_info_items: html::ItemsProcessor::new(
+                ".swiper-wrapper.flex .swiper-slide",
+                html::ContentInfoProcessor {
+                    id: html::attr_value_map("a", "href", extract_id_from_url),
+                    title: html::text_value(".line-clamp-2 > a"),
+                    secondary_title: html::default_value(),
                     image: html::attr_value("img", "src"),
                 }
                 .boxed(),
@@ -69,7 +80,7 @@ impl Default for AnizoneContentSupplier {
 
 impl ContentSupplier for AnizoneContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        vec![]
+        vec!["Latest Anime".to_string()]
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -99,14 +110,14 @@ impl ContentSupplier for AnizoneContentSupplier {
     }
 
     async fn load_channel(&self, _channel: &str, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        Err(anyhow!("unimplemented"))
+        utils::scrap_page(
+            utils::create_client().get(SITE_URL),
+            &self.processor_channel_info_items,
+        )
+        .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         utils::scrap_page(
             utils::create_client().get(format!("{SITE_URL}/anime/{id}")),
             &self.processor_content_details,
@@ -117,7 +128,6 @@ impl ContentSupplier for AnizoneContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let url = format!("{SITE_URL}/anime/{id}/1");
@@ -150,7 +160,6 @@ impl ContentSupplier for AnizoneContentSupplier {
     async fn load_media_item_sources(
         &self,
         id: &str,
-        langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() != 1 {
@@ -159,13 +168,14 @@ impl ContentSupplier for AnizoneContentSupplier {
 
         let ep_num = &params[0];
 
-        let anime_page_res = self.load_anime_page(id, ep_num, langs).await?;
+        let anime_page_res = self.load_anime_page(id, ep_num).await?;
         let mut results: Vec<ContentMediaItemSource> = vec![];
 
         results.push(ContentMediaItemSource::Video {
             link: anime_page_res.hls_src,
             description: "Default".to_string(),
             headers: None,
+            hls_proxy: false,
         });
 
         for sub in anime_page_res.subtitles {
@@ -193,12 +203,7 @@ struct AnimePageResult {
 }
 
 impl AnizoneContentSupplier {
-    async fn load_anime_page(
-        &self,
-        id: &str,
-        ep_num: &str,
-        langs: Vec<String>,
-    ) -> anyhow::Result<AnimePageResult> {
+    async fn load_anime_page(&self, id: &str, ep_num: &str) -> anyhow::Result<AnimePageResult> {
         let url = format!("{SITE_URL}/anime/{id}/{ep_num}");
 
         let page_content = create_client().get(url).send().await?.text().await?;
@@ -220,9 +225,9 @@ impl AnizoneContentSupplier {
                 let src = track_el.attr("src")?;
                 let label = track_el.attr("label")?;
 
-                if !utils::lang::is_allowed(&langs, label) {
-                    return None;
-                }
+                // if !utils::lang::is_allowed(label) {
+                //     return None;
+                // }
 
                 Some(Subtitle {
                     src: src.to_string(),
@@ -257,9 +262,17 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
+    async fn should_load_channel() {
+        let res = AnizoneContentSupplier::default()
+            .load_channel("Latest Anime", 1)
+            .await;
+        println!("{res:#?}");
+    }
+
+    #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
         let res = AnizoneContentSupplier::default()
-            .get_content_details("uyyyn4kf", vec![])
+            .get_content_details("uyyyn4kf")
             .await;
         println!("{res:#?}")
     }
@@ -267,7 +280,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_load_media_items() {
         let res = AnizoneContentSupplier::default()
-            .load_media_items("47tr68c3", vec![], vec![])
+            .load_media_items("47tr68c3", vec![])
             .await;
         println!("{res:#?}")
     }
@@ -275,11 +288,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_load_media_item_sources() {
         let res = AnizoneContentSupplier::default()
-            .load_media_item_sources(
-                "47tr68c3",
-                vec!["en".to_string(), "jp".to_string()],
-                vec!["2".to_string()],
-            )
+            .load_media_item_sources("47tr68c3", vec!["2".to_string()])
             .await;
         println!("{res:#?}")
     }

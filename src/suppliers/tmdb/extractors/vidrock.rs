@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::{
     models::ContentMediaItemSource,
     suppliers::tmdb::URL,
-    utils::{self, create_json_client, lang},
+    utils::{self, create_json_client},
 };
 
 use super::SourceParams;
@@ -28,15 +28,11 @@ struct ServerSource {
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
-    langs: &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
-    Box::pin(extract(params, langs))
+    Box::pin(extract(params))
 }
 
-pub async fn extract(
-    params: &SourceParams,
-    langs: &[String],
-) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let key = calc_key(params)?;
 
     let link = match &params.ep {
@@ -75,16 +71,17 @@ pub async fn extract(
 
         let language = source.language.as_ref().map_or("unknown", |s| s.as_str());
 
-        if lang::is_allowed(langs, language) {
-            result.push(ContentMediaItemSource::Video {
-                link: url.to_owned(),
-                description: format!("[Vidrocks] {name}. {language}"),
-                headers: Some(HashMap::from([
-                    ("Referer".to_owned(), SITE_URL.to_owned()),
-                    ("Origin".to_owned(), SITE_URL.to_owned()),
-                ])),
-            })
-        }
+        // if lang::is_allowed(language) {
+        result.push(ContentMediaItemSource::Video {
+            link: url.to_owned(),
+            description: format!("[Vidrocks] {name}. {language}"),
+            headers: Some(HashMap::from([
+                ("Referer".to_owned(), SITE_URL.to_owned()),
+                ("Origin".to_owned(), SITE_URL.to_owned()),
+            ])),
+            hls_proxy: true,
+        })
+        // }
     }
 
     Ok(result)
@@ -165,6 +162,7 @@ async fn load_vidstor_playlist(
                 item.resolution
             ),
             headers: Some(HashMap::from([("Referer".to_owned(), SITE_URL.to_owned())])),
+            hls_proxy: false,
         })
         .collect();
 
@@ -204,14 +202,11 @@ mod tests {
     use super::*;
     #[test_log::test(tokio::test)]
     async fn should_extract_movies() {
-        let res = extract(
-            &SourceParams {
-                id: 533535,
-                imdb_id: None,
-                ep: None,
-            },
-            &["en".to_owned()],
-        )
+        let res = extract(&SourceParams {
+            id: 533535,
+            imdb_id: None,
+            ep: None,
+        })
         .await;
 
         println!("{res:#?}")
@@ -219,14 +214,11 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn should_extract_tv() {
-        let res = extract(
-            &SourceParams {
-                id: 655,
-                imdb_id: None,
-                ep: Some(Episode { e: 1, s: 1 }),
-            },
-            &["en".to_owned()],
-        )
+        let res = extract(&SourceParams {
+            id: 655,
+            imdb_id: None,
+            ep: Some(Episode { e: 1, s: 1 }),
+        })
         .await;
 
         println!("{res:#?}")

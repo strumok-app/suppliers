@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 
-use crate::models::ContentMediaItemSource;
+use crate::{models::ContentMediaItemSource, utils::lang};
 
 #[derive(Deserialize, Debug)]
 pub struct Track {
@@ -20,10 +20,28 @@ pub struct Source {
 
 #[derive(Deserialize, Debug)]
 pub struct JWPConfig {
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_sources")]
     pub sources: Vec<Source>,
     #[serde(default)]
     pub tracks: Vec<Track>,
+}
+
+fn deserialize_sources<'de, D>(deserializer: D) -> Result<Vec<Source>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ListOrSingle<T> {
+        List(Vec<T>),
+        Single(T),
+    }
+
+    // Try to deserialize into the helper enum
+    match ListOrSingle::<Source>::deserialize(deserializer)? {
+        ListOrSingle::List(list) => Ok(list),
+        ListOrSingle::Single(item) => Ok(vec![item]),
+    }
 }
 
 impl JWPConfig {
@@ -31,6 +49,7 @@ impl JWPConfig {
         &self,
         prefix: &str,
         headers: Option<HashMap<String, String>>,
+        hls_proxy: bool,
     ) -> Vec<ContentMediaItemSource> {
         let mut result = vec![];
 
@@ -47,6 +66,7 @@ impl JWPConfig {
                 link: String::from(&source.file),
                 headers: headers.clone(),
                 description,
+                hls_proxy: hls_proxy,
             });
         });
 
@@ -61,12 +81,16 @@ impl JWPConfig {
                 let mut description = format!("{prefix} {num}.");
 
                 if let Some(label) = &track.label {
+                    if !lang::is_allowed(&label) {
+                        return;
+                    }
+
                     description.push(' ');
                     description.push_str(label);
                 }
 
                 result.push(ContentMediaItemSource::Subtitle {
-                    link: String::from(&track.file),
+                    link: track.file.clone(),
                     headers: None,
                     description,
                 });

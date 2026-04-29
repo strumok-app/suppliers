@@ -146,11 +146,7 @@ impl ContentSupplier for UAserialContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}");
 
         let html = utils::create_client().get(url).send().await?.text().await?;
@@ -164,7 +160,6 @@ impl ContentSupplier for UAserialContentSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.len() != 1 {
@@ -184,7 +179,6 @@ impl ContentSupplier for UAserialContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
@@ -210,8 +204,7 @@ mod tests {
     async fn should_load_channel() {
         let res = UAserialContentSupplier::default()
             .load_channel("Серіали", 2)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -219,26 +212,23 @@ mod tests {
     async fn should_search() {
         let res = UAserialContentSupplier::default()
             .search("термінатор", 0)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details_for_movie() {
         let res = UAserialContentSupplier::default()
-            .get_content_details("movie-the-terminator", vec![])
-            .await
-            .unwrap();
+            .get_content_details("movie-the-terminator")
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details_for_tv_show() {
         let res = UAserialContentSupplier::default()
-            .get_content_details("terminator-zero/season-1", vec![])
-            .await
-            .unwrap();
+            .get_content_details("terminator-zero/season-1")
+            .await;
         println!("{res:#?}");
     }
 
@@ -247,11 +237,9 @@ mod tests {
         let res = UAserialContentSupplier::default()
             .load_media_items(
                 "terminator-zero/season-1",
-                vec![],
                 vec!["https://hdvbua.pro/embed/9146".into()],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 }

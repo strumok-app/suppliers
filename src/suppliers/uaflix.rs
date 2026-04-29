@@ -157,11 +157,7 @@ impl ContentSupplier for UAFlixSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/{id}/");
         let html = utils::create_client()
             .get(&url)
@@ -200,7 +196,6 @@ impl ContentSupplier for UAFlixSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.len() != 1 {
@@ -221,7 +216,6 @@ impl ContentSupplier for UAFlixSupplier {
     async fn load_media_item_sources(
         &self,
         id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() != 1 {
@@ -353,10 +347,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_load_channel() {
-        let res = UAFlixSupplier::default()
-            .load_channel("Аніме", 2)
-            .await
-            .unwrap();
+        let res = UAFlixSupplier::default().load_channel("Аніме", 2).await;
         println!("{res:#?}");
     }
 
@@ -370,7 +361,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details_1() {
         let res = UAFlixSupplier::default()
-            .get_content_details("serials/divni-diva", vec![])
+            .get_content_details("serials/divni-diva")
             .await;
 
         println!("{res:#?}")
@@ -379,7 +370,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details_2() {
         let res = UAFlixSupplier::default()
-            .get_content_details("serials/naruto-naruto", vec![])
+            .get_content_details("serials/naruto-naruto")
             .await;
 
         println!("{res:#?}")
@@ -388,7 +379,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details_3() {
         let res = UAFlixSupplier::default()
-            .get_content_details("serials/van-pis-velikij-kush", vec![])
+            .get_content_details("serials/van-pis-velikij-kush")
             .await;
 
         println!("{res:#?}")
@@ -397,7 +388,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details_4() {
         let res = UAFlixSupplier::default()
-            .get_content_details("cartoons/legenda-pro-aanga-ostanniu-volodar-stuxiu", vec![])
+            .get_content_details("cartoons/legenda-pro-aanga-ostanniu-volodar-stuxiu")
             .await;
 
         println!("{res:#?}")
@@ -408,7 +399,6 @@ mod tests {
         let res = UAFlixSupplier::default()
             .load_media_items(
                 "serials/naruto-naruto",
-                vec![],
                 vec!["https://ashdi.vip/serial/236".to_string()],
             )
             .await;
@@ -421,7 +411,6 @@ mod tests {
         let res = UAFlixSupplier::default()
             .load_media_item_sources(
                 "serials/schodennik-z-chuzhozemja",
-                vec![],
                 vec!["season-01-episode-02".to_string()],
             )
             .await;

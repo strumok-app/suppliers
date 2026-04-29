@@ -1,6 +1,5 @@
-pub mod dood;
-pub mod megacloud3;
+pub mod m3u8_link;
+pub mod megaplay;
 pub mod megaup;
-pub mod mixdrop;
-pub mod primevid;
+pub mod packer_hls;
 pub mod rapid;

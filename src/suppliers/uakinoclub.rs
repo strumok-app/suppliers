@@ -132,11 +132,7 @@ impl ContentSupplier for UAKinoClubContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
         utils::scrap_page(
@@ -149,7 +145,6 @@ impl ContentSupplier for UAKinoClubContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
@@ -189,7 +184,6 @@ impl ContentSupplier for UAKinoClubContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         mut params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if !params.len().is_multiple_of(2) {
@@ -220,8 +214,7 @@ mod tests {
     async fn should_load_channel() {
         let res = UAKinoClubContentSupplier::default()
             .load_channel("Новинки", 2)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -229,17 +222,15 @@ mod tests {
     async fn should_search() {
         let res = UAKinoClubContentSupplier::default()
             .search("Термінатор", 1)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UAKinoClubContentSupplier::default()
-            .get_content_details("filmy/genre_comedy/24898-zhyv-sobi-policeiskyi", vec![])
-            .await
-            .unwrap();
+            .get_content_details("filmy/genre_comedy/24898-zhyv-sobi-policeiskyi")
+            .await;
         println!("{res:#?}");
     }
 
@@ -248,11 +239,9 @@ mod tests {
         let res = UAKinoClubContentSupplier::default()
             .load_media_items(
                 "filmy/genre_comedy/24898-zhyv-sobi-policeiskyi",
-                vec![],
                 vec!["https://ashdi.vip/vod/151972".into()],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -262,10 +251,8 @@ mod tests {
             .load_media_items(
                 "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon",
                 vec![],
-                vec![],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -274,14 +261,12 @@ mod tests {
         let res = UAKinoClubContentSupplier::default()
             .load_media_item_sources(
                 "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon",
-                vec![],
                 vec![
                     "ТакТребаПродакшн (1-2)".into(),
                     "https://ashdi.vip/vod/150511".into(),
                 ],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 }

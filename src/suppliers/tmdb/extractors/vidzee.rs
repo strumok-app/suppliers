@@ -15,14 +15,14 @@ use crate::{
     utils::{create_client, crypto},
 };
 
-const KEY_PASS: &str = "7c9e2b4a1f6d8a3e5";
+// https://player.vidzee.wtf/_next/static/chunks/app/embed/%5B%5B...params%5D%5D/page-7bcef97531d2a94a.js
+// "[0-9a-f]{8,}" e.g: let a = "4f2a9c7d1e8b3a6f0d5c2e9a7b1f4d8c"
+
+const KEY_PASS: &str = "4f2a9c7d1e8b3a6f0d5c2e9a7b1f4d8c";
 const CORE_URL: &str = "https://core.vidzee.wtf";
 const PLAYER_URL: &str = "https://player.vidzee.wtf";
 
-pub fn extract_boxed<'a>(
-    params: &'a SourceParams,
-    _langs: &'a [String],
-) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
+pub fn extract_boxed<'a>(params: &'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
 
@@ -186,6 +186,7 @@ async fn load_server(
                 ("Origin".to_string(), PLAYER_URL.to_string()),
                 ("Referer".to_string(), PLAYER_URL.to_string()),
             ])),
+            hls_proxy: false
         });
     }
 

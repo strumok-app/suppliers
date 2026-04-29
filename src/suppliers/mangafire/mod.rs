@@ -155,7 +155,6 @@ impl ContentSupplier for MangaFireContentSupplier {
     async fn get_content_details(
         &self,
         id: &str,
-        langs: Vec<String>,
     ) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/manga/{id}");
 
@@ -165,7 +164,7 @@ impl ContentSupplier for MangaFireContentSupplier {
         )
         .await;
 
-        let mut details = match maybe_details {
+        let details = match maybe_details {
             Ok(d) => d,
             _ => {
                 warn!("[mangafire] failed to fetch details for id: {id}");
@@ -173,15 +172,12 @@ impl ContentSupplier for MangaFireContentSupplier {
             }
         };
 
-        details.params = langs;
-
         Ok(Some(details))
     }
 
     async fn load_media_items(
         &self,
         id: &str,
-        langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let actual_id = id
@@ -192,7 +188,7 @@ impl ContentSupplier for MangaFireContentSupplier {
         let client = utils::create_json_client();
         let mut media_items: BTreeMap<Key, ContentMediaItem> = BTreeMap::new();
 
-        for lang in langs {
+        for lang in ["en", "ja"] {
             let volumes = match self.load_volumes(client, actual_id, &lang).await {
                 Ok(items) => items,
                 Err(err) => {
@@ -213,7 +209,7 @@ impl ContentSupplier for MangaFireContentSupplier {
                             params: vec![],
                         });
 
-                media_item.params.push(lang.clone());
+                media_item.params.push(lang.to_string());
                 media_item.params.push(volume.id);
             }
         }
@@ -224,7 +220,6 @@ impl ContentSupplier for MangaFireContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.len() % 2 != 0 {
@@ -405,7 +400,7 @@ mod tests {
     #[tokio::test]
     async fn should_get_content_details() {
         let res = MangaFireContentSupplier::default()
-            .get_content_details("one-punch-mann.oo4", vec!["en".into()])
+            .get_content_details("one-punch-mann.oo4")
             .await;
         println!("{res:#?}");
     }
@@ -413,7 +408,7 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = MangaFireContentSupplier::default()
-            .load_media_items("one-punch-mann.oo4", vec!["en".into(), "ja".into()], vec![])
+            .load_media_items("one-punch-mann.oo4", vec![])
             .await;
         println!("{res:#?}")
     }
@@ -423,7 +418,6 @@ mod tests {
         let res = MangaFireContentSupplier::default()
             .load_media_item_sources(
                 "one-punch-mann.oo4",
-                vec![],
                 vec!["en".into(), "633".into(), "ja".into(), "126226".into()],
             )
             .await;

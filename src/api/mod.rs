@@ -5,7 +5,7 @@ use anyhow::anyhow;
 use crate::{
     models::*,
     suppliers::{
-        AllContentSuppliers, AllMangaPagesLoaders, ContentSupplier, MangaPagesLoader, get_supplier,
+        get_supplier, AllContentSuppliers, AllMangaPagesLoaders, ContentSupplier, MangaPagesLoader,
     },
 };
 
@@ -35,7 +35,7 @@ pub fn get_supported_languages(supplier: String) -> anyhow::Result<Vec<String>> 
 
 pub async fn search(
     supplier: String,
-    query: String,
+    query: String, 
     page: u16,
 ) -> anyhow::Result<Vec<ContentInfo>> {
     let sup = get_supplier(&supplier)?;
@@ -54,30 +54,27 @@ pub async fn load_channel(
 pub async fn get_content_details(
     supplier: String,
     id: String,
-    langs: Vec<String>,
 ) -> anyhow::Result<Option<ContentDetails>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::get_content_details(&sup, &id, langs).await
+    AllContentSuppliers::get_content_details(&sup, &id).await
 }
 
 pub async fn load_media_items(
     supplier: String,
     id: String,
-    langs: Vec<String>,
     params: Vec<String>,
 ) -> anyhow::Result<Vec<ContentMediaItem>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_media_items(&sup, &id, langs, params).await
+    AllContentSuppliers::load_media_items(&sup, &id, params).await
 }
 
 pub async fn load_media_item_sources(
     supplier: String,
     id: String,
-    langs: Vec<String>,
     params: Vec<String>,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let sup = get_supplier(&supplier)?;
-    AllContentSuppliers::load_media_item_sources(&sup, &id, langs, params).await
+    AllContentSuppliers::load_media_item_sources(&sup, &id, params).await
 }
 
 pub async fn load_manga_pages(
@@ -96,7 +93,6 @@ pub fn avalaible_suppliers() -> Vec<String> {
 
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
-    _ = env_logger::try_init();
     // Default utilities - feel free to customize
     flutter_rust_bridge::setup_default_user_utils();
 }

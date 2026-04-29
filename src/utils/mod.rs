@@ -20,6 +20,7 @@ use std::{
 };
 
 use dns_over_https::DoHResolver;
+use log::info;
 use reqwest::{
     ClientBuilder,
     header::{self, HeaderMap},
@@ -103,7 +104,11 @@ pub async fn scrap_page<T>(
     let document = scraper::Html::parse_document(&html);
     let root = document.root_element();
 
-    Ok(processor.process(&root))
+    let start = std::time::Instant::now();
+    let res = processor.process(&root);
+    info!("page processing took {:?}", start.elapsed());
+
+    Ok(res)
 }
 
 pub async fn scrap_fragment<T>(
@@ -117,5 +122,9 @@ pub async fn scrap_fragment<T>(
     let document = scraper::Html::parse_fragment(&html);
     let root = document.root_element();
 
-    Ok(processor.process(&root))
+    let start = std::time::Instant::now();
+    let res = processor.process(&root);
+    info!("fragment processing took {:?}", start.elapsed());
+
+    Ok(res)
 }

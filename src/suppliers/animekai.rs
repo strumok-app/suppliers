@@ -117,11 +117,7 @@ impl ContentSupplier for AnimeKaiContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/watch/{id}");
 
         utils::scrap_page(
@@ -134,7 +130,6 @@ impl ContentSupplier for AnimeKaiContentSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.is_empty() {
@@ -151,7 +146,6 @@ impl ContentSupplier for AnimeKaiContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if params.is_empty() {
@@ -191,6 +185,8 @@ async fn load_servers_links_by_token(token: &str) -> Result<Vec<ServerLinkInfo>,
         .await?
         .text()
         .await?;
+
+    // println!("{links_list_res_str}");
 
     let links_list_res: GenericResponse = serde_json::from_str(&links_list_res_str)?;
     let links_html = scraper::Html::parse_fragment(&links_list_res.result);
@@ -262,26 +258,23 @@ mod tests {
             .load_channel("New Releases", 1)
             .await;
 
-        println!("{res:?}");
+        println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
         let res = AnimeKaiContentSupplier::default().search("fairy", 2).await;
 
-        println!("{res:?}");
+        println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
         let res = AnimeKaiContentSupplier::default()
-            .get_content_details(
-                "konosuba-gods-blessing-on-this-wonderful-world-0kp7",
-                vec![],
-            )
+            .get_content_details("konosuba-gods-blessing-on-this-wonderful-world-0kp7")
             .await;
 
-        println!("{res:?}");
+        println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
@@ -289,12 +282,11 @@ mod tests {
         let res = AnimeKaiContentSupplier::default()
             .load_media_items(
                 "konosuba-gods-blessing-on-this-wonderful-world-0kp7",
-                vec![],
                 vec!["d4W59g".to_string()],
             )
             .await;
 
-        println!("{res:?}");
+        println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
@@ -302,11 +294,10 @@ mod tests {
         let res = AnimeKaiContentSupplier::default()
             .load_media_item_sources(
                 "konosuba-gods-blessing-on-this-wonderful-world-0kp7",
-                vec![],
                 vec!["Jte4p_jlugjhm3QQ0MuI".to_string()],
             )
             .await;
 
-        println!("{res:?}");
+        println!("{res:#?}");
     }
 }

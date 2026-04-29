@@ -143,11 +143,7 @@ impl ContentSupplier for AniTubeContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
         let html = utils::create_client()
@@ -172,7 +168,6 @@ impl ContentSupplier for AniTubeContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.len() != 1 {
@@ -199,7 +194,6 @@ impl ContentSupplier for AniTubeContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         if !params.len().is_multiple_of(2) {
@@ -250,26 +244,21 @@ mod tests {
     async fn should_load_channel() {
         let res = AniTubeContentSupplier::default()
             .load_channel("Новинки", 2)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_search() {
-        let res = AniTubeContentSupplier::default()
-            .search("ball", 2)
-            .await
-            .unwrap();
+        let res = AniTubeContentSupplier::default().search("ball", 2).await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AniTubeContentSupplier::default()
-            .get_content_details("31-zapisnik-smert", vec![])
-            .await
-            .unwrap();
+            .get_content_details("31-zapisnik-smert")
+            .await;
         println!("{res:#?}");
     }
 
@@ -278,11 +267,9 @@ mod tests {
         let res = AniTubeContentSupplier::default()
             .load_media_items(
                 "5513-vanpan-3-sezon",
-                vec![],
                 vec!["867ca5be02de10b799c164d7b7c31e6eece1bb10".into()],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -291,7 +278,6 @@ mod tests {
         let res = AniTubeContentSupplier::default()
             .load_media_item_sources(
                 "5513-vanpan-3-sezon",
-                vec![],
                 vec![
                     // "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР ASHDI",
                     // "https://ashdi.vip/vod/213716",
@@ -314,8 +300,8 @@ mod tests {
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>(),
             )
-            .await
-            .unwrap();
+            .await;
+
         println!("{res:#?}");
     }
 }

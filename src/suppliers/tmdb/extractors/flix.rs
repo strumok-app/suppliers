@@ -12,17 +12,11 @@ use regex::Regex;
 // const URL: &str = "https://yflix.to/";
 const URL_AJAX: &str = "https://yflix.to/ajax";
 
-pub fn extract_boxed<'a>(
-    params: &'a SourceParams,
-    langs: &'a [String],
-) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
-    Box::pin(extract(params, langs))
+pub fn extract_boxed<'a>(params: &'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
+    Box::pin(extract(params))
 }
 
-pub async fn extract(
-    params: &SourceParams,
-    _langs: &[String],
-) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+pub async fn extract(params: &SourceParams,) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let maybe_eid = match &params.ep {
         Some(ep) => enc_dec_app::flix_db_find_tv(params.id, ep.s, ep.e).await?,
         None => enc_dec_app::flix_db_find_movie(params.id).await?,
@@ -42,6 +36,8 @@ pub async fn extract(
         .text()
         .await?;
 
+    // println!("{links_res_str}");
+
     let links_res: GenericResponse = serde_json::from_str(&links_res_str)?;
 
     // println!("{links_res:#?}");
@@ -53,7 +49,7 @@ pub async fn extract(
     let mut result: Vec<ContentMediaItemSource> = vec![];
     let mut srv_num = 1u8;
     for lid in lids {
-        let maybe_sources = load_server_link(&utils::create_json_client(), lid, srv_num).await;
+        let maybe_sources = load_server_link(utils::create_json_client(), lid, srv_num).await;
         if let Ok(sources) = maybe_sources {
             result.extend(sources);
         }
@@ -91,6 +87,8 @@ async fn load_server_link(
 
     let link = enc_dec_app::flix_dec(&link_res.result).await?;
 
+    // println!("{link}");
+
     let sources = rapid::extract(&link, &format!("[Flix] Server {srv_num} -")).await?;
 
     Ok(sources)
@@ -111,7 +109,6 @@ mod tests {
                 ep: Some(Episode { s: 1, e: 1 }),
                 imdb_id: None,
             },
-            &[],
         )
         .await;
         println!("{res:#?}")
@@ -125,7 +122,6 @@ mod tests {
                 ep: None,
                 imdb_id: None,
             },
-            &[],
         )
         .await;
         println!("{res:#?}")

@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
 use anyhow::anyhow;
+use indexmap::IndexMap;
 use scraper::Selector;
 
 use crate::{
@@ -19,6 +20,7 @@ const URL: &str = "https://weebcentral.com";
 const PAGE_SIZE: u16 = 32;
 
 pub struct WeebCentralContentSupplier {
+    channels_map: IndexMap<&'static str, &'static str>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
     processor_content_media_item: html::FilterProcessor<ContentMediaItem>,
@@ -27,6 +29,11 @@ pub struct WeebCentralContentSupplier {
 impl Default for WeebCentralContentSupplier {
     fn default() -> Self {
         Self {
+            channels_map: IndexMap::from([
+                ("Latest", "Latest Updates"),
+                ("Popular", "Popularity"),
+                ("Recently", "Recently Added"),
+            ]),
             processor_content_info_items: html::ItemsProcessor::new(
                 "article > section > a",
                 html::ContentInfoProcessor {
@@ -101,7 +108,7 @@ impl Default for WeebCentralContentSupplier {
 
 impl ContentSupplier for WeebCentralContentSupplier {
     fn get_channels(&self) -> Vec<String> {
-        vec![]
+        self.channels_map.keys().map(|&s| s.to_string()).collect()
     }
 
     fn get_default_channels(&self) -> Vec<String> {
@@ -137,15 +144,32 @@ impl ContentSupplier for WeebCentralContentSupplier {
         utils::scrap_fragment(request_builder, &self.processor_content_info_items).await
     }
 
-    async fn load_channel(&self, _channel: &str, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        Err(anyhow!("unimplemented"))
+    async fn load_channel(&self, channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        let sort = match self.channels_map.get(channel) {
+            Some(&sort) => sort,
+            None => return Err(anyhow!("unknown channel")),
+        };
+
+        let mut request_builder = utils::create_client()
+            .get(format!("{URL}/search/data"))
+            .query(&[
+                ("sort", sort),
+                ("order", "Descending"),
+                ("official", "Any"),
+                ("anime", "Any"),
+                ("adult", "Any"),
+                ("display_mode", "Full Display"),
+            ]);
+
+        if page > 1 {
+            request_builder =
+                request_builder.query(&[("offset", PAGE_SIZE * page), ("limit", PAGE_SIZE)]);
+        }
+
+        utils::scrap_fragment(request_builder, &self.processor_content_info_items).await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = format!("{URL}/series/{id}");
 
         utils::scrap_page(
@@ -158,7 +182,6 @@ impl ContentSupplier for WeebCentralContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let maybe_actual_id = id.split_once("/").and_then(|(left, _)| left.into());
@@ -169,17 +192,18 @@ impl ContentSupplier for WeebCentralContentSupplier {
 
         let url = format!("{URL}/series/{actual_id}/full-chapter-list");
 
-        utils::scrap_fragment(
+        let media_items = utils::scrap_fragment(
             create_client().get(&url),
             &self.processor_content_media_item,
         )
-        .await
+        .await?;
+
+        Ok(media_items.into_iter().rev().collect()) // reverse to have chapters in correct order
     }
 
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
@@ -237,9 +261,18 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
+    async fn should_load_channel() {
+        let res = WeebCentralContentSupplier::default()
+            .load_channel("Popular", 1)
+            .await;
+
+        println!("{res:#?}");
+    }
+
+    #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
         let res = WeebCentralContentSupplier::default()
-            .get_content_details("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail", vec![])
+            .get_content_details("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail")
             .await;
 
         println!("{res:#?}")
@@ -248,7 +281,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_load_media_items() {
         let res = WeebCentralContentSupplier::default()
-            .load_media_items("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail", vec![], vec![])
+            .load_media_items("01J76XY7E5E1C5Y9J0M2FCVQ8H/Fairy-Tail", vec![])
             .await;
 
         println!("{res:#?}")

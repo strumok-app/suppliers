@@ -1,11 +1,10 @@
 mod flix;
 mod open_subs;
-mod primewire;
+// mod two_embed;
 mod vidrock;
 mod vidzee;
-mod wyzie_subs;
 
-use std::time;
+use std::{time, u32};
 
 use futures::future::BoxFuture;
 use log::{info, warn};
@@ -15,25 +14,22 @@ use crate::models::ContentMediaItemSource;
 
 type BoxExtractor = for<'a> fn(
     &'a SourceParams,
-    &'a [String],
 ) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 6] = [
+const EXTRACTORS: [(&str, BoxExtractor); 4] = [
     ("vidrock", vidrock::extract_boxed),
     ("vidzee", vidzee::extract_boxed),
     ("flix", flix::extract_boxed),
-    ("primewire", primewire::extract_boxed),
+    // ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
-    ("wydzie", wyzie_subs::extract_boxed),
 ];
 
 pub async fn run_extractors(
     params: &SourceParams,
-    langs: &[String],
 ) -> Vec<ContentMediaItemSource> {
     let etractors_itr = EXTRACTORS.into_iter().map(|(name, f)| async move {
         let start_ts = time::Instant::now();
-        let res = match f(params, langs).await {
+        let res = match f(params).await {
             Ok(r) => r,
             Err(err) => {
                 warn!("[tmdb] extractor '{name}' failed: {err}");

@@ -125,11 +125,7 @@ impl ContentSupplier for AnimeUAContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
         utils::scrap_page(
@@ -142,7 +138,6 @@ impl ContentSupplier for AnimeUAContentSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if !params.is_empty() {
@@ -159,7 +154,6 @@ impl ContentSupplier for AnimeUAContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("unimplemented"))
@@ -176,6 +170,7 @@ mod tests {
             .load_channel("ТОП 100", 2)
             .await
             .unwrap();
+
         println!("{res:#?}");
     }
 
@@ -185,15 +180,17 @@ mod tests {
             .search("Доктор Стоун", 0)
             .await
             .unwrap();
+
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = AnimeUAContentSupplier::default()
-            .get_content_details("7736-urusei-yatsura-2024", vec![])
+            .get_content_details("7736-urusei-yatsura-2024")
             .await
             .unwrap();
+
         println!("{res:#?}");
     }
 
@@ -202,11 +199,11 @@ mod tests {
         let res = AnimeUAContentSupplier::default()
             .load_media_items(
                 "7633-dr-stone-4",
-                vec![],
                 vec![String::from("https://ashdi.vip/serial/971?season=4")],
             )
             .await
             .unwrap();
+
         println!("{res:#?}");
     }
 }

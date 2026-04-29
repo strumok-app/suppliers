@@ -146,11 +146,7 @@ impl ContentSupplier for UFDubContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
         utils::scrap_page(
@@ -163,7 +159,6 @@ impl ContentSupplier for UFDubContentSupplier {
     async fn load_media_items(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         if params.is_empty() {
@@ -195,6 +190,7 @@ impl ContentSupplier for UFDubContentSupplier {
                     link: url.to_owned(),
                     description: "Default".into(),
                     headers: None,
+                    hls_proxy: false,
                 }]),
                 params: vec![],
             })
@@ -206,7 +202,6 @@ impl ContentSupplier for UFDubContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         todo!()
@@ -220,8 +215,7 @@ mod tests {
     async fn should_load_channel() {
         let res = UFDubContentSupplier::default()
             .load_channel("Аніме", 2)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -229,17 +223,15 @@ mod tests {
     async fn should_search() {
         let res = UFDubContentSupplier::default()
             .search("Засновник темного шляху", 0)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_content_details() {
         let res = UFDubContentSupplier::default()
-            .get_content_details("anime/302-the-oni-girl-moia-divchyna-oni", vec![])
-            .await
-            .unwrap();
+            .get_content_details("anime/302-the-oni-girl-moia-divchyna-oni")
+            .await;
         println!("{res:#?}");
     }
 
@@ -248,11 +240,9 @@ mod tests {
         let res = UFDubContentSupplier::default()
             .load_media_items(
                 "anime/301-zasnovnyk-temnogo-shliakhu-mo-dao-zu-shi",
-                vec![],
                 vec![String::from("https://video.ufdub.com/AT/VP.php?ID=301")],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -261,11 +251,9 @@ mod tests {
         let res = UFDubContentSupplier::default()
             .load_media_items(
                 "anime/302-the-oni-girl-moia-divchyna-oni",
-                vec![],
                 vec![String::from("https://video.ufdub.com/AT/VP.php?ID=302")],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 }

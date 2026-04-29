@@ -114,11 +114,7 @@ impl ContentSupplier for MangaDexContentSupplier {
         Ok(search_res.into())
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-        _langs: Vec<String>,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let res: MangaDexSingeItemResponse = utils::create_client()
             .get(format!("{API_URL}/manga/{id}"))
             .query(&[
@@ -140,7 +136,6 @@ impl ContentSupplier for MangaDexContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let mut requests_left = 30usize;
@@ -148,7 +143,7 @@ impl ContentSupplier for MangaDexContentSupplier {
         let client = utils::create_client();
         let mut media_items: IndexMap<String, ContentMediaItem> = IndexMap::new();
         while requests_left > 0 {
-            let mut query = vec![
+            let query = vec![
                 ("includes[]", "scanlation_group".to_string()),
                 ("order[volume]", "asc".to_string()),
                 ("order[chapter]", "asc".to_string()),
@@ -159,10 +154,6 @@ impl ContentSupplier for MangaDexContentSupplier {
                 ("contentRating[]", "erotica".to_string()),
                 ("contentRating[]", "pornographic".to_string()),
             ];
-
-            for lang in &langs {
-                query.push(("translatedLanguage[]", lang.to_string()));
-            }
 
             let res_str = client
                 .get(format!("{API_URL}/manga/{id}/feed"))
@@ -219,7 +210,6 @@ impl ContentSupplier for MangaDexContentSupplier {
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _langs: Vec<String>,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
         Err(anyhow!("Unimplemented"))
@@ -496,8 +486,7 @@ mod tests {
     async fn should_load_channel() {
         let res = MangaDexContentSupplier::default()
             .load_channel("Popular Titles", 2)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
@@ -505,26 +494,23 @@ mod tests {
     async fn should_search() {
         let res = MangaDexContentSupplier::default()
             .search("idaten deities", 1)
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_get_content_details() {
         let res = MangaDexContentSupplier::default()
-            .get_content_details("0f7295a6-eaf5-470b-a003-b7789a9a0f4a", vec![])
-            .await
-            .unwrap();
+            .get_content_details("0f7295a6-eaf5-470b-a003-b7789a9a0f4a")
+            .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
     async fn should_load_media_items() {
         let res = MangaDexContentSupplier::default()
-            .load_media_items("c1e284bc-0436-42fe-b571-fa35a94279ce", vec![], vec![])
-            .await
-            .unwrap();
+            .load_media_items("c1e284bc-0436-42fe-b571-fa35a94279ce", vec![])
+            .await;
         println!("{res:#?}");
     }
 
@@ -535,8 +521,7 @@ mod tests {
                 "c1e284bc-0436-42fe-b571-fa35a94279ce",
                 vec!["1fe13d15-982f-402b-8120-91f717f886b8".into()],
             )
-            .await
-            .unwrap();
+            .await;
         println!("{res:#?}")
     }
 }
