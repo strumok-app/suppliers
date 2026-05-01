@@ -58,7 +58,10 @@ pub async fn extract(
 
     Ok(jwpconfig.to_media_item_sources(
         &title,
-        Some(HashMap::from([("Referer".to_string(), url.to_string())])),
+        Some(HashMap::from([(
+            "Referer".to_string(),
+            format!("https://{host}/"),
+        )])),
         hls_proxy,
     ))
 }

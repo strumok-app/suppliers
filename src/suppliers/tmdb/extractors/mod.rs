@@ -1,6 +1,6 @@
 mod flix;
 mod open_subs;
-// mod two_embed;
+mod two_embed;
 mod vidrock;
 mod vidzee;
 
@@ -12,21 +12,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::ContentMediaItemSource;
 
-type BoxExtractor = for<'a> fn(
-    &'a SourceParams,
-) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
+type BoxExtractor =
+    for<'a> fn(&'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 4] = [
+const EXTRACTORS: [(&str, BoxExtractor); 5] = [
     ("vidrock", vidrock::extract_boxed),
     ("vidzee", vidzee::extract_boxed),
     ("flix", flix::extract_boxed),
-    // ("two_embed", two_embed::extract_boxed),
+    ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
 ];
 
-pub async fn run_extractors(
-    params: &SourceParams,
-) -> Vec<ContentMediaItemSource> {
+pub async fn run_extractors(params: &SourceParams) -> Vec<ContentMediaItemSource> {
     let etractors_itr = EXTRACTORS.into_iter().map(|(name, f)| async move {
         let start_ts = time::Instant::now();
         let res = match f(params).await {

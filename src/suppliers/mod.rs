@@ -2,6 +2,7 @@ mod anikoto;
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animekai;
+// mod animeon;
 mod animeua;
 mod anitaku;
 mod anitube;
@@ -19,6 +20,7 @@ mod weebcentral;
 
 use anikoto::AnikotoContentSupplier;
 use animekai::AnimeKaiContentSupplier;
+// use animeon::AnimeONContentSupplier;
 use animeua::AnimeUAContentSupplier;
 use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
@@ -82,6 +84,8 @@ pub enum AllContentSuppliers {
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
     AnimeUAContentSupplier,
+    // #[strum(serialize = "AnimeON")]
+    // AnimeONContentSupplier,
     #[strum(serialize = "UAFlix")]
     UAFlixSupplier,
     #[strum(serialize = "UASerial")]

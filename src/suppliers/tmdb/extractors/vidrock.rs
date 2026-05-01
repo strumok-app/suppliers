@@ -162,7 +162,7 @@ async fn load_vidstor_playlist(
                 item.resolution
             ),
             headers: Some(HashMap::from([("Referer".to_owned(), SITE_URL.to_owned())])),
-            hls_proxy: false,
+            hls_proxy: true,
         })
         .collect();
 

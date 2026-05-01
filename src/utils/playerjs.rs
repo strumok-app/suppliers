@@ -10,11 +10,11 @@ use crate::models::{ContentMediaItem, ContentMediaItemSource};
 
 #[derive(Deserialize, Debug)]
 pub struct PlayerJSFile {
-    title: String,
-    folder: Option<Vec<PlayerJSFile>>,
-    poster: Option<String>,
-    file: Option<String>,
-    subtitle: Option<String>,
+    pub title: String,
+    pub folder: Option<Vec<PlayerJSFile>>,
+    pub poster: Option<String>,
+    pub file: Option<String>,
+    pub subtitle: Option<String>,
 }
 
 pub async fn load_and_parse_playerjs(
@@ -44,7 +44,7 @@ pub async fn load_and_parse_playerjs(
                 description: String::from("Default"),
                 headers: None,
                 link: String::from(file),
-                hls_proxy: false
+                hls_proxy: false,
             }]),
             params: vec![],
         }])
@@ -213,7 +213,7 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
                 description: format!("{quality}{title}"),
                 headers: None,
 
-            hls_proxy: false
+                hls_proxy: false,
             });
         }
     } else {
@@ -221,7 +221,7 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
             link: file.to_owned(),
             description: String::from(title.trim()),
             headers: None,
-            hls_proxy: false
+            hls_proxy: false,
         });
     }
 }
