@@ -140,7 +140,7 @@ impl ContentSupplier for UAFlixSupplier {
         let request = client
             .get(SEARCH_URL)
             .query(&[("do", "search"), ("subaction", "search"), ("story", query)])
-            .query(&[("search_start", (page + 1))]);
+            .query(&[("search_start", page)]);
 
         let results = utils::scrap_page(request, &self.processor_content_info_items).await?;
 
@@ -353,7 +353,9 @@ mod tests {
 
     #[tokio::test]
     async fn should_search() {
-        let res = UAFlixSupplier::default().search("Наруто", 1).await;
+        let res = UAFlixSupplier::default()
+            .search("тільки через твій труп", 1)
+            .await;
 
         println!("{res:#?}");
     }

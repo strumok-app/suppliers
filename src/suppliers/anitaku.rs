@@ -335,21 +335,23 @@ impl AnitakuContentSupplier {
             .collect()
     }
 
-    fn extract_id_from_url(mut id: String) -> String {
-        if id.is_empty() {
-            return id;
+    fn extract_id_from_url(url: String) -> String {
+        if url.is_empty() {
+            return url;
         }
 
-        id.remove(0); // remove leading slash
+        let last_part = url
+            .rsplit_once("/")
+            .map(|(_, suffix)| suffix.to_string())
+            .unwrap_or(url); // remove leading slash
 
         let cutoff = ["-season-", "-episode-"]
             .iter()
-            .filter_map(|pat| id.find(pat))
+            .filter_map(|pat| last_part.find(pat))
             .min()
-            .unwrap_or(id.len());
+            .unwrap_or(last_part.len());
 
-        id.truncate(cutoff);
-        id
+        last_part[..cutoff].to_string()
     }
 }
 
@@ -359,7 +361,9 @@ mod test {
 
     #[test_log::test(tokio::test)]
     async fn should_search() {
-        let res = AnitakuContentSupplier::default().search("naruto", 1).await;
+        let res = AnitakuContentSupplier::default()
+            .search("pani poni dash", 1)
+            .await;
 
         println!("{res:#?}");
     }
@@ -376,7 +380,7 @@ mod test {
     #[test_log::test(tokio::test)]
     async fn should_get_content_details() {
         let res = AnitakuContentSupplier::default()
-            .get_content_details("classroom-of-the-elite-iv")
+            .get_content_details("pani-poni-dash")
             .await;
 
         println!("{res:#?}")
