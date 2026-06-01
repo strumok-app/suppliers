@@ -18,11 +18,13 @@ use crate::{
 // https://player.vidzee.wtf/_next/static/chunks/app/embed/%5B%5B...params%5D%5D/page-7bcef97531d2a94a.js
 // "[0-9a-f]{8,}" e.g: let a = "4f2a9c7d1e8b3a6f0d5c2e9a7b1f4d8c"
 
-const KEY_PASS: &str = "4f2a9c7d1e8b3a6f0d5c2e9a7b1f4d8c";
+const KEY_PASS: &str = "c4a8f1d7e2b9a6c3d0f5e8a1b7c4d9e2";
 const CORE_URL: &str = "https://core.vidzee.wtf";
 const PLAYER_URL: &str = "https://player.vidzee.wtf";
 
-pub fn extract_boxed<'a>(params: &'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
+pub fn extract_boxed<'a>(
+    params: &'a SourceParams,
+) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
 
@@ -186,7 +188,7 @@ async fn load_server(
                 ("Origin".to_string(), PLAYER_URL.to_string()),
                 ("Referer".to_string(), PLAYER_URL.to_string()),
             ])),
-            hls_proxy: false
+            hls_proxy: false,
         });
     }
 

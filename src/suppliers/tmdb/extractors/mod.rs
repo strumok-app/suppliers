@@ -4,7 +4,7 @@ mod two_embed;
 mod vidrock;
 mod vidzee;
 
-use std::{time, u32};
+use std::time;
 
 use futures::future::BoxFuture;
 use log::{info, warn};
@@ -15,10 +15,9 @@ use crate::models::ContentMediaItemSource;
 type BoxExtractor =
     for<'a> fn(&'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 5] = [
+const EXTRACTORS: [(&str, BoxExtractor); 4] = [
     ("vidrock", vidrock::extract_boxed),
     ("vidzee", vidzee::extract_boxed),
-    ("flix", flix::extract_boxed),
     ("two_embed", two_embed::extract_boxed),
     ("open_subs", open_subs::extract_boxed),
 ];

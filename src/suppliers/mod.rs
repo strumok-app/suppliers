@@ -1,10 +1,7 @@
 mod anikoto;
 /// flutter_rust_bridge:ignore
 // suppliers
-mod animekai;
-// mod animeon;
 mod animeua;
-mod anitaku;
 mod anitube;
 mod anizone;
 mod mangadex;
@@ -19,10 +16,7 @@ mod ufdub;
 mod weebcentral;
 
 use anikoto::AnikotoContentSupplier;
-use animekai::AnimeKaiContentSupplier;
-// use animeon::AnimeONContentSupplier;
 use animeua::AnimeUAContentSupplier;
-use anitaku::AnitakuContentSupplier;
 use anitube::AniTubeContentSupplier;
 use anizone::AnizoneContentSupplier;
 use mangadex::MangaDexContentSupplier;
@@ -72,20 +66,14 @@ pub trait ContentSupplier {
 pub enum AllContentSuppliers {
     #[strum(serialize = "TMDB")]
     TMDBContentSupplier,
-    #[strum(serialize = "AnimeKai")]
-    AnimeKaiContentSupplier,
     #[strum(serialize = "Anizone")]
     AnizoneContentSupplier,
-    #[strum(serialize = "Anitaku")]
-    AnitakuContentSupplier,
     #[strum(serialize = "Anikoto")]
     AnikotoContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
     AnimeUAContentSupplier,
-    // #[strum(serialize = "AnimeON")]
-    // AnimeONContentSupplier,
     #[strum(serialize = "UAFlix")]
     UAFlixSupplier,
     #[strum(serialize = "UASerial")]

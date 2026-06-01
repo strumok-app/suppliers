@@ -342,7 +342,7 @@ impl AnikotoContentSupplier {
     }
 
     fn extract_id_from_url(id: String) -> String {
-        id.split("/").skip(4).next().unwrap_or_default().to_owned()
+        id.split("/").nth(4).unwrap_or_default().to_owned()
     }
 }
 
