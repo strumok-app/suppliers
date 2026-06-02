@@ -258,6 +258,7 @@ impl AnikotoContentSupplier {
                     .filter_map(|el| self.extract_server(&el, false)),
             )
             .collect();
+
         Ok(servers)
     }
 
@@ -301,8 +302,8 @@ impl AnikotoContentSupplier {
         };
 
         let res = match server.name.as_str() {
-            "vidstream-1" | "vidstream-2" | "vidcloud-1" | "vidcloud-2" | "megaplay-1"
-            | "megaplay-2" => megaplay::extract(&link, referer, title, false).await,
+            "hd-1" | "hd-2" | "vidstream-1" | "vidstream-2" | "vidcloud-1" | "vidcloud-2"
+            | "megaplay-1" | "megaplay-2" => megaplay::extract(&link, referer, title, false).await,
             _ => return vec![],
         };
 
@@ -368,27 +369,36 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_get_content_details() {
+    async fn should_get_content_details_anikoto() {
         let res = AnikotoContentSupplier::default()
-            .get_content_details("sakamoto-days-sfdxz")
+            // .get_content_details("sakamoto-days-sfdxz")
+            .get_content_details("i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns")
             .await;
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_items() {
+    async fn should_load_media_items_anikoto() {
         let res = AnikotoContentSupplier::default()
-            .load_media_items("sakamoto-days-sfdxz", vec!["7498".into()])
+            // .load_media_items("sakamoto-days-sfdxz", vec!["7498".into()])
+            .load_media_items(
+                "i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns",
+                vec!["8882".into()],
+            )
             .await;
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_item_sources() {
+    async fn should_load_media_item_sources_anikoto() {
         let res = AnikotoContentSupplier::default()
+            // .load_media_item_sources(
+            //     "sakamoto-days-sfdxz",
+            //     vec!["VHd5akNkRmpZSlR3ZmQ0UXNCVG41KzcxR3J0TmpraW9OWFQzUkNqelZJZVA0citBWU1jUTRlL3FQcU01RDVmNyt2b1RYRGJHMG9DMHYwQmk4ZWdNTEZXdWJRamJlYnVQcFd5Zm5uZlpnV053TUU5cWRYNytPRVRoVXkzMW0xTjQvYTJpMWJGTWxFY2gxTVh3L3ZGcHJnPT0".into()],
+            // )
             .load_media_item_sources(
-                "sakamoto-days-sfdxz",
-                vec!["VHd5akNkRmpZSlR3ZmQ0UXNCVG41KzcxR3J0TmpraW9OWFQzUkNqelZJZVA0citBWU1jUTRlL3FQcU01RDVmNyt2b1RYRGJHMG9DMHYwQmk4ZWdNTEZXdWJRamJlYnVQcFd5Zm5uZlpnV053TUU5cWRYNytPRVRoVXkzMW0xTjQvYTJpMWJGTWxFY2gxTVh3L3ZGcHJnPT0".into()],
+                "i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns",
+                vec!["NFdUaFMvemE1cTNrcTl1b2dSVHhkY2dOY09sSi93WHRVSHk3WTJ1TFBuL2RxL0F1ajRNc3g3alZNWnZldFVRM2ZXMGVFQ2V3V1J3RWFuQW80cnJwU0hNOU1iQnRHcjFtZi9pRlhJdjFybmM4SWg3dm43RDFxQlVOZzlqczdJQ0RRTlI1TjhxN1ZwYUxkdjVLK2RXbzBBPT0".into()],
             )
             .await;
         println!("{res:#?}");
