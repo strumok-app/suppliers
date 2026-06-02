@@ -1,6 +1,7 @@
-mod flix;
 mod open_subs;
 mod two_embed;
+mod vidfast;
+mod vidlink;
 mod vidrock;
 mod vidzee;
 
@@ -15,7 +16,9 @@ use crate::models::ContentMediaItemSource;
 type BoxExtractor =
     for<'a> fn(&'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>>;
 
-const EXTRACTORS: [(&str, BoxExtractor); 4] = [
+const EXTRACTORS: [(&str, BoxExtractor); 6] = [
+    ("vidlink", vidlink::extract_boxed),
+    ("vidfast", vidfast::extract_boxed),
     ("vidrock", vidrock::extract_boxed),
     ("vidzee", vidzee::extract_boxed),
     ("two_embed", two_embed::extract_boxed),

@@ -387,8 +387,8 @@ mod tests {
     async fn should_load_media_item_sources() {
         let res = AnikotoContentSupplier::default()
             .load_media_item_sources(
-                "sakamoto-days-sfdxz", 
-                vec!["cGN5RTlTa01sU0hLc1hRWC9RZ1R1amJwSldncmROc25oZjllcXp3M2lsQzBWbm5tWmkxY3FQUlB6Y3hGNmdTeEJqMWZIeGV0ZVI5OEMwR0tPck5Nb1J6dHR3WEVoVmxiV0VNN2wzaTRHVzhZT2h2MlQwNURpb2szTXRRRmd5Q3QvaitQaXMvdnE2anhJMkZrVEFRVGNnPT0".into()],
+                "sakamoto-days-sfdxz",
+                vec!["VHd5akNkRmpZSlR3ZmQ0UXNCVG41KzcxR3J0TmpraW9OWFQzUkNqelZJZVA0citBWU1jUTRlL3FQcU01RDVmNyt2b1RYRGJHMG9DMHYwQmk4ZWdNTEZXdWJRamJlYnVQcFd5Zm5uZlpnV053TUU5cWRYNytPRVRoVXkzMW0xTjQvYTJpMWJGTWxFY2gxTVh3L3ZGcHJnPT0".into()],
             )
             .await;
         println!("{res:#?}");

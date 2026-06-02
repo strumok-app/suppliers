@@ -237,6 +237,112 @@ pub async fn flix_dec(text: &str) -> anyhow::Result<String> {
     Ok(res.result.url)
 }
 
+// Vidfast section
+
+#[derive(Debug, Serialize)]
+struct VidFastRequest {
+    text: String,
+    version: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VidFastEncResult {
+    pub servers: String,
+    pub stream: String,
+    pub token: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct VidFastEncResponse {
+    result: VidFastEncResult,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VidFastServer {
+    pub data: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct VidFastDecResponse<T> {
+    result: T,
+}
+
+pub async fn vidfast_enc(text: &str) -> anyhow::Result<VidFastEncResult> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidfast?text={text}&version=1");
+
+    let res_str = create_json_client().get(url).send().await?.text().await?;
+
+    let res: VidFastEncResponse = serde_json::from_str(&res_str)?;
+
+    Ok(res.result)
+}
+
+pub async fn vidfast_dec_servers(text: &str) -> anyhow::Result<Vec<VidFastServer>> {
+    let url = format!("{ENC_DEC_APP_URL}/api/dec-vidfast");
+
+    let res_str = create_json_client()
+        .post(url)
+        .json(&VidFastRequest {
+            text: text.to_string(),
+            version: "1".to_string(),
+        })
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    // println!("{res_str:?}");
+
+    let res: VidFastDecResponse<Vec<VidFastServer>> = serde_json::from_str(&res_str)?;
+
+    Ok(res.result)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VidFastStreamResult {
+    pub url: String,
+    pub no_referrer: bool,
+    pub tracks: Option<Vec<VidFastTrack>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VidFastTrack {
+    pub file: String,
+    pub label: String,
+}
+
+pub async fn vidfast_dec_stream(text: &str) -> anyhow::Result<VidFastStreamResult> {
+    let url = format!("{ENC_DEC_APP_URL}/api/dec-vidfast");
+
+    let res_str = create_json_client()
+        .post(url)
+        .json(&VidFastRequest {
+            text: text.to_string(),
+            version: "1".to_string(),
+        })
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    let res: VidFastDecResponse<VidFastStreamResult> = serde_json::from_str(&res_str)?;
+
+    Ok(res.result)
+}
+
+// Vidlink section
+
+pub async fn vidlink_enc(text: &str) -> anyhow::Result<String> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidlink?text={text}");
+
+    let res_str = create_json_client().get(url).send().await?.text().await?;
+
+    let res: GenericResponse = serde_json::from_str(&res_str)?;
+
+    Ok(res.result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +375,18 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn should_find_flix_movie() {
         let res = flix_db_find_movie(176).await;
+        println!("{res:?}");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn should_encode_vidlink() {
+        let res = vidlink_enc("105248").await;
+        println!("{res:?}");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn should_encode_vidfast() {
+        let res = vidfast_enc("test_text").await;
         println!("{res:?}");
     }
 }

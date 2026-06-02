@@ -12,11 +12,13 @@ use regex::Regex;
 // const URL: &str = "https://yflix.to/";
 const URL_AJAX: &str = "https://yflix.to/ajax";
 
-pub fn extract_boxed<'a>(params: &'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
+pub fn extract_boxed<'a>(
+    params: &'a SourceParams,
+) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
 
-pub async fn extract(params: &SourceParams,) -> anyhow::Result<Vec<ContentMediaItemSource>> {
+pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
     let maybe_eid = match &params.ep {
         Some(ep) => enc_dec_app::flix_db_find_tv(params.id, ep.s, ep.e).await?,
         None => enc_dec_app::flix_db_find_movie(params.id).await?,
@@ -103,26 +105,22 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn shoul_load_sources_tv() {
-        let res = extract(
-            &SourceParams {
-                id: 1799,
-                ep: Some(Episode { s: 1, e: 1 }),
-                imdb_id: None,
-            },
-        )
+        let res = extract(&SourceParams {
+            id: 1799,
+            ep: Some(Episode { s: 1, e: 1 }),
+            imdb_id: None,
+        })
         .await;
         println!("{res:#?}")
     }
 
     #[test_log::test(tokio::test)]
     async fn shoul_load_sources_movie() {
-        let res = extract(
-            &SourceParams {
-                id: 176,
-                ep: None,
-                imdb_id: None,
-            },
-        )
+        let res = extract(&SourceParams {
+            id: 176,
+            ep: None,
+            imdb_id: None,
+        })
         .await;
         println!("{res:#?}")
     }
