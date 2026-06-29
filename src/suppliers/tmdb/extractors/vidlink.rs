@@ -41,23 +41,34 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
-    // println!("{res_str}");
-
     let res: VidlinkResponse = serde_json::from_str(&res_str)?;
 
     let mut sources: Vec<ContentMediaItemSource> = vec![];
 
-    // Process HLS stream
-    let stream = res.stream;
-    sources.push(ContentMediaItemSource::Video {
-        link: stream.playlist,
-        description: format!("[Vidlink] {}", res.source_id),
-        headers: Some(HashMap::from([
-            ("Origin".to_string(), VIDLINK_URL.to_string()),
-            ("Referer".to_string(), format!("{VIDLINK_URL}/")),
-        ])),
-        hls_proxy: false,
-    });
+    // Process file streams by quality
+    let VidlinkResponse { source_id, stream } = res;
+
+    let mut qualities: Vec<_> = stream.qualities.into_iter().collect();
+    qualities.sort_by_key(|(quality, _)| quality.parse::<u16>().unwrap_or_default());
+    qualities.reverse();
+
+    for (quality, stream) in qualities {
+        let quality_label = if quality.chars().all(|ch| ch.is_ascii_digit()) {
+            format!("{quality}p")
+        } else {
+            quality
+        };
+
+        sources.push(ContentMediaItemSource::Video {
+            link: stream.url,
+            description: format!("[Vidlink] {source_id} - {quality_label}"),
+            headers: Some(HashMap::from([
+                ("Origin".to_string(), VIDLINK_URL.to_string()),
+                ("Referer".to_string(), format!("{VIDLINK_URL}/")),
+            ])),
+            hls_proxy: false,
+        });
+    }
 
     // Process captions
     if let Some(captions) = stream.captions {
@@ -82,8 +93,13 @@ struct VidlinkResponse {
 
 #[derive(Debug, Deserialize)]
 struct VidlinkStream {
-    playlist: String,
+    qualities: HashMap<String, VidlinkQuality>,
     captions: Option<Vec<VidlinkCaption>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct VidlinkQuality {
+    url: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,7 +115,7 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_extract_tv() {
+    async fn vidlink_should_extract_tv() {
         let res = extract(&SourceParams {
             id: 105248,
             imdb_id: None,
@@ -110,7 +126,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_extract_movie() {
+    async fn vidlink_should_extract_movie() {
         let res = extract(&SourceParams {
             id: 533535,
             imdb_id: None,
