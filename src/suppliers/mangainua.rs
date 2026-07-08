@@ -19,12 +19,13 @@ use crate::{
 use super::{ContentSupplier, MangaPagesLoader};
 
 const URL: &str = "https://manga.in.ua";
+const USER_HASH: &str = "772f84a2554710856146eb1863c483d705b01412";
 
 pub struct MangaInUaContentSupplier {
     channels_map: IndexMap<&'static str, String>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
-    re_user_hash: Regex,
+    re_chapters: Regex,
 }
 
 impl Default for MangaInUaContentSupplier {
@@ -97,7 +98,7 @@ impl Default for MangaInUaContentSupplier {
                 }
                 .boxed(),
             ),
-            re_user_hash: Regex::new(r"site_login_hash\s+=\s+'([a-z0-9]+)'").unwrap()
+            re_chapters: Regex::new(r"chapters/([a-z0-9]+)").unwrap()
         }
     }
 }
@@ -154,11 +155,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
         let document = scraper::Html::parse_document(&html);
         let root = document.root_element();
 
-        let mut maybe_details = self.processor_content_details.process(&root);
-
-        if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.params = self.extract_params(id, &html)?;
-        }
+        let maybe_details = self.processor_content_details.process(&root);
 
         Ok(maybe_details)
     }
@@ -166,27 +163,21 @@ impl ContentSupplier for MangaInUaContentSupplier {
     async fn load_media_items(
         &self,
         id: &str,
-        params: Vec<String>,
+        _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        if params.len() != 1 {
-            return Err(anyhow!("user hash expected"));
-        }
-
         let news_id = id
             .rsplit_once("/")
             .and_then(|(_, r)| r.split_once("-"))
             .map(|(l, _)| l)
             .ok_or_else(|| anyhow!("cant extract news_id for id: {}", id))?;
 
-        let user_hash = &params[0];
-
         let client = utils::create_json_client();
 
         let mut form_params = HashMap::new();
         form_params.insert("action", "show");
         form_params.insert("news_id", news_id);
-        form_params.insert("user_hash", user_hash);
-        form_params.insert("news_category", "1");
+        form_params.insert("user_hash", USER_HASH);
+        form_params.insert("news_category", "54");
         form_params.insert("this_link", "");
 
         let chapters_list_html = client
@@ -205,24 +196,34 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
         let fragment = scraper::Html::parse_fragment(&chapters_list_html);
 
-        let title_sel = Selector::parse("a").unwrap();
-
         let result = fragment
             .root_element()
             .child_elements()
-            .filter_map(|el| {
-                let maybe_volume = el.attr("manga-tom");
-                let chapter = el.attr("manga-chappter")?;
+            .enumerate()
+            .filter_map(|(n, el)| {
+                let title = el
+                    .attr("data-chapter")
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_else(|| n.to_string());
+                let translator = el
+                    .attr("data-translator")
+                    .map(|s| s.trim())
+                    .unwrap_or_else(|| "Переклад");
 
-                let title_el = el.select(&title_sel).next()?;
-                let title = title_el.text().next()?;
+                let value = el.attr("value")?;
+                let chapter_id = self.re_chapters.captures(value)?.get(1)?.as_str();
 
                 Some(ContentMediaItem {
-                    section: maybe_volume.map(|s| s.to_string()),
-                    title: title.trim().to_string(),
+                    section: None,
+                    title: title,
                     image: None,
-                    params: vec![user_hash.clone(), chapter.to_string()],
-                    sources: None,
+                    params: vec![],
+                    sources: Some(vec![ContentMediaItemSource::Manga {
+                        description: translator.to_string(),
+                        headers: None,
+                        pages: None,
+                        params: vec![chapter_id.to_string()],
+                    }]),
                 })
             })
             .collect();
@@ -232,91 +233,20 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
     async fn load_media_item_sources(
         &self,
-        id: &str,
-        params: Vec<String>,
+        _id: &str,
+        _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-        if params.len() < 2 {
-            return Err(anyhow!("invalid params number"));
-        }
-
-        let last_id_part = id.rsplit_once("/").map(|(_, l)| l).unwrap_or_default();
-        let this_url = format!("{URL}/chapters/{last_id_part}.html");
-
-        let news_id = last_id_part
-            .split_once("-")
-            .map(|(l, _)| l)
-            .ok_or_else(|| anyhow!("cant extract news_id for id: {}", id))?;
-
-        let user_hash = &params[0];
-        let chapter = &params[1];
-
-        let client = utils::create_json_client();
-
-        let mut form_params = HashMap::new();
-        form_params.insert("action", "show");
-        form_params.insert("news_id", news_id);
-        form_params.insert("user_hash", user_hash);
-        form_params.insert("news_category", "54");
-        form_params.insert("this_link", &this_url);
-
-        let translators_list = client
-            .post(format!("{URL}/engine/ajax/controller.php"))
-            .query(&[("mod", "load_chapters")])
-            .form(&form_params)
-            .header(
-                "Content-Type",
-                "application/x-www-form-urlencoded; charset=UTF-8",
-            )
-            .header("x-requested-with", "XMLHttpRequest")
-            .send()
-            .await?
-            .text()
-            .await?;
-
-        let fragment = scraper::Html::parse_fragment(&translators_list);
-
-        let result: Vec<_> = fragment
-            .root_element()
-            .child_elements()
-            .filter_map(|el| {
-                let translator = el.attr("data-translator").unwrap_or_default();
-                let translator_num = el.attr("data-chapter").unwrap_or_default();
-
-                let translator_news_id = el
-                    .attr("value")
-                    .and_then(|link| link.rsplit_once("/"))
-                    .and_then(|(_, r)| r.split_once("-"))
-                    .map(|(l, _)| l)?;
-
-                Some(ContentMediaItemSource::Manga {
-                    description: translator.to_string(),
-                    headers: None,
-                    pages: None,
-                    params: vec![
-                        translator_news_id.to_string(),
-                        user_hash.to_string(),
-                        chapter.to_string(),
-                        translator_num.to_string(),
-                    ],
-                })
-            })
-            .collect();
-
-        Ok(result)
+        Err(anyhow!("unimplemented"))
     }
 }
 
 impl MangaPagesLoader for MangaInUaContentSupplier {
     async fn load_pages(&self, _id: &str, params: Vec<String>) -> anyhow::Result<Vec<String>> {
-        if params.len() < 4 {
+        if params.len() < 1 {
             return Err(anyhow!("invalid params number"));
         }
 
         let news_id = &params[0];
-        let user_hash = &params[1];
-        let chapter = &params[2];
-        let translator = &params[3];
-        let cookie_header = format!("lastchapp={news_id}|{chapter}|{translator}");
 
         let client = utils::create_json_client();
 
@@ -325,10 +255,9 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
             .query(&[
                 ("mod", "load_chapters_image"),
                 ("news_id", news_id),
-                ("user_hash", user_hash),
+                ("user_hash", USER_HASH),
                 ("action", "show"),
             ])
-            .header("Cookie", cookie_header)
             .header("x-requested-with", "XMLHttpRequest")
             .send()
             .await?
@@ -346,19 +275,6 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
             .collect();
 
         Ok(pages)
-    }
-}
-
-impl MangaInUaContentSupplier {
-    fn extract_params(&self, id: &str, html: &str) -> anyhow::Result<Vec<String>> {
-        let user_hash = self
-            .re_user_hash
-            .captures(html)
-            .and_then(|c| c.get(1))
-            .map(|g| g.as_str())
-            .ok_or_else(|| anyhow!("user hash not found for id: {}", id))?;
-
-        Ok(vec![user_hash.to_string()])
     }
 }
 
@@ -394,24 +310,7 @@ mod tests {
     #[tokio::test]
     async fn mangainua_should_load_media_items() {
         let result = MangaInUaContentSupplier::default()
-            .load_media_items(
-                "mangas/boyovik/14196-hunter-x-hunter",
-                vec!["772f84a2554710856146eb1863c483d705b01412".to_string()],
-            )
-            .await;
-        println!("{result:#?}")
-    }
-
-    #[tokio::test]
-    async fn mangainua_should_load_media_item_sources() {
-        let result = MangaInUaContentSupplier::default()
-            .load_media_item_sources(
-                "mangas/boyovik/14196-hunter-x-hunter",
-                vec![
-                    "772f84a2554710856146eb1863c483d705b01412".to_string(),
-                    "1".to_string(),
-                ],
-            )
+            .load_media_items("mangas/boyovik/14196-hunter-x-hunter", vec![])
             .await;
         println!("{result:#?}")
     }
@@ -421,12 +320,7 @@ mod tests {
         let result = MangaInUaContentSupplier::default()
             .load_pages(
                 "mangas/boyovik/14196-hunter-x-hunter",
-                vec![
-                    "14275".to_string(),
-                    "772f84a2554710856146eb1863c483d705b01412".to_string(),
-                    "1".to_string(),
-                    "1".to_string(),
-                ],
+                vec!["14813".to_string()],
             )
             .await;
         println!("{result:#?}")
