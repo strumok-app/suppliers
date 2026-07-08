@@ -59,7 +59,7 @@ impl Default for AnizoneContentSupplier {
                 "main",
                 html::ContentDetailsProcessor {
                     media_type: MediaType::Video,
-                    title: html::text_value("h1"),
+                    title: html::attr_value_map("[x-data]", "x-data", extract_title_from_xdata),
                     original_title: html::default_value(),
                     image: html::attr_value("div.mx-auto img", "src"),
                     description: html::text_value_map("div.text-slate-100 div", |s| {
@@ -243,6 +243,17 @@ impl AnizoneContentSupplier {
     }
 }
 
+fn extract_title_from_xdata(xdata: String) -> String {
+    const MARKER: &str = "getTitle(this.anmTitles, '";
+    if let Some(start) = xdata.find(MARKER) {
+        let title_start = start + MARKER.len();
+        if let Some(end) = xdata[title_start..].find('\'') {
+            return xdata[title_start..title_start + end].to_string();
+        }
+    }
+    String::new()
+}
+
 fn extract_id_from_url(id: String) -> String {
     if !id.is_empty() {
         let offset = SITE_URL.len() + 7;
@@ -256,13 +267,13 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_search() {
+    async fn anizone_should_search() {
         let res = AnizoneContentSupplier::default().search("Naruto", 1).await;
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_channel() {
+    async fn anizone_should_load_channel() {
         let res = AnizoneContentSupplier::default()
             .load_channel("Latest Anime", 1)
             .await;
@@ -270,7 +281,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_get_content_details() {
+    async fn anizone_should_get_content_details() {
         let res = AnizoneContentSupplier::default()
             .get_content_details("uyyyn4kf")
             .await;
@@ -278,7 +289,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_items() {
+    async fn anizone_should_load_media_items() {
         let res = AnizoneContentSupplier::default()
             .load_media_items("47tr68c3", vec![])
             .await;
@@ -286,7 +297,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_item_sources() {
+    async fn anizone_should_load_media_item_sources() {
         let res = AnizoneContentSupplier::default()
             .load_media_item_sources("47tr68c3", vec!["2".to_string()])
             .await;

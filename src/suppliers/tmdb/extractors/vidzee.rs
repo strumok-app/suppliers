@@ -242,7 +242,7 @@ mod test {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_load_source() {
+    async fn vidzee_should_load_source() {
         let res = extract(&SourceParams {
             id: 655,
             // id: 1399,

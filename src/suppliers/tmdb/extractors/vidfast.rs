@@ -159,7 +159,7 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_extract_tv() {
+    async fn vidfast_should_extract_tv() {
         let res = extract(&SourceParams {
             id: 1399,
             imdb_id: None,
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_extract_movie() {
+    async fn vidfast_should_extract_movie() {
         let res = extract(&SourceParams {
             id: 533535,
             imdb_id: None,

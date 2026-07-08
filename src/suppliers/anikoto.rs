@@ -352,7 +352,7 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_search() {
+    async fn anikoto_should_search() {
         let res = AnikotoContentSupplier::default()
             .search("one piece", 0)
             .await;
@@ -361,7 +361,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_channel() {
+    async fn anikoto_should_load_channel() {
         let res = AnikotoContentSupplier::default()
             .load_channel("New Releases", 1)
             .await;
@@ -369,7 +369,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_get_content_details_anikoto() {
+    async fn anikoto_should_get_content_details() {
         let res = AnikotoContentSupplier::default()
             // .get_content_details("sakamoto-days-sfdxz")
             .get_content_details("i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns")
@@ -378,7 +378,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_items_anikoto() {
+    async fn anikoto_should_load_media_items() {
         let res = AnikotoContentSupplier::default()
             // .load_media_items("sakamoto-days-sfdxz", vec!["7498".into()])
             .load_media_items(
@@ -390,7 +390,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_item_sources_anikoto() {
+    async fn anikoto_should_load_media_item_sources() {
         let res = AnikotoContentSupplier::default()
             // .load_media_item_sources(
             //     "sakamoto-days-sfdxz",

@@ -68,7 +68,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn should_load_movie() {
+    async fn two_embed_should_load_movie() {
         let res = extract(&SourceParams {
             id: 0,
             imdb_id: Some("tt0088247".to_string()),

@@ -141,10 +141,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
         .await
     }
 
-    async fn get_content_details(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<Option<ContentDetails>> {
+    async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
         let url = datalife::format_id_from_url(URL, id);
 
         let html = utils::create_client()
@@ -330,6 +327,7 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
                 ("action", "show"),
             ])
             .header("Cookie", cookie_header)
+            .header("x-requested-with", "XMLHttpRequest")
             .send()
             .await?
             .text()
@@ -368,7 +366,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn should_search() {
+    async fn mangainua_should_search() {
         let result = MangaInUaContentSupplier::default()
             .search("solo leveling", 0)
             .await;
@@ -376,7 +374,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_channel() {
+    async fn mangainua_should_load_channel() {
         let result = MangaInUaContentSupplier::default()
             .load_channel("Новинки", 1)
             .await;
@@ -384,7 +382,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_get_content_details() {
+    async fn mangainua_should_get_content_details() {
         let result = MangaInUaContentSupplier::default()
             .get_content_details("mangas/boyovik/14196-hunter-x-hunter")
             .await;
@@ -392,7 +390,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_items() {
+    async fn mangainua_should_load_media_items() {
         let result = MangaInUaContentSupplier::default()
             .load_media_items(
                 "mangas/boyovik/14196-hunter-x-hunter",
@@ -403,7 +401,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_item_sources() {
+    async fn mangainua_should_load_media_item_sources() {
         let result = MangaInUaContentSupplier::default()
             .load_media_item_sources(
                 "mangas/boyovik/14196-hunter-x-hunter",
@@ -417,7 +415,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_pages() {
+    async fn mangainua_should_load_pages() {
         let result = MangaInUaContentSupplier::default()
             .load_pages(
                 "mangas/boyovik/14196-hunter-x-hunter",

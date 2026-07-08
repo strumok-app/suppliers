@@ -201,7 +201,7 @@ mod tests {
 
     use super::*;
     #[test_log::test(tokio::test)]
-    async fn should_extract_movies() {
+    async fn vidrock_should_extract_movies() {
         let res = extract(&SourceParams {
             id: 533535,
             imdb_id: None,
@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_extract_tv() {
+    async fn vidrock_should_extract_tv() {
         let res = extract(&SourceParams {
             id: 655,
             imdb_id: None,

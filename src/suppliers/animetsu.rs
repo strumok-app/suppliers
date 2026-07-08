@@ -391,19 +391,19 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_search_animetsu() {
+    async fn animetsu_should_search() {
         let res = AnimetsuContentSupplier.search("dr. stone", 1).await;
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_channel_animetsu() {
+    async fn animetsu_should_load_channel() {
         let res = AnimetsuContentSupplier.load_channel("", 1).await;
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_get_content_details_animetsu() {
+    async fn animetsu_should_get_content_details() {
         let res = AnimetsuContentSupplier
             .get_content_details("6989be1a29cf95f4eb03f95d")
             .await;
@@ -411,7 +411,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_items_animetsu() {
+    async fn animetsu_should_load_media_items() {
         let res = AnimetsuContentSupplier
             .load_media_items("6989be1a29cf95f4eb03f95d", vec![])
             .await;
@@ -419,7 +419,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_item_sources_animetsu() {
+    async fn animetsu_should_load_media_item_sources() {
         let res = AnimetsuContentSupplier
             .load_media_item_sources("6989be1a29cf95f4eb03f95d", vec!["1".to_string()])
             .await;
