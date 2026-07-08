@@ -197,6 +197,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
                 "Content-Type",
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
+            .header("x-requested-with", "XMLHttpRequest")
             .send()
             .await?
             .text()
@@ -218,7 +219,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
                 Some(ContentMediaItem {
                     section: maybe_volume.map(|s| s.to_string()),
-                    title: title.to_string(),
+                    title: title.trim().to_string(),
                     image: None,
                     params: vec![user_hash.clone(), chapter.to_string()],
                     sources: None,
@@ -266,6 +267,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
                 "Content-Type",
                 "application/x-www-form-urlencoded; charset=UTF-8",
             )
+            .header("x-requested-with", "XMLHttpRequest")
             .send()
             .await?
             .text()
