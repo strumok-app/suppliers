@@ -5,13 +5,27 @@ use serde::Deserialize;
 
 use crate::{
     models::ContentMediaItemSource,
-    utils::{self, enc_dec_app},
+    utils::{self, GenericResponse, create_json_client, enc_dec_app::ENC_DEC_APP_URL},
 };
 
 use super::SourceParams;
 
 const VIDLINK_URL: &str = "https://vidlink.pro";
 const VIDLINK_API: &str = "https://vidlink.pro/api/b";
+
+// enc-dec.app API helper
+
+async fn vidlink_enc(tmdb_id: &str) -> anyhow::Result<String> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidlink?text={tmdb_id}");
+
+    let res_str = create_json_client().get(url).send().await?.text().await?;
+
+    let res: GenericResponse = serde_json::from_str(&res_str)?;
+
+    Ok(res.result)
+}
+
+// Extractor
 
 pub fn extract_boxed<'a>(
     params: &'a SourceParams,
@@ -23,7 +37,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     let tmdb_id = params.id.to_string();
 
     // Encrypt tmdb_id via enc-dec.app
-    let encrypted = enc_dec_app::vidlink_enc(&tmdb_id).await?;
+    let encrypted = vidlink_enc(&tmdb_id).await?;
 
     // Build vidlink API url
     let url = match &params.ep {
@@ -128,7 +142,7 @@ mod tests {
     #[test_log::test(tokio::test)]
     async fn vidlink_should_extract_movie() {
         let res = extract(&SourceParams {
-            id: 533535,
+            id: 786892,
             imdb_id: None,
             ep: None,
         })
