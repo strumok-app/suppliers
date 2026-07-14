@@ -113,6 +113,8 @@ pub enum AllMangaPagesLoaders {
     MangaInUaContentSupplier,
     #[strum(serialize = "WeebCentral")]
     WeebCentralContentSupplier,
+    #[strum(serialize = "MangaFire")]
+    MangaFireContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {

@@ -211,15 +211,15 @@ impl ContentSupplier for UAKinoClubContentSupplier {
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn should_load_channel() {
+    async fn uakinoclub_should_load_channel() {
         let res = UAKinoClubContentSupplier::default()
-            .load_channel("Новинки", 2)
+            .load_channel("Новинки", 1)
             .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
-    async fn should_search() {
+    async fn uakinoclub_should_search() {
         let res = UAKinoClubContentSupplier::default()
             .search("Термінатор", 1)
             .await;
@@ -227,7 +227,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_content_details() {
+    async fn uakinoclub_should_load_content_details() {
         let res = UAKinoClubContentSupplier::default()
             .get_content_details("filmy/genre_comedy/24898-zhyv-sobi-policeiskyi")
             .await;
@@ -235,7 +235,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_items() {
+    async fn uakinoclub_should_load_media_items() {
         let res = UAKinoClubContentSupplier::default()
             .load_media_items(
                 "filmy/genre_comedy/24898-zhyv-sobi-policeiskyi",
@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_items_for_dle_playlist() {
+    async fn uakinoclub_should_load_media_items_for_dle_playlist() {
         let res = UAKinoClubContentSupplier::default()
             .load_media_items(
                 "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon",
@@ -257,7 +257,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_items_source() {
+    async fn uakinoclub_should_load_media_items_source() {
         let res = UAKinoClubContentSupplier::default()
             .load_media_item_sources(
                 "seriesss/drama_series/7312-zoryaniy-kreyser-galaktika-1-sezon",

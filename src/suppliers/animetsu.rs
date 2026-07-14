@@ -51,8 +51,9 @@ impl ContentSupplier for AnimetsuContentSupplier {
 
     async fn load_channel(&self, _: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         self.fetch_anim_list(
-            format!("{API_URL}/anime/recent"),
+            format!("{API_URL}/anime/search/"),
             &[
+                ("sort", "tranding".to_string()),
                 ("page", page.to_string()),
                 ("per_page", PAGE_SIZE.to_string()),
             ],

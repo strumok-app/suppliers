@@ -49,7 +49,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .await?
         .text()
         .await?;
-    // println!"{res_str}");
+    // println!("{res_str}");
 
     let res: HashMap<String, ServerSource> = serde_json::from_str(&res_str)?;
 

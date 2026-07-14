@@ -661,5 +661,8 @@ pub fn self_hosted_url(base_url: &str, src: &str) -> String {
     if src.starts_with("http") {
         return src.to_string();
     }
+    if !src.starts_with("/") {
+        return format!("{base_url}/{src}");
+    }
     format!("{base_url}{src}")
 }

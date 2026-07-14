@@ -201,15 +201,15 @@ fn extract_id_from_url(id: &str) -> String {
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn should_load_channel() {
+    async fn uaserials_should_load_channel() {
         let res = UAserialContentSupplier::default()
-            .load_channel("Серіали", 2)
+            .load_channel("Фільми", 1)
             .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
-    async fn should_search() {
+    async fn uaserials_should_search() {
         let res = UAserialContentSupplier::default()
             .search("термінатор", 0)
             .await;
@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_content_details_for_movie() {
+    async fn uaserials_should_load_content_details_for_movie() {
         let res = UAserialContentSupplier::default()
             .get_content_details("movie-the-terminator")
             .await;
@@ -225,7 +225,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_content_details_for_tv_show() {
+    async fn uaserials_should_load_content_details_for_tv_show() {
         let res = UAserialContentSupplier::default()
             .get_content_details("terminator-zero/season-1")
             .await;
@@ -233,7 +233,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_item() {
+    async fn uaserials_should_load_media_item() {
         let res = UAserialContentSupplier::default()
             .load_media_items(
                 "terminator-zero/season-1",

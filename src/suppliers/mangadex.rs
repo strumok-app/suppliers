@@ -2,7 +2,12 @@ use std::collections::HashMap;
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
+use reqwest::{
+    ClientBuilder,
+    header::{self, HeaderMap},
+};
 use serde::Deserialize;
+use std::time::Duration;
 
 use crate::{
     models::{
@@ -21,10 +26,15 @@ const CHAPTERS_LIMIT: usize = 500;
 
 pub struct MangaDexContentSupplier {
     channels_map: IndexMap<&'static str, Vec<(&'static str, &'static str)>>,
+    api_client: reqwest::Client,
 }
 
 impl Default for MangaDexContentSupplier {
     fn default() -> Self {
+        let mut headers = HeaderMap::default();
+        headers.insert(header::ACCEPT, "application/json".parse().unwrap());
+        headers.insert(header::CONTENT_TYPE, "application/json".parse().unwrap());
+
         Self {
             channels_map: IndexMap::from([
                 (
@@ -44,6 +54,13 @@ impl Default for MangaDexContentSupplier {
                     ],
                 ),
             ]),
+            api_client: ClientBuilder::new()
+                .connect_timeout(Duration::from_secs(5))
+                .read_timeout(Duration::from_secs(15))
+                .default_headers(headers)
+                .user_agent("Strumok 1.0")
+                .build()
+                .unwrap(),
         }
     }
 }
@@ -68,7 +85,8 @@ impl ContentSupplier for MangaDexContentSupplier {
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
         let offset = (page as usize - 1) * CHANNEL_PAGE_SIZE;
 
-        let res_json = utils::create_client()
+        let res_json = self
+            .api_client
             .get(format!("{API_URL}/manga"))
             .query(&[
                 ("title", query),
@@ -97,7 +115,8 @@ impl ContentSupplier for MangaDexContentSupplier {
         };
 
         let offset = (page as usize - 1) * CHANNEL_PAGE_SIZE;
-        let search_res: MangaDexSearchResponse = utils::create_client()
+        let search_res: MangaDexSearchResponse = self
+            .api_client
             .get(format!("{API_URL}/manga"))
             .query(query)
             .query(&[("limit", CHANNEL_PAGE_SIZE), ("offset", offset)])
@@ -115,7 +134,8 @@ impl ContentSupplier for MangaDexContentSupplier {
     }
 
     async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
-        let res: MangaDexSingeItemResponse = utils::create_client()
+        let res: MangaDexSingeItemResponse = self
+            .api_client
             .get(format!("{API_URL}/manga/{id}"))
             .query(&[
                 ("includes[]", "cover_art"),
@@ -140,7 +160,6 @@ impl ContentSupplier for MangaDexContentSupplier {
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
         let mut requests_left = 30usize;
         let mut last_offset = 0usize;
-        let client = utils::create_client();
         let mut media_items: IndexMap<String, ContentMediaItem> = IndexMap::new();
         while requests_left > 0 {
             let query = vec![
@@ -155,7 +174,8 @@ impl ContentSupplier for MangaDexContentSupplier {
                 ("contentRating[]", "pornographic".to_string()),
             ];
 
-            let res_str = client
+            let res_str = self
+                .api_client
                 .get(format!("{API_URL}/manga/{id}/feed"))
                 .query(&query)
                 .send()
@@ -237,7 +257,8 @@ impl MangaPagesLoader for MangaDexContentSupplier {
             chapter: Chapter,
         }
 
-        let chapter_server_res_str = utils::create_client()
+        let chapter_server_res_str = self
+            .api_client
             .get(format!("{API_URL}/at-home/server/{chapter_id}"))
             .send()
             .await?
@@ -483,7 +504,7 @@ mod tests {
 
     use super::*;
     #[tokio::test]
-    async fn should_load_channel() {
+    async fn mangadex_should_load_channel() {
         let res = MangaDexContentSupplier::default()
             .load_channel("Popular Titles", 2)
             .await;
@@ -491,7 +512,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_search() {
+    async fn mangadex_should_search() {
         let res = MangaDexContentSupplier::default()
             .search("idaten deities", 1)
             .await;
@@ -499,7 +520,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_get_content_details() {
+    async fn mangadex_should_get_content_details() {
         let res = MangaDexContentSupplier::default()
             .get_content_details("0f7295a6-eaf5-470b-a003-b7789a9a0f4a")
             .await;
@@ -507,7 +528,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_items() {
+    async fn mangadex_should_load_media_items() {
         let res = MangaDexContentSupplier::default()
             .load_media_items("c1e284bc-0436-42fe-b571-fa35a94279ce", vec![])
             .await;
@@ -515,7 +536,7 @@ mod tests {
     }
 
     #[tokio::test()]
-    async fn should_load_pages() {
+    async fn mangadex_should_load_pages() {
         let res = MangaDexContentSupplier::default()
             .load_pages(
                 "c1e284bc-0436-42fe-b571-fa35a94279ce",
