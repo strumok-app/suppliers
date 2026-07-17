@@ -56,9 +56,10 @@ impl Default for MangaDexContentSupplier {
             ]),
             api_client: ClientBuilder::new()
                 .connect_timeout(Duration::from_secs(5))
-                .read_timeout(Duration::from_secs(15))
+                .read_timeout(Duration::from_secs(30))
                 .default_headers(headers)
                 .user_agent("Strumok 1.0")
+                .danger_accept_invalid_certs(true)
                 .dns_resolver(Arc::new(utils::dns_over_https::DoHResolver::default()))
                 .build()
                 .unwrap(),

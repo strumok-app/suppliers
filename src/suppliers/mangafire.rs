@@ -33,8 +33,9 @@ impl Default for MangaFireContentSupplier {
         Self {
             api_client: ClientBuilder::new()
                 .connect_timeout(Duration::from_secs(5))
-                .read_timeout(Duration::from_secs(15))
+                .read_timeout(Duration::from_secs(30))
                 .default_headers(headers)
+                .danger_accept_invalid_certs(true)
                 .user_agent(utils::get_user_agent())
                 .build()
                 .unwrap(),
