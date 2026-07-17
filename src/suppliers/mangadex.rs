@@ -1,13 +1,9 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
-use reqwest::{
-    ClientBuilder,
-    header::{self, HeaderMap},
-};
+use reqwest::header::{self, HeaderMap};
 use serde::Deserialize;
-use std::time::Duration;
 
 use crate::{
     models::{
@@ -54,13 +50,9 @@ impl Default for MangaDexContentSupplier {
                     ],
                 ),
             ]),
-            api_client: ClientBuilder::new()
-                .connect_timeout(Duration::from_secs(5))
-                .read_timeout(Duration::from_secs(30))
+            api_client: utils::create_client_builder()
                 .default_headers(headers)
                 .user_agent("Strumok 1.0")
-                .danger_accept_invalid_certs(true)
-                .dns_resolver(Arc::new(utils::dns_over_https::DoHResolver::default()))
                 .build()
                 .unwrap(),
         }

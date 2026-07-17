@@ -1,10 +1,6 @@
 use anyhow::anyhow;
-use reqwest::{
-    ClientBuilder,
-    header::{self, HeaderMap},
-};
+use reqwest::header::{self, HeaderMap};
 use serde::Deserialize;
-use std::time::Duration;
 
 use crate::{
     models::{
@@ -31,12 +27,8 @@ impl Default for MangaFireContentSupplier {
         headers.insert(header::REFERER, BASE_URL.parse().unwrap());
 
         Self {
-            api_client: ClientBuilder::new()
-                .connect_timeout(Duration::from_secs(5))
-                .read_timeout(Duration::from_secs(30))
+            api_client: utils::create_client_builder()
                 .default_headers(headers)
-                .danger_accept_invalid_certs(true)
-                .user_agent(utils::get_user_agent())
                 .build()
                 .unwrap(),
         }
