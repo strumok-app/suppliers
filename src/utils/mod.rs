@@ -4,7 +4,7 @@ pub mod anilist;
 pub mod crypto;
 pub mod crypto_js;
 pub mod datalife;
-mod dns_over_https;
+pub mod dns_over_https;
 pub mod enc_dec_app;
 pub mod html;
 pub mod jwp_player;
@@ -33,7 +33,7 @@ pub struct GenericResponse {
 }
 
 pub fn get_user_agent<'a>() -> &'a str {
-    "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.166 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36"
 }
 
 pub fn create_client() -> &'static reqwest::Client {

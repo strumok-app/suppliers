@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
@@ -59,6 +59,7 @@ impl Default for MangaDexContentSupplier {
                 .read_timeout(Duration::from_secs(15))
                 .default_headers(headers)
                 .user_agent("Strumok 1.0")
+                .dns_resolver(Arc::new(utils::dns_over_https::DoHResolver::default()))
                 .build()
                 .unwrap(),
         }

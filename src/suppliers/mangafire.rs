@@ -35,9 +35,7 @@ impl Default for MangaFireContentSupplier {
                 .connect_timeout(Duration::from_secs(5))
                 .read_timeout(Duration::from_secs(15))
                 .default_headers(headers)
-                .user_agent(
-                    "Mozilla/5.0 (X11; Linux x86_64; rv:138.0) Gecko/20100101 Firefox/138.0",
-                )
+                .user_agent(utils::get_user_agent())
                 .build()
                 .unwrap(),
         }

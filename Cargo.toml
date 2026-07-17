@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "4.0.11"
+version = "4.0.13"
 edition = "2024"
 
 [profile.release]
