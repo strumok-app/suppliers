@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use anyhow::anyhow;
-use base64::{Engine, prelude::BASE64_URL_SAFE};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use futures::future::BoxFuture;
 use log::warn;
 use reqwest::Client;
@@ -10,15 +9,15 @@ use serde::Deserialize;
 use crate::{
     models::ContentMediaItemSource,
     suppliers::tmdb::URL,
-    utils::{self, create_json_client},
+    utils::{create_json_client, crypto},
 };
 
 use super::SourceParams;
 
-const SITE_URL: &str = "https://vidrock.net";
-const BACKEND_URL: &str = "https://vidrock.net/api";
+const SITE_URL: &str = "https://vidrock.ru";
+const BACKEND_URL: &str = "https://vidrock.ru/api";
 
-const ENC_KEY: &str = "x7k9mPqT2rWvY8zA5bC3nF6hJ2lK4mN9";
+const ENC_KEY: &str = "7f3e9c2a8b5d1f4e6a9c3b7d2e5f8a1c4b6d9e2f5a8c1b4d7e9f2a5c8b1d4e7f";
 
 #[derive(Debug, Deserialize)]
 struct ServerSource {
@@ -33,11 +32,9 @@ pub fn extract_boxed<'a>(
 }
 
 pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let key = calc_key(params)?;
-
     let link = match &params.ep {
-        Some(_) => format!("{BACKEND_URL}/tv/{key}"),
-        None => format!("{BACKEND_URL}/movie/{key}"),
+        Some(ep) => format!("{}/tv/{}/{}/{}", BACKEND_URL, params.id, ep.s, ep.e),
+        None => format!("{}/movie/{}", BACKEND_URL, params.id),
     };
 
     let client = create_json_client();
@@ -61,72 +58,42 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
             None => continue,
         };
 
-        if url.contains("/playlist") {
-            match load_vidstor_playlist(client, source).await {
-                Ok(mut vidstore) => result.append(&mut vidstore),
-                Err(e) => warn!("[vidrocks] fail to load source: {e}"),
-            }
-            continue;
-        }
-
         let language = source.language.as_ref().map_or("unknown", |s| s.as_str());
 
-        // if lang::is_allowed(language) {
-        result.push(ContentMediaItemSource::Video {
-            link: url.to_owned(),
-            description: format!("[Vidrocks] {name}. {language}"),
-            headers: Some(HashMap::from([
-                ("Referer".to_owned(), SITE_URL.to_owned()),
-                ("Origin".to_owned(), SITE_URL.to_owned()),
-            ])),
-            hls_proxy: true,
-        })
-        // }
+        match decrypt_url(url) {
+            Ok(decrypted_url) => {
+                if decrypted_url.contains("/playlist") {
+                    let source_name = format!("{name}. {language}");
+                    match load_playlist(client, &decrypted_url, &source_name).await {
+                        Ok(mut vidstore) => result.append(&mut vidstore),
+                        Err(e) => warn!("[vidrocks] fail to load source {decrypted_url}: {e}"),
+                    }
+                    continue;
+                }
+
+                // if lang::is_allowed(language) {
+                result.push(ContentMediaItemSource::Video {
+                    link: decrypted_url.to_owned(),
+                    description: format!("[Vidrocks] {name}. {language}"),
+                    headers: Some(HashMap::from([
+                        ("Referer".to_owned(), SITE_URL.to_owned()),
+                        ("Origin".to_owned(), SITE_URL.to_owned()),
+                    ])),
+                    hls_proxy: true,
+                })
+            }
+            Err(err) => warn!("[vidrock] server {source:?} decryot utl failed: {err}"),
+        }
     }
 
     Ok(result)
 }
 
-// const Ww = "x7k9mPqT2rWvY8zA5bC3nF6hJ2lK4mN9";
-// const hash = (id, type, s, ep) => {
-//   const pt = type === "tv" ? `${id}_${s}_${ep}` : id;
-//   const key = CryptoJS.enc.Utf8.parse(Ww);
-//   const iv = CryptoJS.enc.Utf8.parse(Ww.substring(0, 16));
-//   let c = CryptoJS.AES.encrypt(pt, key, {
-//     iv: iv
-//   }).ciphertext.toString(CryptoJS.enc.Base64);
-//   c = c.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-//   return c;
-// };
-//
-fn calc_key(params: &SourceParams) -> anyhow::Result<String> {
-    let id = params.id;
-    let pt = match &params.ep {
-        Some(ep) => {
-            format!("{}_{}_{}", id, ep.s, ep.e)
-        }
-        None => id.to_string(),
-    };
-
-    let key = ENC_KEY.as_bytes();
-    let iv = &key[0..16];
-
-    let ct = utils::crypto::encrypt_aes(key, iv, pt.as_bytes())?;
-
-    let key = BASE64_URL_SAFE.encode(ct);
-
-    Ok(key)
-}
-
-async fn load_vidstor_playlist(
+async fn load_playlist(
     client: &Client,
-    server_source: &ServerSource,
+    url: &str,
+    source_name: &str,
 ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-    let url = server_source
-        .url
-        .as_deref()
-        .ok_or_else(|| anyhow!("url == null"))?;
-
     #[derive(Deserialize, Debug)]
     struct PlaylistItem {
         resolution: u16,
@@ -152,15 +119,7 @@ async fn load_vidstor_playlist(
         .rev()
         .map(|item| ContentMediaItemSource::Video {
             link: item.url,
-            description: format!(
-                "[Vidrocks] 1. {} - {}",
-                server_source
-                    .language
-                    .as_ref()
-                    .map(|s| s.to_string())
-                    .unwrap_or("vidstore".to_string()),
-                item.resolution
-            ),
+            description: format!("[Vidrocks] 1. {} - {}", source_name, item.resolution),
             headers: Some(HashMap::from([("Referer".to_owned(), SITE_URL.to_owned())])),
             hls_proxy: true,
         })
@@ -169,35 +128,88 @@ async fn load_vidstor_playlist(
     Ok(items)
 }
 
-// fn calc_movie_hash(id: u32) -> String {
-//     const ENCODING: [u8; 10] = [b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j'];
-//
-//     let a: Vec<u8> = id
-//         .to_string()
-//         .chars()
-//         .map(|ch| -> u8 {
-//             let idx = ch.to_digit(10).unwrap() as usize;
-//             ENCODING[idx]
-//         })
-//         .rev()
-//         .collect();
-//
-//     let b = BASE64_STANDARD.encode(a);
-//
-//     BASE64_STANDARD.encode(&b)
+// xQ = "7f3e9c2a8b5d1f4e6a9c3b7d2e5f8a1c4b6d9e2f5a8c1b4d7e9f2a5c8b1d4e7f";
+// function bQ(r) {
+//     const e = new Uint8Array(r.length / 2);
+//     for (let t = 0; t < e.length; t++)
+//         e[t] = parseInt(r.substr(t * 2, 2), 16);
+//     return e
+// }
+// function wQ(r) {
+//     let e = r.replace(/-/g, "+").replace(/_/g, "/");
+//     const t = e.length % 4;
+//     if (t === 2)
+//         e += "==";
+//     else if (t === 3)
+//         e += "=";
+//     else if (t === 1)
+//         throw new Error("Invalid base64url length");
+//     const n = atob(e)
+//       , s = new Uint8Array(n.length);
+//     for (let i = 0; i < n.length; i++)
+//         s[i] = n.charCodeAt(i);
+//     return s
+// }
+// let _u = null;
+// async function EQ() {
+//     if (_u)
+//         return _u;
+//     const r = bQ(xQ);
+//     return _u = await crypto.subtle.importKey("raw", r.buffer.slice(r.byteOffset, r.byteOffset + r.byteLength), {
+//         name: "AES-GCM"
+//     }, !1, ["decrypt"]),
+//     _u
+// }
+// async function SQ(r) {
+//     const e = wQ(r);
+//     if (e.length < 28)
+//         throw new Error("Ciphertext too short");
+//     const t = e.slice(0, 12)
+//       , n = e.slice(12)
+//       , s = await EQ()
+//       , i = t.buffer.slice(t.byteOffset, t.byteOffset + t.byteLength)
+//       , a = n.buffer.slice(n.byteOffset, n.byteOffset + n.byteLength)
+//       , o = await crypto.subtle.decrypt({
+//         name: "AES-GCM",
+//         iv: i
+//     }, s, a);
+//     return new TextDecoder().decode(o)
 // }
 
-// fn calc_tv_show_hash(id: u32, s: u32, e: u32) -> String {
-//     let a = format!("{id}-{s}-{e}");
-//     let b: Vec<u8> = a.bytes().rev().collect();
-//     let c = BASE64_STANDARD.encode(&b);
-//
-//     BASE64_STANDARD.encode(&c)
-// }
+fn decrypt_url(url: &str) -> anyhow::Result<String> {
+    let url_bytes = BASE64_URL_SAFE_NO_PAD.decode(url)?;
+
+    let iv = &url_bytes[..12];
+    let ct = &url_bytes[12..];
+    let key = hex::decode(ENC_KEY)?;
+
+    let decrypted_url_bytes = crypto::decrypt_aes_gcm(&key, iv, ct)?;
+    let decrypted_url = String::from_utf8(decrypted_url_bytes)?;
+
+    Ok(decrypted_url)
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::suppliers::tmdb::extractors::Episode;
+    use crate::{suppliers::tmdb::extractors::Episode, utils};
+
+    #[test]
+    fn vidrock_decrypt_url1() {
+        let res = decrypt_url(
+            "WhRfCLIBMUSrMC_QD_URsp3Kyk_YErof5UXEAspf13xG_rC0aSsQd6kJA6JPQFTUtzcy9zmIoksXSIO4HraSuOPYyjPyxyiGRz2A96P9DRQZsShf9tgGVpi9EXg5qrmEKLeehOUNOBcwbn3bIyIBKDo2jk7mKSMbvqdANPUE1YizXqS8clmMm5ZWelUU3IbNUFOq5iVvUr_8RwKV",
+        );
+
+        println!("{res:#?}")
+    }
+
+    #[test]
+    fn vidrock_decrypt_url2() {
+        let res = decrypt_url(
+            "NZ75OJ2xASa5XUOgX31RrCciDAZu8-zQ3bHPEnLKfaas5pBzUZW3r0EjQ9toNF4n1eLw11mQaWyG0eRhX-ub_CWrWYuCsRSFQLp9IFZNrxKVowA",
+        );
+
+        println!("{res:#?}")
+    }
 
     use super::*;
     #[test_log::test(tokio::test)]
@@ -221,6 +233,17 @@ mod tests {
         })
         .await;
 
+        println!("{res:#?}")
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn vidrock_playlist_load() {
+        let res = load_playlist(
+            utils::create_json_client(),
+            "https://streamrk.site/playlist/78f2bdd1999acb93fdfc912b",
+            "en",
+        )
+        .await;
         println!("{res:#?}")
     }
 }

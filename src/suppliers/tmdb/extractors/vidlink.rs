@@ -55,6 +55,8 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         .text()
         .await?;
 
+    // println!("{res_str}");
+
     let res: VidlinkResponse = serde_json::from_str(&res_str)?;
 
     let mut sources: Vec<ContentMediaItemSource> = vec![];
@@ -76,10 +78,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         sources.push(ContentMediaItemSource::Video {
             link: stream.url,
             description: format!("[Vidlink] {source_id} - {quality_label}"),
-            headers: Some(HashMap::from([
-                ("Origin".to_string(), VIDLINK_URL.to_string()),
-                ("Referer".to_string(), format!("{VIDLINK_URL}/")),
-            ])),
+            headers: stream.headers,
             hls_proxy: false,
         });
     }
@@ -114,6 +113,7 @@ struct VidlinkStream {
 #[derive(Debug, Deserialize)]
 struct VidlinkQuality {
     url: String,
+    headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Debug, Deserialize)]
