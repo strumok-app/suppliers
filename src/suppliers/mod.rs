@@ -17,7 +17,6 @@ mod ufdub;
 mod weebcentral;
 
 use anikoto::AnikotoContentSupplier;
-use animetsu::AnimetsuContentSupplier;
 use animeua::AnimeUAContentSupplier;
 use anitube::AniTubeContentSupplier;
 use anizone::AnizoneContentSupplier;
@@ -72,8 +71,6 @@ pub enum AllContentSuppliers {
     AnizoneContentSupplier,
     #[strum(serialize = "Anikoto")]
     AnikotoContentSupplier,
-    #[strum(serialize = "Animetsu")]
-    AnimetsuContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]

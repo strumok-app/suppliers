@@ -25,6 +25,7 @@ impl Default for MangaFireContentSupplier {
         let mut headers = HeaderMap::default();
         headers.insert(header::ACCEPT, "application/json".parse().unwrap());
         headers.insert(header::REFERER, BASE_URL.parse().unwrap());
+        headers.insert(header::ORIGIN, BASE_URL.parse().unwrap());
 
         Self {
             api_client: utils::create_client_builder()
@@ -86,13 +87,15 @@ impl ContentSupplier for MangaFireContentSupplier {
     }
 
     async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
-        let res: MangaFireDetailsResponse = self
+        let res_str = self
             .api_client
             .get(format!("{API_URL}/titles/{id}"))
             .send()
             .await?
-            .json()
+            .text()
             .await?;
+
+        let res: MangaFireDetailsResponse = serde_json::from_str(&res_str)?;
 
         Ok(res.data.map(|d| d.into()))
     }
