@@ -58,10 +58,49 @@ pub fn to_title_case(input: &str) -> String {
         .join(" ")
 }
 
+/// Decodes a JavaScript single-quoted string literal into its actual contents.
+/// Handles `\uXXXX`, `\\`, `\/`, and common control escapes. The result of
+/// unescaping a double-encoded payload is valid JSON ready for `serde_json`.
+pub fn unescape_js_string(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars();
+
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+
+        match chars.next() {
+            Some('u') => {
+                let hex: String = (&mut chars).take(4).collect();
+                if let Some(ch) = u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32) {
+                    out.push(ch);
+                }
+            }
+            Some('n') => out.push('\n'),
+            Some('r') => out.push('\r'),
+            Some('t') => out.push('\t'),
+            Some('b') => out.push('\u{8}'),
+            Some('f') => out.push('\u{c}'),
+            Some('/') => out.push('/'),
+            Some('\\') => out.push('\\'),
+            Some('"') => out.push('"'),
+            Some('\'') => out.push('\''),
+            Some(other) => out.push(other),
+            None => {}
+        }
+    }
+
+    out
+}
+
 pub fn extract_css_background_url(css_style: &str) -> Option<String> {
     static BACKGROUND_URL_RE: OnceLock<Regex> = OnceLock::new();
     BACKGROUND_URL_RE
-        .get_or_init(|| Regex::new(r#"background\s*:\s*url\(\s*['"]?(?<url>[^'")\s]+)['"]?\s*\)"#).unwrap())
+        .get_or_init(|| {
+            Regex::new(r#"background\s*:\s*url\(\s*['"]?(?<url>[^'")\s]+)['"]?\s*\)"#).unwrap()
+        })
         .captures(css_style)
         .and_then(|m| m.name("url").map(|u| u.as_str().to_string()))
 }
@@ -80,7 +119,9 @@ mod tests {
         let result = extract_css_background_url(css);
         assert_eq!(
             result,
-            Some("https://cdn.cimovix.store/cover/597c7b407a02cc0a92167e7a371eca25.webp".to_string())
+            Some(
+                "https://cdn.cimovix.store/cover/597c7b407a02cc0a92167e7a371eca25.webp".to_string()
+            )
         );
     }
 
@@ -88,10 +129,7 @@ mod tests {
     fn should_extract_background_url_with_double_quotes() {
         let css = r#"background: url("https://example.com/image.jpg");"#;
         let result = extract_css_background_url(css);
-        assert_eq!(
-            result,
-            Some("https://example.com/image.jpg".to_string())
-        );
+        assert_eq!(result, Some("https://example.com/image.jpg".to_string()));
     }
 
     #[test]
@@ -105,10 +143,7 @@ mod tests {
     fn should_extract_background_url_with_spaces() {
         let css = "background  :  url( 'https://example.com/image.jpg' );";
         let result = extract_css_background_url(css);
-        assert_eq!(
-            result,
-            Some("https://example.com/image.jpg".to_string())
-        );
+        assert_eq!(result, Some("https://example.com/image.jpg".to_string()));
     }
 
     #[test]

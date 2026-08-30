@@ -54,7 +54,7 @@ impl ContentSupplier for MangaFireContentSupplier {
     }
 
     async fn search(&self, query: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        let res: MangaFireSearchResponse = self
+        let res_str = self
             .api_client
             .get(format!("{API_URL}/titles"))
             .query(&[
@@ -66,8 +66,12 @@ impl ContentSupplier for MangaFireContentSupplier {
             .query(&[("page", page), ("limit", PAGE_LIMIT)])
             .send()
             .await?
-            .json()
+            .text()
             .await?;
+
+        println!("{res_str}");
+
+        let res: MangaFireSearchResponse = serde_json::from_str(&res_str)?;
 
         Ok(res.into())
     }

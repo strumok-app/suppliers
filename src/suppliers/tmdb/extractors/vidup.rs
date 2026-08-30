@@ -49,13 +49,6 @@ struct Server {
 struct StreamResult {
     url: String,
     no_referrer: bool,
-    tracks: Option<Vec<Track>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Track {
-    file: String,
-    label: String,
 }
 
 // enc-dec.app API helpers
@@ -230,16 +223,6 @@ async fn load_server_stream(
         headers,
         hls_proxy: false,
     });
-
-    if let Some(tracks) = stream_data.tracks {
-        for track in tracks {
-            sources.push(ContentMediaItemSource::Subtitle {
-                link: track.file,
-                description: format!("[VidUp] {}", track.label),
-                headers: None,
-            });
-        }
-    }
 
     Ok(sources)
 }

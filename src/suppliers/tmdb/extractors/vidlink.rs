@@ -83,17 +83,6 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
         });
     }
 
-    // Process captions
-    if let Some(captions) = stream.captions {
-        for caption in captions {
-            sources.push(ContentMediaItemSource::Subtitle {
-                link: caption.url,
-                description: format!("[Vidlink] {}", caption.language),
-                headers: None,
-            });
-        }
-    }
-
     Ok(sources)
 }
 
@@ -107,19 +96,12 @@ struct VidlinkResponse {
 #[derive(Debug, Deserialize)]
 struct VidlinkStream {
     qualities: HashMap<String, VidlinkQuality>,
-    captions: Option<Vec<VidlinkCaption>>,
 }
 
 #[derive(Debug, Deserialize)]
 struct VidlinkQuality {
     url: String,
     headers: Option<HashMap<String, String>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct VidlinkCaption {
-    url: String,
-    language: String,
 }
 
 #[cfg(test)]

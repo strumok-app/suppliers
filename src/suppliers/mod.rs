@@ -1,12 +1,10 @@
 mod anikoto;
-mod animetsu;
 /// flutter_rust_bridge:ignore
 // suppliers
 mod animeua;
 mod anitube;
 mod anizone;
 mod mangadex;
-mod mangafire;
 mod mangainua;
 mod tmdb;
 mod uaflix;
@@ -21,7 +19,6 @@ use animeua::AnimeUAContentSupplier;
 use anitube::AniTubeContentSupplier;
 use anizone::AnizoneContentSupplier;
 use mangadex::MangaDexContentSupplier;
-use mangafire::MangaFireContentSupplier;
 use mangainua::MangaInUaContentSupplier;
 use tmdb::TMDBContentSupplier;
 use uaflix::UAFlixSupplier;
@@ -87,8 +84,6 @@ pub enum AllContentSuppliers {
     UFDubContentSupplier,
     #[strum(serialize = "MangaDex")]
     MangaDexContentSupplier,
-    #[strum(serialize = "MangaFire")]
-    MangaFireContentSupplier,
     #[strum(serialize = "MangaInUa")]
     MangaInUaContentSupplier,
     #[strum(serialize = "WeebCentral")]
@@ -110,8 +105,6 @@ pub enum AllMangaPagesLoaders {
     MangaInUaContentSupplier,
     #[strum(serialize = "WeebCentral")]
     WeebCentralContentSupplier,
-    #[strum(serialize = "MangaFire")]
-    MangaFireContentSupplier,
 }
 
 pub fn avalaible_suppliers() -> Vec<String> {

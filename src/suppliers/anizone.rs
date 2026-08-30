@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use serde::Deserialize;
 
 use crate::{
     models::{
@@ -16,45 +17,12 @@ use super::ContentSupplier;
 const SITE_URL: &str = "https://anizone.to";
 
 pub struct AnizoneContentSupplier {
-    selector_player: scraper::Selector,
-    selector_tracks: scraper::Selector,
-    processor_content_info_items: html::ItemsProcessor<ContentInfo>,
-    processor_channel_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
 }
 
 impl Default for AnizoneContentSupplier {
     fn default() -> Self {
         Self {
-            selector_player: scraper::Selector::parse("main media-player").unwrap(),
-            selector_tracks: scraper::Selector::parse("track[kind='subtitles']").unwrap(),
-            processor_content_info_items: html::ItemsProcessor::new(
-                "main > div > div > div.grid > div",
-                html::ContentInfoProcessor {
-                    id: html::attr_value_map("div.h-6.inline > a", "href", extract_id_from_url),
-                    title: html::text_value_map("div.h-6.inline > a", |s| {
-                        utils::text::sanitize_text(&s)
-                    }),
-                    secondary_title: html::items_processor(
-                        "div.h-4 > span",
-                        html::TextValue::new().boxed(),
-                    )
-                    .map(|s| Some(s.join(", ")))
-                    .boxed(),
-                    image: html::attr_value("img", "src"),
-                }
-                .boxed(),
-            ),
-            processor_channel_info_items: html::ItemsProcessor::new(
-                ".swiper-wrapper.flex .swiper-slide",
-                html::ContentInfoProcessor {
-                    id: html::attr_value_map("a", "href", extract_id_from_url),
-                    title: html::text_value(".line-clamp-2 > a"),
-                    secondary_title: html::default_value(),
-                    image: html::attr_value("img", "src"),
-                }
-                .boxed(),
-            ),
             processor_content_details: html::ScopeProcessor::new(
                 "main",
                 html::ContentDetailsProcessor {
@@ -100,21 +68,25 @@ impl ContentSupplier for AnizoneContentSupplier {
             return Ok(vec![]);
         }
 
-        utils::scrap_page(
-            utils::create_client()
-                .get(format!("{SITE_URL}/anime"))
-                .query(&[("search", query)]),
-            &self.processor_content_info_items,
-        )
-        .await
+        let page_content = create_client()
+            .get(format!("{SITE_URL}/anime"))
+            .query(&[("search", query)])
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        parse_anime_items(&page_content)
     }
 
-    async fn load_channel(&self, _channel: &str, _page: u16) -> anyhow::Result<Vec<ContentInfo>> {
-        utils::scrap_page(
-            utils::create_client().get(SITE_URL),
-            &self.processor_channel_info_items,
-        )
-        .await
+    async fn load_channel(&self, _channel: &str, page: u16) -> anyhow::Result<Vec<ContentInfo>> {
+        if page > 1 {
+            return Ok(vec![]);
+        }
+
+        let page_content = create_client().get(SITE_URL).send().await?.text().await?;
+
+        parse_anime_items(&page_content)
     }
 
     async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
@@ -168,20 +140,20 @@ impl ContentSupplier for AnizoneContentSupplier {
 
         let ep_num = &params[0];
 
-        let anime_page_res = self.load_anime_page(id, ep_num).await?;
+        let player_data = self.load_player_data(id, ep_num).await?;
         let mut results: Vec<ContentMediaItemSource> = vec![];
 
         results.push(ContentMediaItemSource::Video {
-            link: anime_page_res.hls_src,
+            link: player_data.src,
             description: "Default".to_string(),
             headers: None,
             hls_proxy: false,
         });
 
-        for sub in anime_page_res.subtitles {
+        for sub in player_data.subtitles {
             results.push(ContentMediaItemSource::Subtitle {
-                link: sub.src,
-                description: sub.label,
+                link: sub.file,
+                description: sub.title,
                 headers: None,
             });
         }
@@ -190,57 +162,88 @@ impl ContentSupplier for AnizoneContentSupplier {
     }
 }
 
-#[derive(Debug)]
-struct Subtitle {
+/// Player payload embedded in the episode page as
+/// `x-data="vidstackPlayer(JSON.parse('...'))"`.
+#[derive(Debug, Deserialize)]
+struct PlayerData {
     src: String,
-    label: String,
+    #[serde(default)]
+    subtitles: Vec<PlayerSubtitle>,
 }
 
-#[derive(Debug)]
-struct AnimePageResult {
-    hls_src: String,
-    subtitles: Vec<Subtitle>,
+#[derive(Debug, Deserialize)]
+struct PlayerSubtitle {
+    title: String,
+    file: String,
 }
 
 impl AnizoneContentSupplier {
-    async fn load_anime_page(&self, id: &str, ep_num: &str) -> anyhow::Result<AnimePageResult> {
+    async fn load_player_data(&self, id: &str, ep_num: &str) -> anyhow::Result<PlayerData> {
         let url = format!("{SITE_URL}/anime/{id}/{ep_num}");
 
         let page_content = create_client().get(url).send().await?.text().await?;
 
-        let document = scraper::Html::parse_document(&page_content);
+        let json = extract_json_parse_arg(&page_content, "vidstackPlayer(")
+            .ok_or_else(|| anyhow!("player data not found for anime {id} ep_num {ep_num}"))?;
 
-        let player_el = document
-            .select(&self.selector_player)
-            .next()
-            .ok_or_else(|| anyhow!("player not found for anime {} ep_num {}", id, ep_num))?;
+        let player_data: PlayerData = serde_json::from_str(&json)?;
 
-        let hls_src = player_el
-            .attr("src")
-            .ok_or_else(|| anyhow!("player src not found for anime {} ep_num {}", id, ep_num))?;
-
-        let subtitles: Vec<_> = player_el
-            .select(&self.selector_tracks)
-            .filter_map(|track_el| {
-                let src = track_el.attr("src")?;
-                let label = track_el.attr("label")?;
-
-                // if !utils::lang::is_allowed(label) {
-                //     return None;
-                // }
-
-                Some(Subtitle {
-                    src: src.to_string(),
-                    label: label.to_string(),
-                })
-            })
-            .collect();
-
-        Ok(AnimePageResult {
-            hls_src: hls_src.to_string(),
-            subtitles,
-        })
+        Ok(player_data)
     }
+}
+
+/// Anime entry embedded in the page as `items: JSON.parse('...')` inside an
+/// Alpine.js `x-data` attribute (used by both the home page swiper and the
+/// anime index/search page).
+#[derive(Debug, Deserialize)]
+struct AnimeItem {
+    slug: String,
+    main_title: String,
+    cover: String,
+    #[serde(default)]
+    title_list: serde_json::Value,
+}
+
+impl From<AnimeItem> for ContentInfo {
+    fn from(item: AnimeItem) -> Self {
+        let secondary_title = item
+            .title_list
+            .get("1")
+            .and_then(|v| v.as_str())
+            .filter(|t| *t != item.main_title)
+            .map(|s| s.to_string());
+
+        ContentInfo {
+            id: item.slug,
+            title: utils::text::sanitize_text(&item.main_title),
+            secondary_title,
+            image: item.cover,
+        }
+    }
+}
+
+/// Extracts and parses the `items: JSON.parse('...')` payload found in the
+/// page's Alpine.js `x-data` attribute.
+fn parse_anime_items(page_content: &str) -> anyhow::Result<Vec<ContentInfo>> {
+    let json = extract_json_parse_arg(page_content, "items: ")
+        .ok_or_else(|| anyhow!("anime items json not found in page"))?;
+
+    let items: Vec<AnimeItem> = serde_json::from_str(&json)?;
+
+    Ok(items.into_iter().map(ContentInfo::from).collect())
+}
+
+/// Extracts the string argument of a `JSON.parse('...')` call that immediately
+/// follows `prefix` in `content`, and returns it decoded (i.e. ready-to-parse
+/// JSON). All quotes/apostrophes inside such payloads are `\uXXXX`-encoded, so
+/// the next raw single quote after the opening one is the closing delimiter.
+fn extract_json_parse_arg(content: &str, prefix: &str) -> Option<String> {
+    let marker = format!("{prefix}JSON.parse('");
+    let start = content.find(&marker)? + marker.len();
+    let end = content[start..].find('\'')?;
+    Some(utils::text::unescape_js_string(
+        &content[start..start + end],
+    ))
 }
 
 fn extract_title_from_xdata(xdata: String) -> String {
@@ -252,14 +255,6 @@ fn extract_title_from_xdata(xdata: String) -> String {
         }
     }
     String::new()
-}
-
-fn extract_id_from_url(id: String) -> String {
-    if !id.is_empty() {
-        let offset = SITE_URL.len() + 7;
-        return id[offset..].to_string();
-    }
-    id
 }
 
 #[cfg(test)]

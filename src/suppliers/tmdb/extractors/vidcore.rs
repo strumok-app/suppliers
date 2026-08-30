@@ -13,7 +13,7 @@ use crate::{
 
 use super::SourceParams;
 
-const VIDCORE_URL: &str = "https://vidcore.net";
+const VIDCORE_URL: &str = "https://vidcore.io";
 
 // enc-dec.app request/response types for vidcore
 
@@ -126,17 +126,21 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     let client = utils::create_client();
     let page_html = client
         .get(&page_url)
-        .header("Referer", format!("{VIDCORE_URL}/"))
+        .header("Referer", format!("{VIDCORE_URL}"))
         .send()
         .await?
         .text()
         .await?;
 
     // Extract encrypted text from page
-    let text = extract_text(&page_html)?;
+    let text = extract_token(&page_html)?;
+
+    // println!("{text}");
 
     // Encrypt via enc-dec.app to get servers/stream/token URLs
     let enc_result = vidcore_enc(&text).await?;
+
+    // println!("{enc_result:#?}");
 
     let token = enc_result.token;
     let servers_url = enc_result.servers;
@@ -145,13 +149,15 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     // POST to servers URL with CSRF token
     let servers_encrypted = client
         .post(&servers_url)
-        .header("Referer", format!("{VIDCORE_URL}/"))
+        .header("Referer", format!("{VIDCORE_URL}"))
         .header("X-Requested-With", "XMLHttpRequest")
         .header("X-CSRF-Token", &token)
         .send()
         .await?
         .text()
         .await?;
+
+    // println!("{servers_encrypted:#?}");
 
     // Decrypt servers list
     let servers = vidcore_dec_servers(&servers_encrypted).await?;
@@ -180,9 +186,9 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     Ok(sources)
 }
 
-fn extract_text(html: &str) -> anyhow::Result<String> {
+fn extract_token(html: &str) -> anyhow::Result<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r#"\\"en\\":\\"([^"\\]+)\\""#).unwrap());
+    let re = RE.get_or_init(|| Regex::new(r#"\\"(?:en|token)\\":\\"([^"\\]+)\\""#).unwrap());
 
     let caps = re
         .captures(html)
