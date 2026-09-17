@@ -1,10 +1,15 @@
 use anyhow::{Ok, anyhow};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
+use serde::Deserialize;
 use std::{collections::HashMap, sync::OnceLock};
 
 use crate::{
     models::ContentMediaItemSource,
-    utils::{self, jwp_player::JWPConfig},
+    utils::{self, crypto, jwp_player},
 };
+
+const ENC_KEY: &str = "i?LMTAx0Q6,:}50U";
+const ENC_IV: &str = "W0;27ToaUpl_P%\'c";
 
 static DATA_ID_RE: OnceLock<regex::Regex> = OnceLock::new();
 static IFRAME_SRC_RE: OnceLock<regex::Regex> = OnceLock::new();
@@ -65,7 +70,7 @@ pub async fn extract(
 
     let api_url = format!("https://{host}/stream/getSources?id={data_id}&id={data_id}");
 
-    let jwpconfig_str = utils::create_json_client()
+    let res_str = utils::create_json_client()
         .get(&api_url)
         .header("Referer", referer)
         .send()
@@ -73,9 +78,24 @@ pub async fn extract(
         .text()
         .await?;
 
-    let jwpconfig: JWPConfig = serde_json::from_str(&jwpconfig_str)?;
+    let mut jwp_config: jwp_player::JWPConfig = serde_json::from_str(&res_str)?;
+    let encoded_res: EncodedRes = serde_json::from_str(&res_str)?;
 
-    Ok(jwpconfig.to_media_item_sources(
+    let ct = BASE64_URL_SAFE_NO_PAD.decode(encoded_res.enc)?;
+
+    let key_bytes = ENC_KEY.as_bytes();
+    let mut key = [0u8; 32];
+    key[..key_bytes.len()].copy_from_slice(key_bytes);
+
+    let iv = ENC_IV.as_bytes();
+
+    let pt_bytes = crypto::decrypt_aes(&key, iv, &ct)?;
+
+    let video_src: jwp_player::Source = serde_json::from_slice(&pt_bytes)?;
+
+    jwp_config.sources.push(video_src);
+
+    Ok(jwp_config.to_media_item_sources(
         &title,
         Some(HashMap::from([(
             "Referer".to_string(),
@@ -83,6 +103,11 @@ pub async fn extract(
         )])),
         hls_proxy,
     ))
+}
+
+#[derive(Debug, Deserialize)]
+struct EncodedRes {
+    enc: String,
 }
 
 #[cfg(test)]
