@@ -7,7 +7,7 @@ pub struct SearchResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct SearchResultItem {
-    pub id: u32,
+    pub slug: String,
     #[serde(rename = "titleUa")]
     pub title_ua: String,
     pub image: Image,
@@ -48,7 +48,44 @@ pub struct Genre {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PlayerReponse {
+pub struct TranslationsResponse {
+    pub translations: Vec<TranslationItem>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TranslationItem {
+    pub translation: Translation,
+    pub player: Vec<Player>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Translation {
+    pub id: u32,
     pub name: String,
-    pub json: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Player {
+    pub id: u32,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EpisodesResponse {
+    pub episodes: Vec<Episode>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Episode {
+    pub id: u32,
+    pub episode: i32,
+    pub poster: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct VideoResponse {
+    #[serde(rename = "videoUrl")]
+    pub video_url: Option<String>,
+    #[serde(rename = "fileUrl")]
+    pub file_url: Option<String>,
 }

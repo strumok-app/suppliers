@@ -1,20 +1,26 @@
 mod models;
 
+use std::collections::{BTreeMap, HashSet};
+
 use anyhow::{Ok, anyhow};
 use indexmap::IndexMap;
+use serde::de::DeserializeOwned;
 
 use crate::{
+    extractors::moonanime,
     models::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
     },
     suppliers::ContentSupplier,
-    utils::{self, playerjs::PlayerJSFile},
+    utils::{self},
 };
 
+const SITE_URL: &str = "https://animeon.club/";
 const API_URL: &str = "https://animeon.club/api/anime";
 const API_IMAGE_URL: &str = "https://animeon.club/api/uploads/images";
 const API_PLAYER_URL: &str = "https://animeon.club/api/player";
+const EPISODES_PAGE_SIZE: usize = 1000;
 
 pub struct AnimeONContentSupplier {
     channels_map: IndexMap<&'static str, &'static str>,
@@ -93,8 +99,8 @@ impl ContentSupplier for AnimeONContentSupplier {
             .await
             .ok();
 
-        // println!("response_str: {response_str}");
         if let Some(response_str) = maybe_response_str {
+            // println!("response_str: {response_str}");
             let response: models::DetailsResponse = serde_json::from_str(&response_str)?;
             return Ok(Some(Self::parse_details_response(response)));
         }
@@ -107,38 +113,165 @@ impl ContentSupplier for AnimeONContentSupplier {
         id: &str,
         _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        let url = format!("{API_PLAYER_URL}/{id}");
-        let response_str = utils::create_json_client()
-            .get(&url)
-            .send()
-            .await?
-            .text()
-            .await?;
+        // id is a slug like "175-povsyakdennoshchi", player api expects numeric anime id
+        let anime_id = id.split('-').next().unwrap_or(id);
 
-        let response: Vec<models::PlayerReponse> = serde_json::from_str(&response_str)?;
+        let response: models::TranslationsResponse =
+            Self::get_json(&format!("{API_PLAYER_URL}/{anime_id}/translations")).await?;
 
-        let maybe_ashdi_player = response.into_iter().filter(|p| p.name == "Ashdi").next();
-        if let Some(ashdi_player) = maybe_ashdi_player {
-            let playerjs: Vec<PlayerJSFile> = serde_json::from_str(&ashdi_player.json)?;
+        let mut media_items: BTreeMap<i32, ContentMediaItem> = BTreeMap::new();
 
-            let media_items = utils::playerjs::convert_strategy_dub_season_ep(&playerjs);
+        for item in response.translations {
+            for player in item.player {
+                let description = format!("{} ({})", item.translation.name, player.name);
+                let episodes =
+                    Self::load_episodes(anime_id, player.id, item.translation.id).await?;
 
-            return Ok(media_items);
+                if episodes.is_empty() {
+                    // no episodes list (e.g. movie) - use direct player endpoint
+                    let path = format!("{}/{}", player.id, item.translation.id);
+                    Self::add_source_params(&mut media_items, 1, None, &description, path);
+                    continue;
+                }
+
+                for ep in episodes {
+                    let path = format!("{}/episode", ep.id);
+                    Self::add_source_params(
+                        &mut media_items,
+                        ep.episode,
+                        ep.poster,
+                        &description,
+                        path,
+                    );
+                }
+            }
         }
 
-        Ok(vec![])
+        Ok(media_items.into_values().collect())
     }
 
     async fn load_media_item_sources(
         &self,
         _id: &str,
-        _params: Vec<String>,
+        params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItemSource>> {
-        Err(anyhow!("not implemented"))
+        if !params.len().is_multiple_of(2) {
+            return Err(anyhow!("Wrong params size"));
+        }
+
+        let mut results = vec![];
+        for chunk in params.chunks(2) {
+            let description = &chunk[0];
+            let path = &chunk[1];
+
+            let Some(link) = Self::load_video_url(&format!("{API_PLAYER_URL}/{path}")).await else {
+                continue;
+            };
+
+            let mut sources = if link.contains("ashdi.vip") {
+                utils::playerjs::load_and_parse_playerjs_sources(
+                    utils::create_client()
+                        .get(&link)
+                        .header("Referer", SITE_URL),
+                    description,
+                )
+                .await
+                .unwrap_or_default()
+            } else if link.contains("moonanime.art") {
+                moonanime::extract(&link, description)
+                    .await
+                    .unwrap_or_default()
+            } else {
+                continue;
+            };
+
+            results.append(&mut sources);
+        }
+
+        Ok(results)
     }
 }
 
 impl AnimeONContentSupplier {
+    async fn get_json<T: DeserializeOwned>(url: &str) -> anyhow::Result<T> {
+        Ok(utils::create_json_client()
+            .get(url)
+            .send()
+            .await?
+            .json()
+            .await?)
+    }
+
+    async fn load_episodes(
+        anime_id: &str,
+        player_id: u32,
+        translation_id: u32,
+    ) -> anyhow::Result<Vec<models::Episode>> {
+        let base_url = format!(
+            "{API_PLAYER_URL}/{anime_id}/episodes?take={EPISODES_PAGE_SIZE}&playerId={player_id}&translationId={translation_id}"
+        );
+
+        let mut seen_ids = HashSet::new();
+        let mut result = vec![];
+
+        for include_alternative in [true, false] {
+            // skip=-1 additionally returns episodes numbered <= 0 (specials)
+            let mut skip: i64 = -1;
+            loop {
+                let url =
+                    format!("{base_url}&skip={skip}&includeAlternative={include_alternative}");
+                let episodes = Self::get_json::<models::EpisodesResponse>(&url)
+                    .await?
+                    .episodes;
+                let count = episodes.len();
+
+                result.extend(episodes.into_iter().filter(|ep| seen_ids.insert(ep.id)));
+
+                if skip >= 0 && count < EPISODES_PAGE_SIZE {
+                    break;
+                }
+                skip = if skip < 0 {
+                    0
+                } else {
+                    skip + EPISODES_PAGE_SIZE as i64
+                };
+            }
+        }
+
+        Ok(result)
+    }
+
+    async fn load_video_url(url: &str) -> Option<String> {
+        let response: models::VideoResponse = Self::get_json(url).await.ok()?;
+        response
+            .video_url
+            .or(response.file_url)
+            .filter(|link| !link.is_empty())
+    }
+
+    /// Appends `[description, player api path]` pair to episode params,
+    /// resolved later in `load_media_item_sources`
+    fn add_source_params(
+        media_items: &mut BTreeMap<i32, ContentMediaItem>,
+        episode: i32,
+        poster: Option<String>,
+        description: &str,
+        path: String,
+    ) {
+        let item = media_items
+            .entry(episode)
+            .or_insert_with(|| ContentMediaItem {
+                title: format!("Серія {episode}"),
+                section: None,
+                image: poster.filter(|p| !p.is_empty()),
+                sources: None,
+                params: vec![],
+            });
+
+        item.params.push(description.to_string());
+        item.params.push(path);
+    }
+
     fn parse_serach_response(response: models::SearchResponse) -> Vec<ContentInfo> {
         response
             .results
@@ -149,7 +282,7 @@ impl AnimeONContentSupplier {
 
     fn parse_search_result_item(item: models::SearchResultItem) -> ContentInfo {
         ContentInfo {
-            id: item.id.to_string(),
+            id: item.slug,
             title: item.title_ua,
             secondary_title: None,
             image: format!("{}/{}", API_IMAGE_URL, item.image.preview),
@@ -209,7 +342,7 @@ mod tests {
     use super::*;
 
     #[test_log::test(tokio::test)]
-    async fn should_search() {
+    async fn animeon_should_search() {
         let res = AnimeONContentSupplier::default()
             .search("one piece", 1)
             .await;
@@ -218,7 +351,7 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_channel() {
+    async fn animeon_should_load_channel() {
         let res = AnimeONContentSupplier::default()
             .load_channel("Популярні", 1)
             .await;
@@ -227,18 +360,35 @@ mod tests {
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_get_content_details() {
+    async fn animeon_should_get_content_details() {
         let res = AnimeONContentSupplier::default()
-            .get_content_details("175")
+            .get_content_details("175-povsyakdennoshchi")
             .await;
 
         println!("{res:#?}");
     }
 
     #[test_log::test(tokio::test)]
-    async fn should_load_media_items() {
+    async fn animeon_should_load_media_items() {
         let res = AnimeONContentSupplier::default()
-            .load_media_items("175", vec![])
+            .load_media_items("7930-kagurabachi", vec![])
+            .await;
+
+        println!("{res:#?}");
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn animeon_should_load_media_item_sources() {
+        let res = AnimeONContentSupplier::default()
+            .load_media_item_sources(
+                "175-povsyakdennoshchi",
+                vec![
+                    "MelodicVoiceStudio (Ashdi)".into(),
+                    "81218/episode".into(),
+                    "MelodicVoiceStudio (Moon)".into(),
+                    "113885/episode".into(),
+                ],
+            )
             .await;
 
         println!("{res:#?}");
