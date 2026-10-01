@@ -9,9 +9,9 @@ pub struct Title {
 
 #[derive(Deserialize, Debug)]
 pub struct CoverImage {
-    pub large: String,
+    pub large: Option<String>,
     #[serde(alias = "extraLarge")]
-    pub extra_large: String,
+    pub extra_large: Option<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -19,7 +19,7 @@ pub struct SearchMedia {
     pub id: u32,
     pub title: Title,
     #[serde(alias = "coverImage")]
-    pub cover_image: CoverImage,
+    pub cover_image: Option<CoverImage>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -38,11 +38,13 @@ pub struct SearchResponse {
     pub data: SearchData,
 }
 
+/// AniList `FuzzyDate`: any part may be unknown, e.g. upcoming titles often
+/// only have a year (or nothing at all).
 #[derive(Deserialize, Debug)]
 pub struct Date {
-    pub year: u16,
-    pub month: u8,
-    pub day: u8,
+    pub year: Option<u16>,
+    pub month: Option<u8>,
+    pub day: Option<u8>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -56,21 +58,22 @@ pub struct Relation {
 }
 
 #[derive(Deserialize, Debug)]
+// Every field except `title` is nullable in the AniList schema and is
+// actually null for some titles (mostly upcoming ones).
 pub struct Media {
     pub title: Title,
-    pub status: String,
-    pub description: String,
+    pub status: Option<String>,
+    pub description: Option<String>,
     #[serde(alias = "startDate")]
-    pub start_date: Date,
+    pub start_date: Option<Date>,
     #[serde(alias = "countryOfOrigin")]
     pub country_of_origin: Option<String>,
     #[serde(alias = "coverImage")]
-    pub cover_image: CoverImage,
-    #[serde(default)]
-    pub genres: Vec<String>,
+    pub cover_image: Option<CoverImage>,
+    pub genres: Option<Vec<String>>,
     #[serde(alias = "averageScore")]
-    pub average_score: u8,
-    pub relations: Relation,
+    pub average_score: Option<u8>,
+    pub relations: Option<Relation>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -82,4 +85,44 @@ pub struct GetAnimeData {
 #[derive(Deserialize, Debug)]
 pub struct GetAnimeResponse {
     pub data: Option<GetAnimeData>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct NextAiringEpisode {
+    pub episode: u32,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct StreamingEpisode {
+    pub title: Option<String>,
+    pub thumbnail: Option<String>,
+}
+
+/// Fields needed to derive the list of aired episodes for a title.
+#[derive(Deserialize, Debug)]
+pub struct AnimeEpisodes {
+    pub id: u32,
+    #[serde(alias = "idMal")]
+    pub id_mal: Option<u32>,
+    pub status: Option<String>,
+    pub episodes: Option<u32>,
+    #[serde(alias = "nextAiringEpisode")]
+    pub next_airing_episode: Option<NextAiringEpisode>,
+    #[serde(alias = "bannerImage")]
+    pub banner_image: Option<String>,
+    #[serde(alias = "coverImage")]
+    pub cover_image: Option<CoverImage>,
+    #[serde(alias = "streamingEpisodes")]
+    pub streaming_episodes: Option<Vec<StreamingEpisode>>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetAnimeEpisodesData {
+    #[serde(alias = "Media")]
+    pub media: Option<AnimeEpisodes>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct GetAnimeEpisodesResponse {
+    pub data: Option<GetAnimeEpisodesData>,
 }

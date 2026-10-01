@@ -8,6 +8,7 @@ mod anizone;
 mod eneyida;
 mod mangadex;
 mod mangainua;
+mod shiro;
 mod tmdb;
 mod uaflix;
 mod uakinoclub;
@@ -24,6 +25,7 @@ use anizone::AnizoneContentSupplier;
 use eneyida::EneyidaContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangainua::MangaInUaContentSupplier;
+use shiro::ShiroContentSupplier;
 use tmdb::TMDBContentSupplier;
 use uaflix::UAFlixSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
@@ -32,8 +34,9 @@ use uaserials_pro::UASerialsProContentSupplier;
 use ufdub::UFDubContentSupplier;
 use weebcentral::WeebCentralContentSupplier;
 
+use anyhow::anyhow;
 use enum_dispatch::enum_dispatch;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr, sync::LazyLock};
 use strum::VariantNames;
 use strum_macros::{EnumIter, EnumString, VariantNames};
 
@@ -72,6 +75,8 @@ pub enum AllContentSuppliers {
     AnizoneContentSupplier,
     #[strum(serialize = "Anikoto")]
     AnikotoContentSupplier,
+    #[strum(serialize = "Shiro")]
+    ShiroContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
@@ -104,7 +109,7 @@ pub trait MangaPagesLoader {
 }
 
 #[enum_dispatch(MangaPagesLoader)]
-#[derive(EnumString)]
+#[derive(EnumString, VariantNames)]
 #[allow(clippy::enum_variant_names)]
 pub enum AllMangaPagesLoaders {
     #[strum(serialize = "MangaDex")]
@@ -115,6 +120,22 @@ pub enum AllMangaPagesLoaders {
     WeebCentralContentSupplier,
 }
 
+// Suppliers are created once and live for the whole app session, so their
+// fields (HTTP clients, parsed selectors, caches) are shared between calls.
+// Any state a supplier keeps must therefore be thread-safe (`Send + Sync`).
+static SUPPLIERS: LazyLock<HashMap<&'static str, AllContentSuppliers>> =
+    LazyLock::new(|| build_registry(AllContentSuppliers::VARIANTS));
+
+static MANGA_PAGES_LOADERS: LazyLock<HashMap<&'static str, AllMangaPagesLoaders>> =
+    LazyLock::new(|| build_registry(AllMangaPagesLoaders::VARIANTS));
+
+fn build_registry<T: FromStr>(names: &[&'static str]) -> HashMap<&'static str, T> {
+    names
+        .iter()
+        .filter_map(|&name| T::from_str(name).ok().map(|value| (name, value)))
+        .collect()
+}
+
 pub fn avalaible_suppliers() -> Vec<String> {
     AllContentSuppliers::VARIANTS
         .iter()
@@ -122,6 +143,40 @@ pub fn avalaible_suppliers() -> Vec<String> {
         .collect()
 }
 
-pub fn get_supplier(name: &str) -> Result<AllContentSuppliers, anyhow::Error> {
-    AllContentSuppliers::from_str(name).map_err(|err| err.into())
+pub fn get_supplier(name: &str) -> anyhow::Result<&'static AllContentSuppliers> {
+    SUPPLIERS
+        .get(name)
+        .ok_or_else(|| anyhow!("unknown supplier: {name}"))
+}
+
+pub fn get_manga_pages_loader(name: &str) -> anyhow::Result<&'static AllMangaPagesLoaders> {
+    MANGA_PAGES_LOADERS
+        .get(name)
+        .ok_or_else(|| anyhow!("unknown manga pages loader: {name}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_register_every_supplier_once() {
+        for &name in AllContentSuppliers::VARIANTS {
+            let first = get_supplier(name).unwrap();
+            let second = get_supplier(name).unwrap();
+            assert!(std::ptr::eq(first, second), "{name} was recreated");
+        }
+
+        for &name in AllMangaPagesLoaders::VARIANTS {
+            let first = get_manga_pages_loader(name).unwrap();
+            let second = get_manga_pages_loader(name).unwrap();
+            assert!(std::ptr::eq(first, second), "{name} was recreated");
+        }
+    }
+
+    #[test]
+    fn should_fail_for_unknown_supplier() {
+        assert!(get_supplier("Unknown").is_err());
+        assert!(get_manga_pages_loader("Unknown").is_err());
+    }
 }

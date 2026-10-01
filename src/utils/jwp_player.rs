@@ -91,7 +91,7 @@ impl JWPConfig {
 
                 result.push(ContentMediaItemSource::Subtitle {
                     link: track.file.clone(),
-                    headers: None,
+                    headers: headers.clone(),
                     description,
                 });
             });

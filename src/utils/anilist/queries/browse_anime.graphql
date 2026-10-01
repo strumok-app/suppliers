@@ -1,0 +1,30 @@
+query(
+    $page: Int = 1
+    $per_page: Int = 20
+    $sort: [MediaSort]
+    $status: MediaStatus
+    $season: MediaSeason
+    $season_year: Int
+) {
+    Page(page: $page, perPage: $per_page) {
+        media(
+            type: ANIME
+            isAdult: false
+            sort: $sort
+            status: $status
+            season: $season
+            seasonYear: $season_year
+        ) {
+            id
+            title {
+                romaji
+                english
+                native
+            }
+            coverImage {
+              extraLarge
+              large
+            }
+        }
+    }
+}
