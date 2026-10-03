@@ -20,7 +20,7 @@ impl DoHResolver {
         Resolver::builder(TokioConnectionProvider::default())
             .unwrap_or_else(|_| {
                 Resolver::builder_with_config(
-                    ResolverConfig::cloudflare(),
+                    ResolverConfig::google(),
                     TokioConnectionProvider::default(),
                 )
             })

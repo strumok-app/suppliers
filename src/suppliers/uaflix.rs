@@ -1,5 +1,6 @@
 use anyhow::anyhow;
 use indexmap::IndexMap;
+use regex::Regex;
 use scraper::{ElementRef, Selector};
 
 use crate::{
@@ -33,6 +34,7 @@ pub struct UAFlixSupplier {
     selector_episode_link: Selector,
     selector_episode_image: Selector,
     selector_pages: Selector,
+    re_episode_link: Regex,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_info_channel_items: html::ItemsProcessor<ContentInfo>,
@@ -52,6 +54,10 @@ impl Default for UAFlixSupplier {
             selector_episode_link: Selector::parse("a.vi-img").unwrap(),
             selector_episode_image: Selector::parse("img").unwrap(),
             selector_pages: Selector::parse(".pagination li").unwrap(),
+            re_episode_link: Regex::new(
+                r"season-(?<season>\d+)-episode-(?<episode>\d+)(?:/[^/?#]+)*",
+            )
+            .unwrap(),
             processor_content_details: html::ScopeProcessor::new(
                 "#dle-content",
                 html::ContentDetailsProcessor {
@@ -281,22 +287,29 @@ impl UAFlixSupplier {
             .filter_map(|ep| {
                 let image = ep.image;
 
-                let id = ep.link;
-                let (_, id) = id[..id.len() - 1].rsplit_once("/")?;
-                let parts: Vec<_> = id.split("-").collect();
-
-                let &s_num = parts.get(1)?;
-                let &e_num = parts.get(3)?;
+                let (path, s_num, e_num) = self.parse_episode_link(&ep.link)?;
 
                 Some(ContentMediaItem {
                     title: format!("Серія {e_num}"),
                     sources: None,
                     section: Some(s_num.to_string()),
                     image,
-                    params: vec![id.to_string()],
+                    params: vec![path.to_string()],
                 })
             })
             .for_each(|item| content_media_items.push(item));
+    }
+
+    /// Extracts the episode path (relative to the content page), season and episode numbers
+    /// from links like `.../season-03-episode-10/` or `.../season-03-episode-10/v1/`.
+    fn parse_episode_link<'a>(&self, link: &'a str) -> Option<(&'a str, &'a str, &'a str)> {
+        let caps = self.re_episode_link.captures(link)?;
+
+        Some((
+            caps.get(0)?.as_str(),
+            caps.name("season")?.as_str(),
+            caps.name("episode")?.as_str(),
+        ))
     }
 
     fn try_load_content_details(&self, html: &str) -> (Option<ContentDetails>, Episodes) {
@@ -345,14 +358,36 @@ fn extract_id_from_url(mut url: String) -> String {
 mod tests {
     use super::*;
 
+    #[test]
+    fn uaflix_should_parse_episode_link() {
+        let supplier = UAFlixSupplier::default();
+
+        assert_eq!(
+            supplier.parse_episode_link(
+                "https://uafix.net/serials/schodennik-z-chuzhozemja/season-01-episode-02/"
+            ),
+            Some(("season-01-episode-02", "01", "02"))
+        );
+        assert_eq!(
+            supplier.parse_episode_link(
+                "https://uafix.net/serials/tayemnica-bunkera/season-03-episode-10/v1/"
+            ),
+            Some(("season-03-episode-10/v1", "03", "10"))
+        );
+        assert_eq!(
+            supplier.parse_episode_link("https://uafix.net/serials/tayemnica-bunkera/"),
+            None
+        );
+    }
+
     #[tokio::test]
-    async fn should_load_channel() {
+    async fn uaflix_should_load_channel() {
         let res = UAFlixSupplier::default().load_channel("Аніме", 2).await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
-    async fn should_search() {
+    async fn uaflix_should_search() {
         let res = UAFlixSupplier::default()
             .search("тільки через твій труп", 1)
             .await;
@@ -361,7 +396,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_get_content_details_1() {
+    async fn uaflix_should_get_content_details_1() {
         let res = UAFlixSupplier::default()
             .get_content_details("serials/divni-diva")
             .await;
@@ -370,7 +405,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_get_content_details_2() {
+    async fn uaflix_should_get_content_details_2() {
         let res = UAFlixSupplier::default()
             .get_content_details("serials/naruto-naruto")
             .await;
@@ -379,16 +414,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_get_content_details_3() {
+    async fn uaflix_should_get_content_details_3() {
         let res = UAFlixSupplier::default()
-            .get_content_details("serials/van-pis-velikij-kush")
+            .get_content_details("serials/tayemnica-bunkera")
             .await;
 
         println!("{res:#?}")
     }
 
     #[tokio::test]
-    async fn should_get_content_details_4() {
+    async fn uaflix_should_get_content_details_4() {
         let res = UAFlixSupplier::default()
             .get_content_details("cartoons/legenda-pro-aanga-ostanniu-volodar-stuxiu")
             .await;
@@ -397,7 +432,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_item() {
+    async fn uaflix_should_load_media_item() {
         let res = UAFlixSupplier::default()
             .load_media_items(
                 "serials/naruto-naruto",
@@ -409,11 +444,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_item_sources() {
+    async fn uaflix_should_load_media_item_sources() {
         let res = UAFlixSupplier::default()
             .load_media_item_sources(
-                "serials/schodennik-z-chuzhozemja",
-                vec!["season-01-episode-02".to_string()],
+                "serials/tayemnica-bunkera",
+                vec!["season-03-episode-10/v1".to_string()],
             )
             .await;
 
