@@ -13,26 +13,26 @@ use crate::{
 
 use super::SourceParams;
 
-const VIDFAST_URL: &str = "https://vidfast.pro";
+const VIDFAST_URL: &str = "https://vidfast.vc";
 
 // enc-dec.app request/response types for vidfast
 
 #[derive(Debug, Serialize)]
-struct VidFastRequest {
+struct DecRequest {
     text: String,
-    version: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct EncResult {
-    servers: String,
-    stream: String,
+struct EncStage1Result {
+    stage1: String,
     token: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct EncResponse {
-    result: EncResult,
+struct EncStage2Result {
+    servers: String,
+    stream: String,
+    token: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -61,12 +61,19 @@ struct Track {
 
 // enc-dec.app API helpers
 
-async fn vidfast_enc(text: &str) -> anyhow::Result<EncResult> {
-    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidfast?text={text}&version=1");
+async fn vidfast_enc<T: serde::de::DeserializeOwned>(text: &str, stage: u8) -> anyhow::Result<T> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidfast");
 
-    let res_str = create_json_client().get(url).send().await?.text().await?;
+    let res_str = create_json_client()
+        .get(url)
+        .query(&[("text", text), ("stage", &stage.to_string())])
+        .send()
+        .await?
+        .text()
+        .await?;
 
-    let res: EncResponse = serde_json::from_str(&res_str)?;
+    let res: DecResponse<T> = serde_json::from_str(&res_str)
+        .map_err(|err| anyhow!("[vidfast] enc stage {stage} failed: {err}, response: {res_str}"))?;
 
     Ok(res.result)
 }
@@ -76,9 +83,8 @@ async fn vidfast_dec_servers(text: &str) -> anyhow::Result<Vec<Server>> {
 
     let res_str = create_json_client()
         .post(url)
-        .json(&VidFastRequest {
+        .json(&DecRequest {
             text: text.to_string(),
-            version: "1".to_string(),
         })
         .send()
         .await?
@@ -95,9 +101,8 @@ async fn vidfast_dec_stream(text: &str) -> anyhow::Result<StreamResult> {
 
     let res_str = create_json_client()
         .post(url)
-        .json(&VidFastRequest {
+        .json(&DecRequest {
             text: text.to_string(),
-            version: "1".to_string(),
         })
         .send()
         .await?
@@ -138,8 +143,21 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     // Extract encrypted text from page
     let text = extract_text(&page_html)?;
 
-    // Encrypt via enc-dec.app to get servers/stream/token URLs
-    let enc_result = vidfast_enc(&text).await?;
+    // Stage 1: get servers token URL and CSRF token
+    let stage1: EncStage1Result = vidfast_enc(&text, 1).await?;
+
+    let stage1_text = client
+        .post(&stage1.stage1)
+        .header("Referer", format!("{VIDFAST_URL}/"))
+        .header("X-Requested-With", "XMLHttpRequest")
+        .header("X-CSRF-Token", &stage1.token)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    // Stage 2: get servers/stream/token URLs
+    let enc_result: EncStage2Result = vidfast_enc(&stage1_text, 2).await?;
 
     let token = enc_result.token;
     let servers_url = enc_result.servers;
@@ -185,7 +203,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
 
 fn extract_text(html: &str) -> anyhow::Result<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r#"\\"en\\":\\"([^"\\]+)\\""#).unwrap());
+    let re = RE.get_or_init(|| Regex::new(r#"\\"(?:en|token)\\":\\"([^"\\]+)\\""#).unwrap());
 
     let caps = re
         .captures(html)
