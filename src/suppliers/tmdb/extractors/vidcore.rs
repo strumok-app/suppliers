@@ -23,12 +23,13 @@ struct DecRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct EncResponse {
-    result: EncResult,
+struct EncStage1Result {
+    stage1: String,
+    token: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct EncResult {
+struct EncStage2Result {
     servers: String,
     stream: String,
     token: String,
@@ -60,12 +61,19 @@ struct StreamResult {
 
 // enc-dec.app API helpers
 
-async fn vidcore_enc(text: &str) -> anyhow::Result<EncResult> {
-    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidcore?text={text}");
+async fn vidcore_enc<T: serde::de::DeserializeOwned>(text: &str, stage: u8) -> anyhow::Result<T> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidcore");
 
-    let res_str = create_json_client().get(url).send().await?.text().await?;
+    let res_str = create_json_client()
+        .get(url)
+        .query(&[("text", text), ("stage", &stage.to_string())])
+        .send()
+        .await?
+        .text()
+        .await?;
 
-    let res: EncResponse = serde_json::from_str(&res_str)?;
+    let res: DecResponse<T> = serde_json::from_str(&res_str)
+        .map_err(|err| anyhow!("[vidcore] enc stage {stage} failed: {err}, response: {res_str}"))?;
 
     Ok(res.result)
 }
@@ -135,12 +143,21 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     // Extract encrypted text from page
     let text = extract_token(&page_html)?;
 
-    // println!("{text}");
+    // Stage 1: get servers token URL and CSRF token
+    let stage1: EncStage1Result = vidcore_enc(&text, 1).await?;
 
-    // Encrypt via enc-dec.app to get servers/stream/token URLs
-    let enc_result = vidcore_enc(&text).await?;
+    let stage1_text = client
+        .post(&stage1.stage1)
+        .header("Referer", format!("{VIDCORE_URL}/"))
+        .header("X-Requested-With", "XMLHttpRequest")
+        .header("X-CSRF-Token", &stage1.token)
+        .send()
+        .await?
+        .text()
+        .await?;
 
-    // println!("{enc_result:#?}");
+    // Stage 2: get servers/stream/token URLs
+    let enc_result: EncStage2Result = vidcore_enc(&stage1_text, 2).await?;
 
     let token = enc_result.token;
     let servers_url = enc_result.servers;
@@ -149,7 +166,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     // POST to servers URL with CSRF token
     let servers_encrypted = client
         .post(&servers_url)
-        .header("Referer", format!("{VIDCORE_URL}"))
+        .header("Referer", format!("{VIDCORE_URL}/"))
         .header("X-Requested-With", "XMLHttpRequest")
         .header("X-CSRF-Token", &token)
         .send()

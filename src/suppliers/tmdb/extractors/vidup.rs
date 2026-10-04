@@ -23,12 +23,13 @@ struct DecRequest {
 }
 
 #[derive(Debug, Deserialize)]
-struct EncResponse {
-    result: EncResult,
+struct EncStage1Result {
+    stage1: String,
+    token: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct EncResult {
+struct EncStage2Result {
     servers: String,
     stream: String,
     token: String,
@@ -53,12 +54,19 @@ struct StreamResult {
 
 // enc-dec.app API helpers
 
-async fn vidup_enc(text: &str) -> anyhow::Result<EncResult> {
-    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidup?text={text}");
+async fn vidup_enc<T: serde::de::DeserializeOwned>(text: &str, stage: u8) -> anyhow::Result<T> {
+    let url = format!("{ENC_DEC_APP_URL}/api/enc-vidup");
 
-    let res_str = create_json_client().get(url).send().await?.text().await?;
+    let res_str = create_json_client()
+        .get(url)
+        .query(&[("text", text), ("stage", &stage.to_string())])
+        .send()
+        .await?
+        .text()
+        .await?;
 
-    let res: EncResponse = serde_json::from_str(&res_str)?;
+    let res: DecResponse<T> = serde_json::from_str(&res_str)
+        .map_err(|err| anyhow!("[vidup] enc stage {stage} failed: {err}, response: {res_str}"))?;
 
     Ok(res.result)
 }
@@ -128,8 +136,21 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
     // Extract encrypted text from page
     let text = extract_text(&page_html)?;
 
-    // Encrypt via enc-dec.app to get servers/stream/token URLs
-    let enc_result = vidup_enc(&text).await?;
+    // Stage 1: get servers token URL and CSRF token
+    let stage1: EncStage1Result = vidup_enc(&text, 1).await?;
+
+    let stage1_text = client
+        .post(&stage1.stage1)
+        .header("Referer", format!("{VIDUP_URL}/"))
+        .header("X-Requested-With", "XMLHttpRequest")
+        .header("X-CSRF-Token", &stage1.token)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    // Stage 2: get servers/stream/token URLs
+    let enc_result: EncStage2Result = vidup_enc(&stage1_text, 2).await?;
 
     let token = enc_result.token;
     let servers_url = enc_result.servers;
@@ -175,7 +196,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
 
 fn extract_text(html: &str) -> anyhow::Result<String> {
     static RE: OnceLock<Regex> = OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r#"\\"en\\":\\"([^"\\]+)\\""#).unwrap());
+    let re = RE.get_or_init(|| Regex::new(r#"\\"(?:en|token)\\":\\"([^"\\]+)\\""#).unwrap());
 
     let caps = re
         .captures(html)

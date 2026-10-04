@@ -316,7 +316,12 @@ impl ShiroContentSupplier {
         let mut videos = vec![];
         let mut subtitles = vec![];
 
-        for variant in episode_res.variants.unwrap_or_default() {
+        // The player picks the first source by default, so dubs go first.
+        // Stable sort: the rest keep the site's order (`sub`, `hsub`).
+        let mut variants = episode_res.variants.unwrap_or_default();
+        variants.sort_by_key(|variant| !variant.label.eq_ignore_ascii_case("dub"));
+
+        for variant in variants {
             for source in variant.sources {
                 let description = format!("[{}] {}", variant.label, source.label);
 
@@ -579,6 +584,48 @@ mod tests {
         }
         let playlist = req.send().await.unwrap().error_for_status().unwrap();
         assert!(playlist.text().await.unwrap().starts_with("#EXTM3U"));
+    }
+
+    #[test]
+    fn sources_should_put_dub_first() {
+        let variant = |label: &str| EpisodeVariant {
+            label: label.to_owned(),
+            sources: vec![EpisodeSource {
+                label: "Plum".to_owned(),
+                url: format!("/stream/{label}/index.m3u8"),
+                tracks: vec![EpisodeTrack {
+                    label: "English".to_owned(),
+                    src: format!("/stream/{label}/en.vtt"),
+                }],
+            }],
+        };
+        let episode_res = EpisodeResponse {
+            status: "ready".to_owned(),
+            reason: None,
+            variants: Some(vec![variant("sub"), variant("hsub"), variant("dub")]),
+        };
+
+        let sources = ShiroContentSupplier::to_media_item_sources(episode_res, "c=1").unwrap();
+        let descriptions: Vec<_> = sources
+            .iter()
+            .map(|source| match source {
+                ContentMediaItemSource::Video { description, .. }
+                | ContentMediaItemSource::Subtitle { description, .. } => description.as_str(),
+                _ => unreachable!(),
+            })
+            .collect();
+
+        assert_eq!(
+            descriptions,
+            [
+                "[dub] Plum",
+                "[sub] Plum",
+                "[hsub] Plum",
+                "[dub] Plum - English",
+                "[sub] Plum - English",
+                "[hsub] Plum - English",
+            ]
+        );
     }
 
     #[test_log::test(tokio::test)]
