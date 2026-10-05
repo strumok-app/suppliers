@@ -1,5 +1,8 @@
 mod playlist_html;
 mod tests;
+mod user_hash;
+
+pub use user_hash::{UserHash, UserHashRejected};
 
 use anyhow::anyhow;
 use indexmap::IndexMap;
@@ -59,8 +62,18 @@ pub async fn load_ajax_playlist(
 
     #[derive(Deserialize, Debug)]
     struct AjaxPlaylistResponse {
-        response: String,
+        #[serde(default = "default_success")]
+        success: bool,
+        response: Option<String>,
+        message: Option<String>,
     }
+
+    fn default_success() -> bool {
+        true
+    }
+
+    // DLE answers a wrong or missing `user_hash` with this message.
+    const USER_HASH_ERROR: &str = "Помилка 200";
 
     let res_text = playlist_req
         .header("X-Requested-With", "XMLHttpRequest")
@@ -71,7 +84,22 @@ pub async fn load_ajax_playlist(
 
     let res: AjaxPlaylistResponse = serde_json::from_str(&res_text)?;
 
-    let html_fragment = scraper::Html::parse_fragment(&res.response);
+    let response = match res {
+        AjaxPlaylistResponse {
+            success: true,
+            response: Some(response),
+            ..
+        } => response,
+        AjaxPlaylistResponse { message, .. } => {
+            let message = message.unwrap_or_default();
+            if message == USER_HASH_ERROR {
+                return Err(UserHashRejected.into());
+            }
+            return Err(anyhow!("ajax playlist error: {message}"));
+        }
+    };
+
+    let html_fragment = scraper::Html::parse_fragment(&response);
     let root = &html_fragment.root_element();
 
     let playlist = playlist_html::AjaxPlaylistProcessor::new().process(root);

@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use regex::Regex;
 
 use crate::{
     models::{
@@ -23,7 +22,7 @@ pub struct AniTubeContentSupplier {
     channels_map: IndexMap<&'static str, String>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
-    regexp_dle_hash: Regex,
+    user_hash: datalife::UserHash,
 }
 
 impl Default for AniTubeContentSupplier {
@@ -103,7 +102,7 @@ impl Default for AniTubeContentSupplier {
                 }
                 .boxed(),
             ),
-            regexp_dle_hash: Regex::new(r#"dle_login_hash\s+=\s+'(?<hash>[a-z0-9]+)'"#).unwrap(),
+            user_hash: datalife::UserHash::new(URL, "dle_login_hash"),
         }
     }
 }
@@ -156,39 +155,35 @@ impl ContentSupplier for AniTubeContentSupplier {
         let document = scraper::Html::parse_document(&html);
         let root = document.root_element();
 
-        let mut maybe_details = self.processor_content_details.process(&root);
+        self.user_hash.store_from_page(&html);
 
-        if let Some(&mut ref mut details) = maybe_details.as_mut() {
-            details.params = self.extract_params(&html).unwrap_or_default()
-        }
-
-        Ok(maybe_details)
+        Ok(self.processor_content_details.process(&root))
     }
 
     async fn load_media_items(
         &self,
         id: &str,
-        params: Vec<String>,
+        _params: Vec<String>,
     ) -> anyhow::Result<Vec<ContentMediaItem>> {
-        if params.len() != 1 {
-            return Err(anyhow!("user hash expected"));
-        }
-
         let news_id = id
             .split_once("-")
             .map(|(l, _)| l)
             .ok_or_else(|| anyhow!("unable to extract news_id"))?;
 
-        let playlist_req = utils::create_client()
-            .get(format!("{URL}/engine/ajax/playlists.php"))
-            .query(&[
-                ("xfield", "playlist"),
-                ("news_id", news_id),
-                ("user_hash", &params[0]),
-            ])
-            .header("Referer", URL);
+        self.user_hash
+            .with_retry(|user_hash| {
+                let playlist_req = utils::create_client()
+                    .get(format!("{URL}/engine/ajax/playlists.php"))
+                    .query(&[
+                        ("xfield", "playlist"),
+                        ("news_id", news_id),
+                        ("user_hash", &user_hash),
+                    ])
+                    .header("Referer", URL);
 
-        datalife::load_ajax_playlist(playlist_req).await
+                datalife::load_ajax_playlist(playlist_req)
+            })
+            .await
     }
 
     async fn load_media_item_sources(
@@ -215,18 +210,6 @@ impl ContentSupplier for AniTubeContentSupplier {
         }
 
         Ok(results)
-    }
-}
-
-impl AniTubeContentSupplier {
-    fn extract_params(&self, html: &str) -> Option<Vec<String>> {
-        let hash = self
-            .regexp_dle_hash
-            .captures(html)
-            .and_then(|c| c.name("hash"))
-            .map(|m| m.as_str())?;
-
-        Some(vec![hash.into()])
     }
 }
 
@@ -265,12 +248,28 @@ mod tests {
     #[tokio::test]
     async fn should_load_media_items() {
         let res = AniTubeContentSupplier::default()
-            .load_media_items(
-                "5513-vanpan-3-sezon",
-                vec!["867ca5be02de10b799c164d7b7c31e6eece1bb10".into()],
-            )
+            .load_media_items("5513-vanpan-3-sezon", vec![])
             .await;
         println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_refresh_expired_user_hash() {
+        let supplier = AniTubeContentSupplier::default();
+        supplier
+            .user_hash
+            .store("867ca5be02de10b799c164d7b7c31e6eece1bb10".into());
+
+        let res = supplier
+            .load_media_items("5513-vanpan-3-sezon", vec![])
+            .await
+            .unwrap();
+
+        assert!(!res.is_empty());
+        assert_ne!(
+            supplier.user_hash.cached().as_deref(),
+            Some("867ca5be02de10b799c164d7b7c31e6eece1bb10")
+        );
     }
 
     #[tokio::test]

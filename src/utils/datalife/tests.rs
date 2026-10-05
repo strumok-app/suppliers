@@ -4,10 +4,21 @@ use crate::utils;
 
 #[tokio::test]
 async fn shold_load_large_dle_playlist() {
-    let playlist_req = utils::create_client()
-        .get("https://anitube.in.ua/engine/ajax/playlists.php?news_id=94&xfield=playlist&user_hash=867ca5be02de10b799c164d7b7c31e6eece1bb10");
+    let user_hash = super::UserHash::new("https://anitube.in.ua", "dle_login_hash");
 
-    let _ = super::load_ajax_playlist(playlist_req).await.unwrap();
+    let _ = user_hash
+        .with_retry(|hash| {
+            let playlist_req = utils::create_client()
+                .get("https://anitube.in.ua/engine/ajax/playlists.php")
+                .query(&[
+                    ("news_id", "94"),
+                    ("xfield", "playlist"),
+                    ("user_hash", &hash),
+                ])
+                .header("Referer", "https://anitube.in.ua");
 
-    
+            super::load_ajax_playlist(playlist_req)
+        })
+        .await
+        .unwrap();
 }

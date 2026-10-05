@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use anyhow::{Ok, anyhow};
 use indexmap::IndexMap;
 use regex::Regex;
@@ -19,13 +17,13 @@ use crate::{
 use super::{ContentSupplier, MangaPagesLoader};
 
 const URL: &str = "https://manga.in.ua";
-const USER_HASH: &str = "772f84a2554710856146eb1863c483d705b01412";
 
 pub struct MangaInUaContentSupplier {
     channels_map: IndexMap<&'static str, String>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
     re_chapters: Regex,
+    user_hash: datalife::UserHash,
 }
 
 impl Default for MangaInUaContentSupplier {
@@ -98,7 +96,8 @@ impl Default for MangaInUaContentSupplier {
                 }
                 .boxed(),
             ),
-            re_chapters: Regex::new(r"chapters/([a-z0-9]+)").unwrap()
+            re_chapters: Regex::new(r"chapters/([a-z0-9]+)").unwrap(),
+            user_hash: datalife::UserHash::new(URL, "site_login_hash"),
         }
     }
 }
@@ -157,6 +156,8 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
         let maybe_details = self.processor_content_details.process(&root);
 
+        self.user_hash.store_from_page(&html);
+
         Ok(maybe_details)
     }
 
@@ -173,25 +174,19 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
         let client = utils::create_json_client();
 
-        let mut form_params = HashMap::new();
-        form_params.insert("action", "show");
-        form_params.insert("news_id", news_id);
-        form_params.insert("user_hash", USER_HASH);
-        form_params.insert("news_category", "54");
-        form_params.insert("this_link", "");
-
-        let chapters_list_html = client
-            .post(format!("{URL}/engine/ajax/controller.php"))
-            .query(&[("mod", "load_chapters")])
-            .form(&form_params)
-            .header(
-                "Content-Type",
-                "application/x-www-form-urlencoded; charset=UTF-8",
-            )
-            .header("x-requested-with", "XMLHttpRequest")
-            .send()
-            .await?
-            .text()
+        let chapters_list_html = self
+            .ajax_request(|user_hash| {
+                client
+                    .post(format!("{URL}/engine/ajax/controller.php"))
+                    .query(&[("mod", "load_chapters")])
+                    .form(&[
+                        ("action", "show"),
+                        ("news_id", news_id),
+                        ("user_hash", &user_hash),
+                        ("news_category", "54"),
+                        ("this_link", ""),
+                    ])
+            })
             .await?;
 
         let fragment = scraper::Html::parse_fragment(&chapters_list_html);
@@ -246,22 +241,21 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
             return Err(anyhow!("invalid params number"));
         }
 
-        let news_id = &params[0];
+        let news_id = params[0].as_str();
 
         let client = utils::create_json_client();
 
-        let pages_list = client
-            .get(format!("{URL}/engine/ajax/controller.php"))
-            .query(&[
-                ("mod", "load_chapters_image"),
-                ("news_id", news_id),
-                ("user_hash", USER_HASH),
-                ("action", "show"),
-            ])
-            .header("x-requested-with", "XMLHttpRequest")
-            .send()
-            .await?
-            .text()
+        let pages_list = self
+            .ajax_request(|user_hash| {
+                client
+                    .get(format!("{URL}/engine/ajax/controller.php"))
+                    .query(&[
+                        ("mod", "load_chapters_image"),
+                        ("news_id", news_id),
+                        ("user_hash", &user_hash),
+                        ("action", "show"),
+                    ])
+            })
             .await?;
 
         let fragment = scraper::Html::parse_fragment(&pages_list);
@@ -275,6 +269,37 @@ impl MangaPagesLoader for MangaInUaContentSupplier {
             .collect();
 
         Ok(pages)
+    }
+}
+
+impl MangaInUaContentSupplier {
+    /// Sends an ajax request that requires `user_hash`, refreshing the cached
+    /// hash once if the server rejects it.
+    async fn ajax_request(
+        &self,
+        build_request: impl Fn(String) -> reqwest::RequestBuilder,
+    ) -> anyhow::Result<String> {
+        self.user_hash
+            .with_retry(|user_hash| Self::send_ajax(build_request(user_hash)))
+            .await
+    }
+
+    async fn send_ajax(request: reqwest::RequestBuilder) -> anyhow::Result<String> {
+        let res = request
+            .header("x-requested-with", "XMLHttpRequest")
+            .send()
+            .await?
+            .text()
+            .await?;
+
+        // Error statuses are sent as plain-text bodies with HTTP 200.
+        // `load_chapters` answers an invalid hash with an empty body and
+        // `load_chapters_image` with `hash` (a missing manga yields `empty`).
+        match res.trim() {
+            "" | "hash" => Err(datalife::UserHashRejected.into()),
+            "error" => Err(anyhow!("[mangainua] server responded with error")),
+            _ => Ok(res),
+        }
     }
 }
 
@@ -313,6 +338,25 @@ mod tests {
             .load_media_items("mangas/boyovik/14196-hunter-x-hunter", vec![])
             .await;
         println!("{result:#?}")
+    }
+
+    #[tokio::test]
+    async fn mangainua_should_refresh_expired_user_hash() {
+        let supplier = MangaInUaContentSupplier::default();
+        supplier
+            .user_hash
+            .store("772f84a2554710856146eb1863c483d705b01412".to_string());
+
+        let result = supplier
+            .load_media_items("mangas/boyovik/14196-hunter-x-hunter", vec![])
+            .await
+            .unwrap();
+
+        assert!(!result.is_empty());
+        assert_ne!(
+            supplier.user_hash.cached().as_deref(),
+            Some("772f84a2554710856146eb1863c483d705b01412")
+        );
     }
 
     #[tokio::test]
