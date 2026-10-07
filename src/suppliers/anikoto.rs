@@ -372,7 +372,7 @@ mod tests {
     async fn anikoto_should_get_content_details() {
         let res = AnikotoContentSupplier::default()
             // .get_content_details("sakamoto-days-sfdxz")
-            .get_content_details("i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns")
+            .get_content_details("a-tree-of-palme-2mfon")
             .await;
         println!("{res:#?}");
     }
@@ -381,10 +381,7 @@ mod tests {
     async fn anikoto_should_load_media_items() {
         let res = AnikotoContentSupplier::default()
             // .load_media_items("sakamoto-days-sfdxz", vec!["7498".into()])
-            .load_media_items(
-                "i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns",
-                vec!["8882".into()],
-            )
+            .load_media_items("a-tree-of-palme-2mfon", vec!["4251".into()])
             .await;
         println!("{res:#?}");
     }
@@ -397,8 +394,8 @@ mod tests {
             //     vec!["VHd5akNkRmpZSlR3ZmQ0UXNCVG41KzcxR3J0TmpraW9OWFQzUkNqelZJZVA0citBWU1jUTRlL3FQcU01RDVmNyt2b1RYRGJHMG9DMHYwQmk4ZWdNTEZXdWJRamJlYnVQcFd5Zm5uZlpnV053TUU5cWRYNytPRVRoVXkzMW0xTjQvYTJpMWJGTWxFY2gxTVh3L3ZGcHJnPT0".into()],
             // )
             .load_media_item_sources(
-                "i-want-you-to-show-me-your-panties-with-a-disgusted-face-returns",
-                vec!["NFdUaFMvemE1cTNrcTl1b2dSVHhkY2dOY09sSi93WHRVSHk3WTJ1TFBuL2RxL0F1ajRNc3g3alZNWnZldFVRM2ZXMGVFQ2V3V1J3RWFuQW80cnJwU0hNOU1iQnRHcjFtZi9pRlhJdjFybmM4SWg3dm43RDFxQlVOZzlqczdJQ0RRTlI1TjhxN1ZwYUxkdjVLK2RXbzBBPT0".into()],
+                "a-tree-of-palme-2mfon",
+                vec!["b09yZkxIRmY4VUhORjIrRzlvUENlWUdzemxneDM4NENuMDlCRnVHdEVBbnlRRkhVVnJua0ViaDllSDVmNktXeld4OGdHZ3I5clQyZWo3Y0QrMXcxS2FBYStDTTNpNmhRY2txenVZN1l3Ym42NkdQcDBsZWpBMnN2bkNNTU9Gak9Md2pUVXQzV0o4N0xDNjBTa3Y2UCtwVHNoVnpJTHZMbnBsemltWFd3WEJFPQ".into()],
             )
             .await;
         println!("{res:#?}");

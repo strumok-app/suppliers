@@ -73,8 +73,10 @@ pub async fn extract(
     let res_str = utils::create_json_client()
         .get(&api_url)
         .header("Referer", referer)
+        .header("X-Requested-With", "XMLHttpRequest")
         .send()
         .await?
+        .error_for_status()?
         .text()
         .await?;
 
@@ -121,6 +123,19 @@ mod tests {
 
         let res = extract(url, referer, "Test".to_string(), true).await;
 
+        println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn test_megaplay_extractor2() {
+        let url = "https://megaplay.buzz/stream/s-2/90179/dub";
+        let referer = "https://anikototv.to";
+
+        let res = extract(url, referer, "Test".to_string(), true)
+            .await
+            .expect("Megaplay extraction should succeed");
+
+        assert!(!res.is_empty(), "Megaplay should return media sources");
         println!("{res:#?}");
     }
 
