@@ -30,19 +30,19 @@ impl Default for MangaInUaContentSupplier {
     fn default() -> Self {
         Self {
             channels_map: IndexMap::from([
-                ("Новинки", URL.to_string()),
-                ("Манґа", format!("{URL}/xfsearch/type/manga/")),
-                ("Манхва", format!("{URL}/xfsearch/type/manhwa/")),
-                ("Романтика", format!("{URL}/mangas/romantika/")),
-                ("Драма", format!("{URL}/mangas/drama/")),
-                ("Комедія", format!("{URL}/mangas/komedia/")),
-                ("Буденність", format!("{URL}/mangas/budenst/")),
-                ("Фентезі", format!("{URL}/mangas/fentez/")),
-                ("Школа", format!("{URL}/mangas/shkola/")),
-                ("Надприродне", format!("{URL}/mangas/nadprirodne/")),
-                ("Пригоди", format!("{URL}/mangas/prigodi/")),
-                ("Бойовик", format!("{URL}/mangas/boyovik/")),
-                ("Психологія", format!("{URL}/mangas/psihologia/")),
+                ("Новинки", format!("{URL}/page/")),
+                ("Манґа", format!("{URL}/xfsearch/type/manga/page/")),
+                ("Манхва", format!("{URL}/xfsearch/type/manhwa/page/")),
+                ("Романтика", format!("{URL}/mangas/romantika/page/")),
+                ("Драма", format!("{URL}/mangas/drama/page/")),
+                ("Комедія", format!("{URL}/mangas/komedia/page/")),
+                ("Буденність", format!("{URL}/mangas/budenst/page/")),
+                ("Фентезі", format!("{URL}/mangas/fentez/page/")),
+                ("Школа", format!("{URL}/mangas/shkola/page/")),
+                ("Надприродне", format!("{URL}/mangas/nadprirodne/page/")),
+                ("Пригоди", format!("{URL}/mangas/prigodi/page/")),
+                ("Бойовик", format!("{URL}/mangas/boyovik/page/")),
+                ("Психологія", format!("{URL}/mangas/psihologia/page/")),
             ]),
             processor_content_info_items: html::ItemsProcessor::new(".movie > article.item",     html::ContentInfoProcessor {
                 id: html::attr_value_map(".card__content > h3 > a", "href", |s| {
@@ -319,7 +319,7 @@ mod tests {
     #[tokio::test]
     async fn mangainua_should_load_channel() {
         let result = MangaInUaContentSupplier::default()
-            .load_channel("Новинки", 1)
+            .load_channel("Новинки", 2)
             .await;
         println!("{result:#?}")
     }
