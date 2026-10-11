@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::anyhow;
 use indexmap::IndexMap;
 use regex::Regex;
@@ -12,6 +14,7 @@ use crate::{
     utils::{
         self,
         html::{self, DOMProcessor, ItrDOMProcessor, attr_value_map},
+        playerjs,
     },
 };
 
@@ -177,7 +180,7 @@ impl ContentSupplier for UAFlixSupplier {
         if let Some(&mut ref mut content_details) = maybe_content_details.as_mut()
             && !episodes.episodes.is_empty()
         {
-            let mut content_media_items: Vec<ContentMediaItem> = vec![];
+            let mut content_media_items: BTreeMap<u32, ContentMediaItem> = BTreeMap::new();
             let pages = episodes.pages;
             self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
             if pages > 1 {
@@ -193,7 +196,7 @@ impl ContentSupplier for UAFlixSupplier {
                     self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
                 }
             }
-            content_details.media_items = Some(content_media_items)
+            content_details.media_items = Some(content_media_items.into_values().collect())
         }
 
         Ok(maybe_content_details)
@@ -277,27 +280,24 @@ impl UAFlixSupplier {
 
     fn fill_content_media_items_from_episodes(
         &self,
-        content_media_items: &mut Vec<ContentMediaItem>,
+        content_media_items: &mut BTreeMap<u32, ContentMediaItem>,
         episodes: Episodes,
     ) {
-        episodes
-            .episodes
-            .into_iter()
-            .rev()
-            .filter_map(|ep| {
-                let image = ep.image;
-
-                let (path, s_num, e_num) = self.parse_episode_link(&ep.link)?;
-
-                Some(ContentMediaItem {
-                    title: format!("Серія {e_num}"),
-                    sources: None,
-                    section: Some(s_num.to_string()),
-                    image,
-                    params: vec![path.to_string()],
-                })
-            })
-            .for_each(|item| content_media_items.push(item));
+        for ep in episodes.episodes {
+            if let Some((path, s_num, e_num)) = self.parse_episode_link(&ep.link) {
+                let id = playerjs::default_season_episode_id(s_num, e_num);
+                content_media_items.insert(
+                    id,
+                    ContentMediaItem {
+                        title: format!("Серія {e_num}"),
+                        sources: None,
+                        section: Some(s_num.to_string()),
+                        image: ep.image,
+                        params: vec![path.to_string()],
+                    },
+                );
+            }
+        }
     }
 
     /// Extracts the episode path (relative to the content page), season and episode numbers

@@ -252,7 +252,7 @@ fn populate_subtitle(sources: &mut Vec<ContentMediaItemSource>, url: &str, defau
     }
 }
 
-fn default_season_episode_id(season: &str, episode: &str) -> u32 {
+pub fn default_season_episode_id(season: &str, episode: &str) -> u32 {
     super::text::extract_digits(season) * 10000 + super::text::extract_digits(episode)
 }
 
