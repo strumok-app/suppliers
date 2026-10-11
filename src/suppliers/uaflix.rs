@@ -389,7 +389,7 @@ mod tests {
     #[tokio::test]
     async fn uaflix_should_search() {
         let res = UAFlixSupplier::default()
-            .search("тільки через твій труп", 1)
+            .search("Монолог травниці", 1)
             .await;
 
         println!("{res:#?}");
@@ -423,9 +423,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn uaflix_should_get_content_details_4() {
+    async fn uaflix_should_get_content_details_with_media_items() {
         let res = UAFlixSupplier::default()
-            .get_content_details("cartoons/legenda-pro-aanga-ostanniu-volodar-stuxiu")
+            .get_content_details("serials/monolog-travnici")
             .await;
 
         println!("{res:#?}")
