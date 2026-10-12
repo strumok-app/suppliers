@@ -21,11 +21,13 @@ use crate::{
 const URL: &str = "https://uafix.net";
 const SEARCH_URL: &str = "https://uafix.net/search.html";
 
+#[derive(Debug)]
 struct Episode {
     link: String,
     image: Option<String>,
 }
 
+#[derive(Debug)]
 struct Episodes {
     episodes: Vec<Episode>,
     pages: usize,
@@ -184,7 +186,7 @@ impl ContentSupplier for UAFlixSupplier {
             let pages = episodes.pages;
             self.fill_content_media_items_from_episodes(&mut content_media_items, episodes);
             if pages > 1 {
-                for page in 2..pages {
+                for page in 2..(pages + 1) {
                     let page_url = format!("{url}?page={page}");
 
                     let episodes: Episodes = self.load_next_page_episodes(&page_url).await?;
