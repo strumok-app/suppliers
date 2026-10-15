@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::anyhow;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use futures::future::BoxFuture;
 use log::warn;
@@ -57,6 +58,10 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
             Some(url) => url,
             None => continue,
         };
+
+        if url.is_empty() {
+            continue;
+        }
 
         let language = source.language.as_ref().map_or("unknown", |s| s.as_str());
 
@@ -178,6 +183,10 @@ async fn load_playlist(
 
 fn decrypt_url(url: &str) -> anyhow::Result<String> {
     let url_bytes = BASE64_URL_SAFE_NO_PAD.decode(url)?;
+
+    if url_bytes.len() < 12 {
+        return Err(anyhow!("url to short"));
+    }
 
     let iv = &url_bytes[..12];
     let ct = &url_bytes[12..];
