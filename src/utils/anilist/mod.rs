@@ -2,7 +2,6 @@ pub mod filter;
 mod models;
 
 pub use filter::BrowseFilter;
-#[allow(unused_imports)]
 pub use models::{AnimeEpisodes, StreamingEpisode};
 
 use anyhow::Ok;

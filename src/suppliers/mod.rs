@@ -5,6 +5,7 @@ mod animeon;
 mod animeua;
 mod anitube;
 mod anizone;
+mod anv;
 mod eneyida;
 mod mangadex;
 mod mangainua;
@@ -21,6 +22,7 @@ use animeon::AnimeONContentSupplier;
 use animeua::AnimeUAContentSupplier;
 use anitube::AniTubeContentSupplier;
 use anizone::AnizoneContentSupplier;
+use anv::AnvContentSupplier;
 use eneyida::EneyidaContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangainua::MangaInUaContentSupplier;
@@ -73,6 +75,8 @@ pub enum AllContentSuppliers {
     AnizoneContentSupplier,
     #[strum(serialize = "Anikoto")]
     AnikotoContentSupplier,
+    #[strum(serialize = "Anv")]
+    AnvContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
