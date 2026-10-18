@@ -50,7 +50,7 @@ impl Default for WeebCentralContentSupplier {
             processor_content_details: html::ScopeProcessor::new(
                 "main",
                 html::ContentDetailsProcessor {
-                    media_type: MediaType::Video,
+                    media_type: MediaType::Manga,
                     title: html::text_value("#top > section > section > h1"),
                     original_title: html::default_value(),
                     image: html::attr_value(
