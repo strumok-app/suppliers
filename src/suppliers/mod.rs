@@ -8,7 +8,6 @@ mod anizone;
 mod eneyida;
 mod mangadex;
 mod mangainua;
-mod shiro;
 mod tmdb;
 mod uaflix;
 mod uakinoclub;
@@ -25,7 +24,6 @@ use anizone::AnizoneContentSupplier;
 use eneyida::EneyidaContentSupplier;
 use mangadex::MangaDexContentSupplier;
 use mangainua::MangaInUaContentSupplier;
-use shiro::ShiroContentSupplier;
 use tmdb::TMDBContentSupplier;
 use uaflix::UAFlixSupplier;
 use uakinoclub::UAKinoClubContentSupplier;
@@ -75,8 +73,6 @@ pub enum AllContentSuppliers {
     AnizoneContentSupplier,
     #[strum(serialize = "Anikoto")]
     AnikotoContentSupplier,
-    #[strum(serialize = "Shiro")]
-    ShiroContentSupplier,
     #[strum(serialize = "AniTube")]
     AniTubeContentSupplier,
     #[strum(serialize = "AnimeUA")]
