@@ -316,6 +316,7 @@ impl AnimeONContentSupplier {
         ]
         .into_iter()
         .flatten()
+        .filter(|s| !s.is_empty())
         .collect();
 
         ContentDetails {

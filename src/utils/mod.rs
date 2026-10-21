@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-pub mod anilist;
 pub mod crypto;
 pub mod crypto_js;
 pub mod datalife;
