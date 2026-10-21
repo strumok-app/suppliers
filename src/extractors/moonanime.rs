@@ -52,11 +52,15 @@ pub async fn extract(url: &str, description: &str) -> anyhow::Result<Vec<Content
 
     let headers = HashMap::from([("Accept-Language".to_string(), ACCEPT_LANGUAGE.to_string())]);
     let mut sources = vec![];
+    let mut video_idx = 0;
+    let mut subtitle_idx = 0;
 
     for captures in field_re.captures_iter(&player_js) {
         let Some(value) = xor_decode(&captures["value"], key) else {
             continue;
         };
+
+        let is_subtitle = captures["name"].eq_ignore_ascii_case("subtitle");
 
         // both fields use PlayerJS list format: "[label]url,[label]url" or plain "url"
         for entry in value.split(',').filter(|e| !e.is_empty()) {
@@ -65,20 +69,22 @@ pub async fn extract(url: &str, description: &str) -> anyhow::Result<Vec<Content
                 None => (None, entry),
             };
 
-            let source = if !captures["name"].eq_ignore_ascii_case("subtitle") {
+            let source = if !is_subtitle {
+                video_idx += 1;
                 ContentMediaItemSource::Video {
                     link: link.to_string(),
                     description: match label {
-                        Some(label) => format!("[{label}] {description}"),
-                        None => description.to_string(),
+                        Some(label) => format!("{video_idx}. {description} [{label}]"),
+                        None => format!("{video_idx}. {description}"),
                     },
                     headers: Some(headers.clone()),
                     hls_proxy: false,
                 }
             } else {
+                subtitle_idx += 1;
                 ContentMediaItemSource::Subtitle {
                     link: link.to_string(),
-                    description: label.unwrap_or(description).to_string(),
+                    description: format!("{subtitle_idx}. {}", label.unwrap_or(description)),
                     headers: Some(headers.clone()),
                 }
             };

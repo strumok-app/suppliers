@@ -1,6 +1,7 @@
 use indexmap::IndexMap;
 
 use crate::{
+    extractors::{moonanime, tortuga},
     models::{
         ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType,
         MediaType,
@@ -200,11 +201,17 @@ impl ContentSupplier for AniTubeContentSupplier {
             let description = &chunk[0];
             let url = &chunk[1];
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(
-                utils::create_client().get(url),
-                description,
-            )
-            .await
+            let mut sources = if url.contains("tortuga") {
+                tortuga::extract(url, description).await
+            } else if url.contains("moonanime.art") {
+                moonanime::extract(url, description).await
+            } else {
+                playerjs::load_and_parse_playerjs_sources(
+                    utils::create_client().get(url),
+                    description,
+                )
+                .await
+            }
             .unwrap_or_default();
             results.append(&mut sources);
         }
@@ -302,5 +309,26 @@ mod tests {
             .await;
 
         println!("{res:#?}");
+    }
+
+    #[tokio::test]
+    async fn should_load_moonanime_media_items_source() {
+        let supplier = AniTubeContentSupplier::default();
+        let id = "6088-chorna-konyushina-sezon-2";
+
+        let items = supplier.load_media_items(id, vec![]).await.unwrap();
+        let item = items.first().expect("media items expected");
+        println!("{:#?}", item.params);
+
+        let res = supplier
+            .load_media_item_sources(id, item.params.clone())
+            .await
+            .unwrap();
+
+        println!("{res:#?}");
+        assert!(res.iter().any(|s| matches!(
+            s,
+            ContentMediaItemSource::Video { link, .. } if link.contains("moonanime")
+        )));
     }
 }

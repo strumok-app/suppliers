@@ -36,16 +36,22 @@ pub async fn load_and_parse_playerjs(
         let playerjs_file: Vec<PlayerJSFile> = serde_json::from_str(file)?;
         Ok(startegy(&playerjs_file))
     } else {
+        let mut sources = vec![ContentMediaItemSource::Video {
+            description: String::from("Default"),
+            headers: None,
+            link: String::from(file),
+            hls_proxy: false,
+        }];
+
+        if let Some(subtitle) = extract_playerjs_subtitle(&html) {
+            populate_subtitle(&mut sources, subtitle, "Default");
+        }
+
         Ok(vec![ContentMediaItem {
             title: String::new(),
             section: None,
             image: None,
-            sources: Some(vec![ContentMediaItemSource::Video {
-                description: String::from("Default"),
-                headers: None,
-                link: String::from(file),
-                hls_proxy: false,
-            }]),
+            sources: Some(sources),
             params: vec![],
         }])
     }
@@ -72,26 +78,55 @@ pub async fn load_and_parse_playerjs_sources(
         for file in playerjs_file {
             populate_sources(&mut result, description, &file);
         }
-    } else if file.starts_with("http") {
-        populate_video_sources(&mut result, description, file);
     } else {
-        let file = file.trim_end_matches("=");
-        let decoded_b64 = BASE64_STANDARD_NO_PAD.decode(file)?;
-        let decoded_b64 = decoded_b64.into_iter().rev().collect();
+        // `file` value formats are detected by prefix:
+        // - `[{...}]` - JSON playlist (handled above)
+        // - `http...` - plain link
+        // - anything else - obfuscated link: base64 of the reversed link
+        //   (legacy tortuga.tw format, current one is handled by `extractors::tortuga`)
+        if file.starts_with("http") {
+            populate_video_sources(&mut result, description, file);
+        } else {
+            // padding is unreliable (can be `====`), so strip it and decode without padding
+            let file = file.trim_end_matches("=");
+            let decoded_b64 = BASE64_STANDARD_NO_PAD.decode(file)?;
+            // decoded bytes are the link in reverse order
+            let decoded_b64 = decoded_b64.into_iter().rev().collect();
 
-        let decoded_file = String::from_utf8(decoded_b64)?;
-        populate_video_sources(&mut result, description, &decoded_file);
+            let decoded_file = String::from_utf8(decoded_b64)?;
+            populate_video_sources(&mut result, description, &decoded_file);
+        }
+
+        // flat playlists keep subtitles in a separate top-level `subtitle` field
+        if let Some(subtitle) = extract_playerjs_subtitle(&html) {
+            populate_subtitle(&mut result, subtitle, description);
+        }
     }
     Ok(result)
 }
 
 pub fn extract_playerjs_playlist(content: &str) -> Option<&str> {
-    static PLAYER_JS_FILE_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
-    let re =
-        PLAYER_JS_FILE_REGEXP.get_or_init(|| Regex::new(r#"file:\s?['"](?<file>.+)['"]"#).unwrap());
+    extract_playerjs_field(content, "file")
+}
 
-    re.captures(content)
-        .and_then(|c| c.name("file"))
+pub fn extract_playerjs_subtitle(content: &str) -> Option<&str> {
+    extract_playerjs_field(content, "subtitle").filter(|s| !s.is_empty())
+}
+
+/// Extracts top-level PlayerJS config field value (`name:'...'` or `name:"..."`).
+/// Quoted JSON keys (`"file":`) are not matched, so nested playlist fields are skipped.
+fn extract_playerjs_field<'a>(content: &'a str, field: &str) -> Option<&'a str> {
+    static PLAYER_JS_FIELD_REGEXP: OnceLock<Regex> = OnceLock::new();
+    let re = PLAYER_JS_FIELD_REGEXP.get_or_init(|| {
+        Regex::new(
+            r#"\b(?<name>file|subtitle)\s*:\s*(?:'(?<sq>(?:[^'\\]|\\.)*)'|"(?<dq>(?:[^"\\]|\\.)*)")"#,
+        )
+        .unwrap()
+    });
+
+    re.captures_iter(content)
+        .find(|c| &c["name"] == field)
+        .and_then(|c| c.name("sq").or_else(|| c.name("dq")))
         .map(|m| m.as_str())
 }
 
@@ -226,27 +261,21 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
     }
 }
 
-fn populate_subtitle(sources: &mut Vec<ContentMediaItemSource>, url: &str, default_title: &str) {
-    static PLAYER_JS_SUBTITLE_REGEXP: OnceLock<regex::Regex> = OnceLock::new();
+/// PlayerJS subtitle list format: "[label]url,[label]url" or plain "url"
+fn populate_subtitle(
+    sources: &mut Vec<ContentMediaItemSource>,
+    subtitle: &str,
+    default_title: &str,
+) {
+    for entry in subtitle.split(',').map(str::trim).filter(|e| !e.is_empty()) {
+        let (label, link) = match entry.strip_prefix('[').and_then(|e| e.split_once(']')) {
+            Some((label, link)) => (label, link),
+            None => (default_title.trim(), entry),
+        };
 
-    if url.starts_with("[") {
-        let re = PLAYER_JS_SUBTITLE_REGEXP
-            .get_or_init(|| Regex::new(r#"^\[(?<label>[^\]]+)\](?<url>.*)"#).unwrap());
-
-        if let Some(captures) = re.captures(url) {
-            let label = captures.name("label").unwrap().as_str();
-            let url = captures.name("url").unwrap().as_str();
-
-            sources.push(ContentMediaItemSource::Subtitle {
-                link: String::from(url),
-                description: String::from(label),
-                headers: None,
-            });
-        }
-    } else {
         sources.push(ContentMediaItemSource::Subtitle {
-            link: url.into(),
-            description: String::from(default_title.trim()),
+            link: link.to_owned(),
+            description: label.to_owned(),
             headers: None,
         });
     }
@@ -258,18 +287,61 @@ pub fn default_season_episode_id(season: &str, episode: &str) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::create_client;
-
     use super::*;
 
-    #[test_log::test(tokio::test)]
-    async fn shoudl_extact_tortuga() {
-        let res = load_and_parse_playerjs_sources(
-            create_client().get("https://tortuga.tw/vod/119859"),
-            "ОЗВУЧЕННЯ FANVOXUA ПЛЕЄР TRG",
-        )
-        .await;
+    #[test]
+    fn should_extract_file_and_subtitle_on_same_line() {
+        let html = r#"new Playerjs({id:"p",file:'https://a/index.m3u8',subtitle:"[English]https://a/en.vtt,[Italian]https://a/it.vtt"});"#;
 
-        println!("{res:?}");
+        assert_eq!(
+            extract_playerjs_playlist(html),
+            Some("https://a/index.m3u8")
+        );
+        assert_eq!(
+            extract_playerjs_subtitle(html),
+            Some("[English]https://a/en.vtt,[Italian]https://a/it.vtt")
+        );
+    }
+
+    #[test]
+    fn should_skip_nested_json_fields_and_empty_subtitle() {
+        let html = r#"file:'[{"title":"Ім\'я","file":"https://a/1.m3u8","subtitle":"https://a/1.vtt"}]',
+            subtitle:"","#;
+
+        assert_eq!(
+            extract_playerjs_playlist(html),
+            Some(r#"[{"title":"Ім\'я","file":"https://a/1.m3u8","subtitle":"https://a/1.vtt"}]"#)
+        );
+        assert_eq!(extract_playerjs_subtitle(html), None);
+    }
+
+    #[test]
+    fn should_populate_subtitle_list() {
+        let mut sources = vec![];
+        populate_subtitle(
+            &mut sources,
+            "[English]https://a/en.vtt,[Italian]https://a/it.vtt",
+            "Default",
+        );
+        populate_subtitle(&mut sources, "https://a/plain.vtt", " Dub ");
+
+        let parsed: Vec<_> = sources
+            .iter()
+            .map(|s| match s {
+                ContentMediaItemSource::Subtitle {
+                    link, description, ..
+                } => (description.as_str(), link.as_str()),
+                _ => panic!("subtitle expected"),
+            })
+            .collect();
+
+        assert_eq!(
+            parsed,
+            vec![
+                ("English", "https://a/en.vtt"),
+                ("Italian", "https://a/it.vtt"),
+                ("Dub", "https://a/plain.vtt"),
+            ]
+        );
     }
 }

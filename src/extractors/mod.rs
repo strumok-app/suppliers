@@ -5,3 +5,4 @@ pub mod moonanime;
 pub mod packer_hls;
 // pub mod rapid;
 // pub mod mixdrop;
+pub mod tortuga;

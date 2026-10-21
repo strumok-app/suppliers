@@ -5,6 +5,7 @@ use std::time::Instant;
 use anyhow::Ok;
 
 use super::ContentSupplier;
+use crate::extractors::tortuga;
 use crate::models::{
     ContentDetails, ContentInfo, ContentMediaItem, ContentMediaItemSource, ContentType, MediaType,
 };
@@ -195,11 +196,15 @@ impl ContentSupplier for UAKinoClubContentSupplier {
             let description = params.remove(0);
             let url = params.remove(0);
 
-            let mut sources = playerjs::load_and_parse_playerjs_sources(
-                utils::create_client().get(&url),
-                &description,
-            )
-            .await?;
+            let mut sources = if url.contains("tortuga") {
+                tortuga::extract(&url, &description).await?
+            } else {
+                playerjs::load_and_parse_playerjs_sources(
+                    utils::create_client().get(&url),
+                    &description,
+                )
+                .await?
+            };
             results.append(&mut sources);
         }
 
