@@ -224,9 +224,14 @@ impl From<AnimeItem> for ContentInfo {
 
 /// Extracts and parses the `items: JSON.parse('...')` payload found in the
 /// page's Alpine.js `x-data` attribute.
+///
+/// When a search or channel yields no results the page omits the `items`
+/// payload entirely (it just renders "Nothing found."), so a missing payload is
+/// treated as an empty result set rather than an error.
 fn parse_anime_items(page_content: &str) -> anyhow::Result<Vec<ContentInfo>> {
-    let json = extract_json_parse_arg(page_content, "items: ")
-        .ok_or_else(|| anyhow!("anime items json not found in page"))?;
+    let Some(json) = extract_json_parse_arg(page_content, "items: ") else {
+        return Ok(vec![]);
+    };
 
     let items: Vec<AnimeItem> = serde_json::from_str(&json)?;
 
@@ -263,7 +268,7 @@ mod tests {
 
     #[test_log::test(tokio::test)]
     async fn anizone_should_search() {
-        let res = AnizoneContentSupplier::default().search("Naruto", 1).await;
+        let res = AnizoneContentSupplier::default().search("Хлої", 1).await;
         println!("{res:#?}");
     }
 
