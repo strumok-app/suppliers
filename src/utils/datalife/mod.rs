@@ -17,13 +17,17 @@ use crate::models::ContentMediaItem;
 pub fn search_request(url: &str, query: &str) -> RequestBuilder {
     let client = super::create_client();
 
-    client.post(format!("{url}/index.php")).form(&[
-        ("do", "search"),
-        ("subaction", "search"),
-        ("story", query),
-        ("sortby", "date"),
-        ("resorder", "desc"),
-    ])
+    client
+        .post(format!("{url}/index.php"))
+        // Some sites (e.g. uakino behind Cloudflare) reject form POSTs without Origin
+        .header(reqwest::header::ORIGIN, url)
+        .form(&[
+            ("do", "search"),
+            ("subaction", "search"),
+            ("story", query),
+            ("sortby", "date"),
+            ("resorder", "desc"),
+        ])
 }
 
 pub fn get_channel_url(

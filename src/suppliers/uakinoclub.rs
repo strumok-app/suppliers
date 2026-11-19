@@ -225,9 +225,7 @@ mod tests {
 
     #[tokio::test]
     async fn uakinoclub_should_search() {
-        let res = UAKinoClubContentSupplier::default()
-            .search("Термінатор", 1)
-            .await;
+        let res = UAKinoClubContentSupplier::default().search("хлої", 1).await;
         println!("{res:#?}");
     }
 
