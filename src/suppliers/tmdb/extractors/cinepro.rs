@@ -175,6 +175,7 @@ impl Collector {
                 link: source.url,
                 description,
                 hls_proxy: false,
+                language: None,
             });
         }
 
@@ -194,6 +195,7 @@ impl Collector {
                 headers: proxy_headers(&subtitle.url),
                 link: subtitle.url,
                 description: format!("[CinePro] {provider} - {label}"),
+                language: None,
             });
         }
     }

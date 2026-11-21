@@ -1,7 +1,7 @@
 use hickory_resolver::Resolver;
 use hickory_resolver::TokioResolver;
-use hickory_resolver::config::ResolverConfig;
-use hickory_resolver::name_server::TokioConnectionProvider;
+use hickory_resolver::config::{GOOGLE, ResolverConfig};
+use hickory_resolver::net::runtime::TokioRuntimeProvider;
 use reqwest::dns::Addrs;
 use reqwest::dns::Name;
 use reqwest::dns::Resolve;
@@ -17,14 +17,16 @@ pub struct DoHResolver {
 
 impl DoHResolver {
     fn init_resolver(&self) -> TokioResolver {
-        Resolver::builder(TokioConnectionProvider::default())
+        TokioResolver::builder_tokio()
+            .and_then(|builder| builder.build())
             .unwrap_or_else(|_| {
                 Resolver::builder_with_config(
-                    ResolverConfig::google(),
-                    TokioConnectionProvider::default(),
+                    ResolverConfig::udp_and_tcp(&GOOGLE),
+                    TokioRuntimeProvider::default(),
                 )
+                .build()
+                .expect("failed to build fallback DNS resolver")
             })
-            .build()
     }
 }
 

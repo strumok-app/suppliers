@@ -80,6 +80,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
             description: format!("[Vidlink] {source_id} - {quality_label}"),
             headers: stream.headers,
             hls_proxy: false,
+            language: None,
         });
     }
 

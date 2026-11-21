@@ -67,6 +67,7 @@ impl JWPConfig {
                 headers: headers.clone(),
                 description,
                 hls_proxy: hls_proxy,
+                language: None,
             });
         });
 
@@ -93,6 +94,7 @@ impl JWPConfig {
                     link: track.file.clone(),
                     headers: headers.clone(),
                     description,
+                    language: None,
                 });
             });
         result

@@ -148,6 +148,7 @@ impl ContentSupplier for AnizoneContentSupplier {
             description: "Default".to_string(),
             headers: None,
             hls_proxy: false,
+            language: None,
         });
 
         for sub in player_data.subtitles {
@@ -155,6 +156,7 @@ impl ContentSupplier for AnizoneContentSupplier {
                 link: sub.file,
                 description: sub.title,
                 headers: None,
+                language: None,
             });
         }
 

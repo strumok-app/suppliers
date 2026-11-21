@@ -243,6 +243,7 @@ async fn load_server_stream(
         description: format!("[VidUp] Server {}", idx + 1),
         headers,
         hls_proxy: false,
+        language: None,
     });
 
     Ok(sources)

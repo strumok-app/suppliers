@@ -1,9 +1,12 @@
-use std::{collections::HashMap, sync::OnceLock};
 use anyhow::anyhow;
 use regex::Regex;
 use scraper::Selector;
+use std::{collections::HashMap, sync::OnceLock};
 
-use crate::{models::ContentMediaItemSource, utils::{self, unpack::packerjs}};
+use crate::{
+    models::ContentMediaItemSource,
+    utils::{self, unpack::packerjs},
+};
 
 pub async fn extract(
     url: &str,
@@ -50,11 +53,11 @@ pub async fn extract(
     // println!("{upacked_script}");
 
     static HLS_PROPERTY_RE: OnceLock<Regex> = OnceLock::new();
-    let hls_property_re = HLS_PROPERTY_RE
-        .get_or_init(|| Regex::new(r#""hls(\d+)":\s?['"]([^"]+)['"]"#).unwrap());
+    let hls_property_re =
+        HLS_PROPERTY_RE.get_or_init(|| Regex::new(r#""hls(\d+)":\s?['"]([^"]+)['"]"#).unwrap());
 
-    let sources: Vec<_> = 
-        hls_property_re.captures_iter(&upacked_script)
+    let sources: Vec<_> = hls_property_re
+        .captures_iter(&upacked_script)
         .filter_map(|m| Some((m.get(1)?.as_str(), m.get(2)?.as_str())))
         .map(|(idx, file)| {
             let link = if file.starts_with("/") {
@@ -68,6 +71,7 @@ pub async fn extract(
                 description: format!("{prefix} {idx}."),
                 headers: Some(HashMap::from([("Referer".to_string(), url.to_string())])),
                 hls_proxy: hls_proxy,
+                language: None,
             }
         })
         .collect();
@@ -82,7 +86,9 @@ mod tests {
         let url = "https://otakuhg.site/e/nc84twztnk37";
         let referer = "https://anitaku.to";
 
-        let res = super::extract(url, referer, "Test Title".to_string(), true).await.unwrap();
+        let res = super::extract(url, referer, "Test Title".to_string(), true)
+            .await
+            .unwrap();
 
         println!("{res:#?}");
     }

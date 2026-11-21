@@ -1,5 +1,5 @@
 use reqwest::header;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::utils;
 
@@ -20,8 +20,6 @@ pub async fn server_action<P: Serialize, R: DeserializeOwned>(
         .text()
         .await?;
 
-    
-
     let split_pattern = format!("{res_id}:");
     let action_result = res
         .split("\n")
@@ -31,8 +29,6 @@ pub async fn server_action<P: Serialize, R: DeserializeOwned>(
         })
         .last()
         .unwrap_or_default();
-
-    
 
     let result: R = serde_json::from_str(action_result)?;
 

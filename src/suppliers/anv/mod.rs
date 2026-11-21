@@ -562,6 +562,7 @@ impl AnvContentSupplier {
                         link: base.join(&track.src)?.to_string(),
                         description: format!("{description} - {}", track.label),
                         headers: Some(headers.clone()),
+                        language: None,
                     });
                 }
 
@@ -572,6 +573,7 @@ impl AnvContentSupplier {
                     // Segments are disguised as `file.jpg` and also need the
                     // cookie, so playback goes through the app's HLS proxy.
                     hls_proxy: true,
+                    language: None,
                 });
             }
         }

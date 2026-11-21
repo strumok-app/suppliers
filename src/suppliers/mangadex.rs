@@ -207,6 +207,7 @@ impl ContentSupplier for MangaDexContentSupplier {
                     headers: None,
                     pages: None,
                     params: vec![id.to_owned()],
+                    language: Some(translation_lang.to_owned()),
                 });
             });
 

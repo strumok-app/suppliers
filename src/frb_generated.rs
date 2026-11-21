@@ -27,7 +27,7 @@
 // Section: imports
 
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
+use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_opaque = RustOpaqueMoi,
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.13.0";
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1122641696;
 
 // Section: executor
@@ -578,11 +578,13 @@ impl SseDecode for crate::models::ContentMediaItemSource {
                 let mut var_headers =
                     <Option<std::collections::HashMap<String, String>>>::sse_decode(deserializer);
                 let mut var_hlsProxy = <bool>::sse_decode(deserializer);
+                let mut var_language = <Option<String>>::sse_decode(deserializer);
                 return crate::models::ContentMediaItemSource::Video {
                     link: var_link,
                     description: var_description,
                     headers: var_headers,
                     hls_proxy: var_hlsProxy,
+                    language: var_language,
                 };
             }
             1 => {
@@ -590,10 +592,12 @@ impl SseDecode for crate::models::ContentMediaItemSource {
                 let mut var_description = <String>::sse_decode(deserializer);
                 let mut var_headers =
                     <Option<std::collections::HashMap<String, String>>>::sse_decode(deserializer);
+                let mut var_language = <Option<String>>::sse_decode(deserializer);
                 return crate::models::ContentMediaItemSource::Subtitle {
                     link: var_link,
                     description: var_description,
                     headers: var_headers,
+                    language: var_language,
                 };
             }
             2 => {
@@ -602,11 +606,13 @@ impl SseDecode for crate::models::ContentMediaItemSource {
                     <Option<std::collections::HashMap<String, String>>>::sse_decode(deserializer);
                 let mut var_pages = <Option<Vec<String>>>::sse_decode(deserializer);
                 let mut var_params = <Vec<String>>::sse_decode(deserializer);
+                let mut var_language = <Option<String>>::sse_decode(deserializer);
                 return crate::models::ContentMediaItemSource::Manga {
                     description: var_description,
                     headers: var_headers,
                     pages: var_pages,
                     params: var_params,
+                    language: var_language,
                 };
             }
             _ => {
@@ -951,23 +957,27 @@ impl flutter_rust_bridge::IntoDart for crate::models::ContentMediaItemSource {
                 description,
                 headers,
                 hls_proxy,
+                language,
             } => [
                 0.into_dart(),
                 link.into_into_dart().into_dart(),
                 description.into_into_dart().into_dart(),
                 headers.into_into_dart().into_dart(),
                 hls_proxy.into_into_dart().into_dart(),
+                language.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::models::ContentMediaItemSource::Subtitle {
                 link,
                 description,
                 headers,
+                language,
             } => [
                 1.into_dart(),
                 link.into_into_dart().into_dart(),
                 description.into_into_dart().into_dart(),
                 headers.into_into_dart().into_dart(),
+                language.into_into_dart().into_dart(),
             ]
             .into_dart(),
             crate::models::ContentMediaItemSource::Manga {
@@ -975,12 +985,14 @@ impl flutter_rust_bridge::IntoDart for crate::models::ContentMediaItemSource {
                 headers,
                 pages,
                 params,
+                language,
             } => [
                 2.into_dart(),
                 description.into_into_dart().into_dart(),
                 headers.into_into_dart().into_dart(),
                 pages.into_into_dart().into_dart(),
                 params.into_into_dart().into_dart(),
+                language.into_into_dart().into_dart(),
             ]
             .into_dart(),
             _ => {
@@ -1109,6 +1121,7 @@ impl SseEncode for crate::models::ContentMediaItemSource {
                 description,
                 headers,
                 hls_proxy,
+                language,
             } => {
                 <i32>::sse_encode(0, serializer);
                 <String>::sse_encode(link, serializer);
@@ -1117,11 +1130,13 @@ impl SseEncode for crate::models::ContentMediaItemSource {
                     headers, serializer,
                 );
                 <bool>::sse_encode(hls_proxy, serializer);
+                <Option<String>>::sse_encode(language, serializer);
             }
             crate::models::ContentMediaItemSource::Subtitle {
                 link,
                 description,
                 headers,
+                language,
             } => {
                 <i32>::sse_encode(1, serializer);
                 <String>::sse_encode(link, serializer);
@@ -1129,12 +1144,14 @@ impl SseEncode for crate::models::ContentMediaItemSource {
                 <Option<std::collections::HashMap<String, String>>>::sse_encode(
                     headers, serializer,
                 );
+                <Option<String>>::sse_encode(language, serializer);
             }
             crate::models::ContentMediaItemSource::Manga {
                 description,
                 headers,
                 pages,
                 params,
+                language,
             } => {
                 <i32>::sse_encode(2, serializer);
                 <String>::sse_encode(description, serializer);
@@ -1143,6 +1160,7 @@ impl SseEncode for crate::models::ContentMediaItemSource {
                 );
                 <Option<Vec<String>>>::sse_encode(pages, serializer);
                 <Vec<String>>::sse_encode(params, serializer);
+                <Option<String>>::sse_encode(language, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -1361,7 +1379,7 @@ mod io {
     use flutter_rust_bridge::for_generated::byteorder::{
         NativeEndian, ReadBytesExt, WriteBytesExt,
     };
-    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
+    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate

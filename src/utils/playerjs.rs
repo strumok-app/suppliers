@@ -41,6 +41,7 @@ pub async fn load_and_parse_playerjs(
             headers: None,
             link: String::from(file),
             hls_proxy: false,
+            language: None,
         }];
 
         if let Some(subtitle) = extract_playerjs_subtitle(&html) {
@@ -249,6 +250,7 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
                 headers: None,
 
                 hls_proxy: false,
+                language: None,
             });
         }
     } else {
@@ -257,6 +259,7 @@ fn populate_video_sources(sources: &mut Vec<ContentMediaItemSource>, title: &str
             description: String::from(title.trim()),
             headers: None,
             hls_proxy: false,
+            language: None,
         });
     }
 }
@@ -277,6 +280,7 @@ fn populate_subtitle(
             link: link.to_owned(),
             description: label.to_owned(),
             headers: None,
+            language: None,
         });
     }
 }

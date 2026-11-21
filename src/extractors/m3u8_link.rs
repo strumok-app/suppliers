@@ -32,6 +32,7 @@ pub async fn extract(
             description: title,
             headers: Some(HashMap::from([("Referer".to_string(), url.to_string())])),
             hls_proxy: hls_proxy,
+            language: None,
         }]),
         None => Ok(vec![]),
     }

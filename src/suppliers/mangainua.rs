@@ -218,6 +218,7 @@ impl ContentSupplier for MangaInUaContentSupplier {
                         headers: None,
                         pages: None,
                         params: vec![chapter_id.to_string()],
+                        language: None,
                     }]),
                 })
             })

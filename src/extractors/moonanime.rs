@@ -79,6 +79,7 @@ pub async fn extract(url: &str, description: &str) -> anyhow::Result<Vec<Content
                     },
                     headers: Some(headers.clone()),
                     hls_proxy: false,
+                    language: None,
                 }
             } else {
                 subtitle_idx += 1;
@@ -86,6 +87,7 @@ pub async fn extract(url: &str, description: &str) -> anyhow::Result<Vec<Content
                     link: link.to_string(),
                     description: format!("{subtitle_idx}. {}", label.unwrap_or(description)),
                     headers: Some(headers.clone()),
+                    language: None,
                 }
             };
 

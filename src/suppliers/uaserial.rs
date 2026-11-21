@@ -203,7 +203,7 @@ mod tests {
     #[tokio::test]
     async fn uaserials_should_load_channel() {
         let res = UAserialContentSupplier::default()
-            .load_channel("Фільми", 1)
+            .load_channel("Мультсеріали", 1)
             .await;
         println!("{res:#?}");
     }

@@ -191,6 +191,7 @@ impl ContentSupplier for UFDubContentSupplier {
                     description: "Default".into(),
                     headers: None,
                     hls_proxy: false,
+                    language: None,
                 }]),
                 params: vec![],
             })

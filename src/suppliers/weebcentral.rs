@@ -95,6 +95,7 @@ impl Default for WeebCentralContentSupplier {
                             headers: None,
                             pages: None,
                             params: vec![chapter_id],
+                            language: None,
                         }])
                     }),
                     params: html::default_value(),

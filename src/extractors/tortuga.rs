@@ -53,6 +53,7 @@ pub async fn extract(url: &str, description: &str) -> anyhow::Result<Vec<Content
             },
             headers: None,
             hls_proxy: false,
+            language: None,
         });
     }
 
@@ -62,6 +63,7 @@ pub async fn extract(url: &str, description: &str) -> anyhow::Result<Vec<Content
                 link: link.to_string(),
                 description: label.unwrap_or(description).to_string(),
                 headers: None,
+                language: None,
             });
         }
     }

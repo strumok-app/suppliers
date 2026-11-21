@@ -16,6 +16,7 @@ use super::SourceParams;
 const VIDCORE_URL: &str = "https://vidcore.io";
 
 // enc-dec.app request/response types for vidcore
+// reference: https://raw.githubusercontent.com/smy778/EncDecEndpoints/refs/heads/main/samples/vidcore.py
 
 #[derive(Debug, Serialize)]
 struct DecRequest {
@@ -91,7 +92,8 @@ async fn vidcore_dec_servers(text: &str) -> anyhow::Result<Vec<Server>> {
         .text()
         .await?;
 
-    let res: DecResponse<Vec<Server>> = serde_json::from_str(&res_str)?;
+    let res: DecResponse<Vec<Server>> = serde_json::from_str(&res_str)
+        .map_err(|err| anyhow!("[vidcore] dec servers failed: {err}, response: {res_str}"))?;
 
     Ok(res.result)
 }
@@ -109,7 +111,8 @@ async fn vidcore_dec_stream(text: &str) -> anyhow::Result<StreamResult> {
         .text()
         .await?;
 
-    let res: DecResponse<StreamResult> = serde_json::from_str(&res_str)?;
+    let res: DecResponse<StreamResult> = serde_json::from_str(&res_str)
+        .map_err(|err| anyhow!("[vidcore] dec stream failed: {err}, response: {res_str}"))?;
 
     Ok(res.result)
 }
@@ -252,6 +255,7 @@ async fn load_server_stream(
         description: format!("[VidCore] Server {}", idx + 1),
         headers,
         hls_proxy: false,
+        language: None,
     });
 
     // if let Some(tracks) = stream_data.tracks {

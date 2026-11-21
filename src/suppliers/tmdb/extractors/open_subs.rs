@@ -7,7 +7,9 @@ use super::SourceParams;
 
 const STREIO_URL: &str = "https://opensubtitles.stremio.homes";
 
-pub fn extract_boxed<'a>(params: &'a SourceParams) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
+pub fn extract_boxed<'a>(
+    params: &'a SourceParams,
+) -> BoxFuture<'a, anyhow::Result<Vec<ContentMediaItemSource>>> {
     Box::pin(extract(params))
 }
 
@@ -68,6 +70,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
                 link: sub.url,
                 description,
                 headers: None,
+                language: Some(lang),
             }
         })
         .collect();
@@ -82,13 +85,11 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn should_extract_movie() {
-        let res = extract(
-            &SourceParams {
-                id: 280,
-                imdb_id: Some("tt0103064".to_owned()),
-                ep: None,
-            }
-        )
+        let res = extract(&SourceParams {
+            id: 280,
+            imdb_id: Some("tt0103064".to_owned()),
+            ep: None,
+        })
         .await;
 
         println!("{res:#?}")
@@ -96,13 +97,11 @@ mod tests {
 
     #[tokio::test]
     async fn should_extract_tv() {
-        let res = extract(
-            &SourceParams {
-                id: 655,
-                imdb_id: Some("tt0092455".to_owned()),
-                ep: Some(Episode { e: 1, s: 1 }),
-            }
-        )
+        let res = extract(&SourceParams {
+            id: 655,
+            imdb_id: Some("tt0092455".to_owned()),
+            ep: Some(Episode { e: 1, s: 1 }),
+        })
         .await;
 
         println!("{res:#?}")
