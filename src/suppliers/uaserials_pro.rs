@@ -23,7 +23,7 @@ impl Default for UASerialsProContentSupplier {
                 ("Фільми", format!("{URL}/films/page/")),
                 ("Серіали", format!("{URL}/series/page/")),
                 ("Мультфільми", format!("{URL}/fcartoon/page/")),
-                ("Мультсеріали", format!("{URL}/cartoon/page/")),
+                ("Мультсеріали", format!("{URL}/cartoons/page/")),
             ]),
             processor_content_info_items: html::ItemsProcessor::new(
                 "div.short-item",
@@ -151,15 +151,15 @@ impl ContentSupplier for UASerialsProContentSupplier {
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn should_load_channel() {
+    async fn uaserialspro_should_load_channel() {
         let res = UASerialsProContentSupplier::default()
-            .load_channel("Серіали", 0)
+            .load_channel("Мультсеріали", 0)
             .await;
         println!("{res:#?}");
     }
 
     #[tokio::test]
-    async fn should_search() {
+    async fn uaserialspro_should_search() {
         let res = UASerialsProContentSupplier::default()
             .search("Зоряний шлях", 2)
             .await;
@@ -167,7 +167,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_content_details() {
+    async fn uaserialspro_should_load_content_details() {
         let res = UASerialsProContentSupplier::default()
             .get_content_details("10963-gra-v-kalmara")
             .await;
@@ -175,7 +175,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_load_media_items() {
+    async fn uaserialspro_should_load_media_items() {
         let res = UASerialsProContentSupplier::default()
             .load_media_items(
                 "8831-gotel-kokayin",

@@ -15,8 +15,8 @@ use crate::{
 
 use super::ContentSupplier;
 
-const URL: &str = "https://uaserial.com";
-const SEARCH_URL: &str = "https://uaserial.com/search";
+const URL: &str = "https://uaserial.tv";
+const SEARCH_URL: &str = "https://uaserial.tv/search";
 
 pub struct UAserialContentSupplier {
     channels_map: IndexMap<&'static str, String>,
