@@ -33,3 +33,46 @@ pub fn is_allowed(b: &str) -> bool {
 
     false
 }
+
+/// Normalizes a language name or code (e.g. "english", "eng", "en-US", "ukr", "Ukrainian")
+/// into a 2-letter code understood by the app ("en" or "uk").
+pub fn normalize(lang: &str) -> Option<String> {
+    let lower = lang.trim().to_lowercase();
+    let primary = lower
+        .split(|c: char| !c.is_alphabetic())
+        .find(|s| !s.is_empty())?;
+
+    let code = match primary {
+        "en" | "eng" | "english" | "англійська" => "en",
+        "uk" | "ua" | "ukr" | "ukrainian" | "українська" => "uk",
+        _ => return None,
+    };
+
+    Some(code.to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_normalize_lang() {
+        for l in [
+            "en",
+            "EN",
+            "eng",
+            "English",
+            "en-US",
+            "en_GB",
+            "English (US)",
+        ] {
+            assert_eq!(normalize(l).as_deref(), Some("en"), "{l}");
+        }
+        for l in ["uk", "ua", "ukr", "Ukrainian", "UKR", "uk-UA", "Українська"] {
+            assert_eq!(normalize(l).as_deref(), Some("uk"), "{l}");
+        }
+        for l in ["", "ja", "jpn", "pt-br", "spanish"] {
+            assert_eq!(normalize(l), None, "{l}");
+        }
+    }
+}

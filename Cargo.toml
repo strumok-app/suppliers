@@ -1,6 +1,6 @@
 [package]
 name = "strumok_suppliers"
-version = "5.0.2"
+version = "5.0.3"
 edition = "2024"
 
 # `md-5` is imported as `md5`, which cargo-machete's name-based heuristic

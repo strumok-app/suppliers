@@ -70,7 +70,7 @@ pub async fn extract(params: &SourceParams) -> anyhow::Result<Vec<ContentMediaIt
                 link: sub.url,
                 description,
                 headers: None,
-                language: Some(lang),
+                language: utils::lang::normalize(&lang),
             }
         })
         .collect();
