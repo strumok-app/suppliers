@@ -1,7 +1,7 @@
 use anyhow::{Ok, anyhow};
 use indexmap::IndexMap;
-use regex::Regex;
-use scraper::{Selector, selectable::Selectable};
+use scraper::Selector;
+use serde::Deserialize;
 
 use crate::{
     models::{
@@ -22,8 +22,6 @@ pub struct MangaInUaContentSupplier {
     channels_map: IndexMap<&'static str, String>,
     processor_content_info_items: html::ItemsProcessor<ContentInfo>,
     processor_content_details: html::ScopeProcessor<ContentDetails>,
-    re_chapters: Regex,
-    user_hash: datalife::UserHash,
 }
 
 impl Default for MangaInUaContentSupplier {
@@ -44,60 +42,73 @@ impl Default for MangaInUaContentSupplier {
                 ("Бойовик", format!("{URL}/mangas/boyovik/page/")),
                 ("Психологія", format!("{URL}/mangas/psihologia/page/")),
             ]),
-            processor_content_info_items: html::ItemsProcessor::new(".movie > article.item",     html::ContentInfoProcessor {
-                id: html::attr_value_map(".card__content > h3 > a", "href", |s| {
-                    datalife::extract_id_from_url(URL, s)
-                }),
-                title: html::text_value(".card__content > h3 > a"),
-                secondary_title: html::items_processor(".card__category a", html::TextValue::new().boxed())
-                    .map(|str| Some(str.join(", ")))
-                    .boxed(),
-                image: html::join_processors(vec![
-                    html::attr_value(".card__cover > figure > img", "data-src"),
-                    html::attr_value(".card__cover > figure > img", "src"),
-                ])
-                .map(|items| {
-                    items
-                        .into_iter()
-                        .filter(|src| !src.is_empty())
-                        .map(|src| format!("{URL}{src}"))
-                        .next()
-                })
-                .unwrap_or_default()
+            processor_content_info_items: html::ItemsProcessor::new(
+                ".feed article.card",
+                html::ContentInfoProcessor {
+                    // channel pages use absolute links, search results use relative ones
+                    id: html::attr_value_map(".card__title > a", "href", extract_id),
+                    title: html::text_value(".card__title > a"),
+                    secondary_title: html::optional_text_value(".card__cover > .card__type"),
+                    image: html::self_hosted_image(URL, ".card__cover > img", "src"),
+                }
                 .boxed(),
-            }
-            .boxed()),
+            ),
             processor_content_details: html::ScopeProcessor::new(
-                "#site-content",
+                "article.mt",
                 html::ContentDetailsProcessor {
                     media_type: MediaType::Manga,
-                    title: html::text_value(".item__full-title span"),
+                    title: html::text_value(".mt-title"),
                     original_title: html::default_value(),
-                    image: html::self_hosted_image(URL, ".item__full-sidebar--poster img", "src"),
-                    description: html::text_value(".item__full-description"),
-                    additional_info: html::ItemsProcessor::new(
-                        ".item__full-sidebar > .item__full-sidebar--section > .item__full-sideba--header",
-                        html::join_processors(vec![
-                            html::text_value(".item__full-sidebar--sub"),
-                            html::text_value(".item__full-sidebar--description"),
-                        ])
-                        .map(|strs| {
-                            strs.into_iter()
+                    image: html::self_hosted_image(URL, ".mt-cover > img", "src"),
+                    description: html::text_value_map(".mt-desc", |s| {
+                        utils::text::sanitize_text(&s)
+                    }),
+                    additional_info: html::merge(vec![
+                        html::items_processor(
+                            ".mt-tags-row > li",
+                            html::TextValue::new()
+                                .all_nodes()
                                 .map(|s| utils::text::sanitize_text(&s))
-                                .filter(|s| !s.is_empty())
-                                .collect::<Vec<_>>()
-                                .join(" ")
-                        })
-                        .boxed(),
-                    )
+                                .boxed(),
+                        ),
+                        html::items_processor(".mt-genres > a", html::TextValue::new().boxed())
+                            .map(|genres| vec![genres.join(", ")])
+                            .boxed(),
+                        html::items_processor(
+                            ".mt-facts > div",
+                            html::join_processors(vec![
+                                html::text_value("dt"),
+                                html::Any::new(
+                                    |s: &String| !s.is_empty(),
+                                    vec![
+                                        html::items_processor(
+                                            "dd .tm-chip",
+                                            html::TextValue::new().all_nodes().boxed(),
+                                        )
+                                        .map(|teams| teams.join(", "))
+                                        .boxed(),
+                                        html::text_value("dd"),
+                                    ],
+                                )
+                                .boxed(),
+                            ])
+                            .map(|strs| {
+                                strs.into_iter()
+                                    .map(|s| utils::text::sanitize_text(&s))
+                                    .filter(|s| !s.is_empty())
+                                    .collect::<Vec<_>>()
+                                    .join(": ")
+                            })
+                            .boxed(),
+                        ),
+                    ])
+                    .map(|items| items.into_iter().filter(|s| !s.is_empty()).collect())
                     .boxed(),
                     similar: html::default_value(),
                     params: html::default_value(),
                 }
                 .boxed(),
             ),
-            re_chapters: Regex::new(r"chapters/([a-z0-9]+)").unwrap(),
-            user_hash: datalife::UserHash::new(URL, "site_login_hash"),
         }
     }
 }
@@ -142,23 +153,15 @@ impl ContentSupplier for MangaInUaContentSupplier {
     }
 
     async fn get_content_details(&self, id: &str) -> anyhow::Result<Option<ContentDetails>> {
-        let url = datalife::format_id_from_url(URL, id);
+        // ids saved before the `mangas/` prefix was dropped still carry it
+        let id = id.strip_prefix("mangas/").unwrap_or(id);
+        let url = format!("{URL}/mangas/{id}.html");
 
-        let html = utils::create_client()
-            .get(&url)
-            .send()
-            .await?
-            .text()
-            .await?;
-
-        let document = scraper::Html::parse_document(&html);
-        let root = document.root_element();
-
-        let maybe_details = self.processor_content_details.process(&root);
-
-        self.user_hash.store_from_page(&html);
-
-        Ok(maybe_details)
+        utils::scrap_page(
+            utils::create_client().get(&url),
+            &self.processor_content_details,
+        )
+        .await
     }
 
     async fn load_media_items(
@@ -172,55 +175,64 @@ impl ContentSupplier for MangaInUaContentSupplier {
             .map(|(l, _)| l)
             .ok_or_else(|| anyhow!("cant extract news_id for id: {}", id))?;
 
-        let client = utils::create_json_client();
-
-        let chapters_list_html = self
-            .ajax_request(|user_hash| {
-                client
-                    .post(format!("{URL}/engine/ajax/controller.php"))
-                    .query(&[("mod", "load_chapters")])
-                    .form(&[
-                        ("action", "show"),
-                        ("news_id", news_id),
-                        ("user_hash", &user_hash),
-                        ("news_category", "54"),
-                        ("this_link", ""),
-                    ])
-            })
+        let res: ChaptersResponse = utils::create_client()
+            .post(format!("{URL}/engine/ajax/controller.php"))
+            .query(&[("mod", "mgchapters")])
+            .form(&[("news_id", news_id)])
+            .send()
+            .await?
+            .json()
             .await?;
 
-        let fragment = scraper::Html::parse_fragment(&chapters_list_html);
+        // Chapters come ordered from first to last; alternative translations
+        // of the same chapter share its number, the primary one has `alt: false`.
+        let mut chapters: IndexMap<(String, String), Vec<Chapter>> = IndexMap::new();
+        for chapter in res.chapters {
+            chapters
+                .entry((chapter.tom.clone(), chapter.num.clone()))
+                .or_default()
+                .push(chapter);
+        }
 
-        let result = fragment
-            .root_element()
-            .child_elements()
-            .enumerate()
-            .filter_map(|(n, el)| {
-                let title = el
-                    .attr("data-chapter")
-                    .map(|s| s.trim().to_string())
-                    .unwrap_or_else(|| n.to_string());
-                let translator = el
-                    .attr("data-translator")
-                    .map(|s| s.trim())
-                    .unwrap_or_else(|| "Переклад");
+        let result = chapters
+            .into_iter()
+            .map(|((tom, num), mut translations)| {
+                translations.sort_by_key(|c| c.alt);
 
-                let value = el.attr("value")?;
-                let chapter_id = self.re_chapters.captures(value)?.get(1)?.as_str();
+                let name = translations
+                    .iter()
+                    .map(|c| c.name.trim())
+                    .find(|n| !n.is_empty());
 
-                Some(ContentMediaItem {
-                    section: None,
-                    title: title,
-                    image: None,
-                    params: vec![],
-                    sources: Some(vec![ContentMediaItemSource::Manga {
-                        description: translator.to_string(),
+                let title = match name {
+                    Some(name) => format!("Розділ {num} · {name}"),
+                    None => format!("Розділ {num}"),
+                };
+
+                let section = (!tom.is_empty() && tom != "0").then(|| format!("Том {tom}"));
+
+                let sources = translations
+                    .into_iter()
+                    .map(|c| ContentMediaItemSource::Manga {
+                        description: if c.team.trim().is_empty() {
+                            "Переклад".to_string()
+                        } else {
+                            c.team.trim().to_string()
+                        },
                         headers: None,
                         pages: None,
-                        params: vec![chapter_id.to_string()],
+                        params: vec![c.id.to_string()],
                         language: None,
-                    }]),
-                })
+                    })
+                    .collect();
+
+                ContentMediaItem {
+                    title,
+                    section,
+                    image: None,
+                    params: vec![],
+                    sources: Some(sources),
+                }
             })
             .collect();
 
@@ -238,70 +250,60 @@ impl ContentSupplier for MangaInUaContentSupplier {
 
 impl MangaPagesLoader for MangaInUaContentSupplier {
     async fn load_pages(&self, _id: &str, params: Vec<String>) -> anyhow::Result<Vec<String>> {
-        if params.len() < 1 {
+        if params.is_empty() {
             return Err(anyhow!("invalid params number"));
         }
 
-        let news_id = params[0].as_str();
+        let chapter_id = params[0].as_str();
 
-        let client = utils::create_json_client();
-
-        let pages_list = self
-            .ajax_request(|user_hash| {
-                client
-                    .get(format!("{URL}/engine/ajax/controller.php"))
-                    .query(&[
-                        ("mod", "load_chapters_image"),
-                        ("news_id", news_id),
-                        ("user_hash", &user_hash),
-                        ("action", "show"),
-                    ])
-            })
+        // redirects to the chapter reader page, which renders all page images
+        let html = utils::create_client()
+            .get(format!("{URL}/index.php"))
+            .query(&[("newsid", chapter_id)])
+            .send()
+            .await?
+            .text()
             .await?;
 
-        let fragment = scraper::Html::parse_fragment(&pages_list);
+        let document = scraper::Html::parse_document(&html);
 
-        let img_sel = Selector::parse("img").unwrap();
-        let pages: Vec<_> = fragment
-            .root_element()
+        let img_sel = Selector::parse(".rd-pages figure.rp img").unwrap();
+        let pages: Vec<_> = document
             .select(&img_sel)
-            .filter_map(|el| el.attr("data-src"))
-            .map(|link| link.to_string())
+            .filter_map(|el| el.attr("data-src").or_else(|| el.attr("src")))
+            .filter(|src| !src.is_empty())
+            .map(|src| html::self_hosted_url(URL, src))
             .collect();
 
         Ok(pages)
     }
 }
 
-impl MangaInUaContentSupplier {
-    /// Sends an ajax request that requires `user_hash`, refreshing the cached
-    /// hash once if the server rejects it.
-    async fn ajax_request(
-        &self,
-        build_request: impl Fn(String) -> reqwest::RequestBuilder,
-    ) -> anyhow::Result<String> {
-        self.user_hash
-            .with_retry(|user_hash| Self::send_ajax(build_request(user_hash)))
-            .await
-    }
+fn extract_id(href: String) -> String {
+    let path = href.strip_prefix(URL).unwrap_or(&href);
+    let path = path.trim_start_matches('/');
+    let path = path.strip_prefix("mangas/").unwrap_or(path);
+    path.strip_suffix(".html").unwrap_or(path).to_string()
+}
 
-    async fn send_ajax(request: reqwest::RequestBuilder) -> anyhow::Result<String> {
-        let res = request
-            .header("x-requested-with", "XMLHttpRequest")
-            .send()
-            .await?
-            .text()
-            .await?;
+#[derive(Debug, Deserialize)]
+struct ChaptersResponse {
+    #[serde(default)]
+    chapters: Vec<Chapter>,
+}
 
-        // Error statuses are sent as plain-text bodies with HTTP 200.
-        // `load_chapters` answers an invalid hash with an empty body and
-        // `load_chapters_image` with `hash` (a missing manga yields `empty`).
-        match res.trim() {
-            "" | "hash" => Err(datalife::UserHashRejected.into()),
-            "error" => Err(anyhow!("[mangainua] server responded with error")),
-            _ => Ok(res),
-        }
-    }
+#[derive(Debug, Deserialize)]
+struct Chapter {
+    id: u64,
+    #[serde(default)]
+    tom: String,
+    num: String,
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    team: String,
+    #[serde(default)]
+    alt: bool,
 }
 
 #[cfg(test)]
@@ -309,65 +311,74 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn mangainua_should_extract_id() {
+        assert_eq!(
+            extract_id("https://manga.in.ua/mangas/boyovik/14196-hunter-x-hunter.html".into()),
+            "boyovik/14196-hunter-x-hunter"
+        );
+        assert_eq!(
+            extract_id("/mangas/boyovik/16478-solo-leveling.html".into()),
+            "boyovik/16478-solo-leveling"
+        );
+    }
+
     #[tokio::test]
     async fn mangainua_should_search() {
         let result = MangaInUaContentSupplier::default()
             .search("solo leveling", 0)
-            .await;
-        println!("{result:#?}")
+            .await
+            .unwrap();
+        println!("{result:#?}");
+        assert!(!result.is_empty());
     }
 
     #[tokio::test]
     async fn mangainua_should_load_channel() {
         let result = MangaInUaContentSupplier::default()
             .load_channel("Новинки", 2)
-            .await;
-        println!("{result:#?}")
+            .await
+            .unwrap();
+        println!("{result:#?}");
+        assert!(!result.is_empty());
     }
 
     #[tokio::test]
     async fn mangainua_should_get_content_details() {
         let result = MangaInUaContentSupplier::default()
+            .get_content_details("boyovik/14196-hunter-x-hunter")
+            .await
+            .unwrap();
+        println!("{result:#?}");
+        assert!(result.is_some());
+    }
+
+    #[tokio::test]
+    async fn mangainua_should_get_content_details_for_legacy_id() {
+        let result = MangaInUaContentSupplier::default()
             .get_content_details("mangas/boyovik/14196-hunter-x-hunter")
-            .await;
-        println!("{result:#?}")
+            .await
+            .unwrap();
+        assert!(result.is_some());
     }
 
     #[tokio::test]
     async fn mangainua_should_load_media_items() {
         let result = MangaInUaContentSupplier::default()
-            .load_media_items("mangas/boyovik/14196-hunter-x-hunter", vec![])
-            .await;
-        println!("{result:#?}")
-    }
-
-    #[tokio::test]
-    async fn mangainua_should_refresh_expired_user_hash() {
-        let supplier = MangaInUaContentSupplier::default();
-        supplier
-            .user_hash
-            .store("772f84a2554710856146eb1863c483d705b01412".to_string());
-
-        let result = supplier
-            .load_media_items("mangas/boyovik/14196-hunter-x-hunter", vec![])
+            .load_media_items("boyovik/14196-hunter-x-hunter", vec![])
             .await
             .unwrap();
-
+        println!("{result:#?}");
         assert!(!result.is_empty());
-        assert_ne!(
-            supplier.user_hash.cached().as_deref(),
-            Some("772f84a2554710856146eb1863c483d705b01412")
-        );
     }
 
     #[tokio::test]
     async fn mangainua_should_load_pages() {
         let result = MangaInUaContentSupplier::default()
-            .load_pages(
-                "mangas/boyovik/14196-hunter-x-hunter",
-                vec!["14813".to_string()],
-            )
-            .await;
-        println!("{result:#?}")
+            .load_pages("boyovik/14196-hunter-x-hunter", vec!["14813".to_string()])
+            .await
+            .unwrap();
+        println!("{result:#?}");
+        assert!(!result.is_empty());
     }
 }

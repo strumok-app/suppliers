@@ -16,6 +16,7 @@ use super::SourceParams;
 const VIDUP_URL: &str = "https://vidup.to";
 
 // enc-dec.app request/response types for vidup
+// examaple: https://github.com/smy778/EncDecEndpoints/blob/main/samples/vidup.py/
 
 #[derive(Debug, Serialize)]
 struct DecRequest {
